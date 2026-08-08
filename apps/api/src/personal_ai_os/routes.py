@@ -7,7 +7,17 @@ from fastapi.responses import StreamingResponse
 
 from .chat import stream_chat
 from .runtime import Runtime
-from .schemas import ArtifactCreate, ChatRequest, MCPInvokeRequest, MemoryCreate, MemoryUpdate, SettingsUpdate
+from .schemas import (
+    ArtifactCreate,
+    ChatRequest,
+    ConversationCreate,
+    MCPConnectorCreate,
+    MCPConnectorUpdate,
+    MCPInvokeRequest,
+    MemoryCreate,
+    MemoryUpdate,
+    SettingsUpdate,
+)
 
 router = APIRouter(prefix="/api")
 
@@ -37,8 +47,56 @@ def project_detail(project_id: str, request: Request) -> dict[str, object]:
 
 
 @router.get("/conversations")
-def conversations(request: Request) -> dict[str, object]:
-    return {"items": [item.model_dump(mode="json") for item in runtime_from(request).database.list_conversations()]}
+def conversations(request: Request, project_id: str | None = None) -> dict[str, object]:
+    runtime = runtime_from(request)
+    if project_id:
+        try:
+            runtime.projects.get(project_id)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return {
+        "items": [
+            item.model_dump(mode="json")
+            for item in runtime.database.list_conversations(project_id=project_id)
+        ]
+    }
+
+
+@router.post("/conversations", status_code=201)
+def create_conversation(payload: ConversationCreate, request: Request) -> dict[str, object]:
+    runtime = runtime_from(request)
+    try:
+        runtime.projects.get(payload.project_id)
+        provider = runtime.providers.get(payload.provider)
+    except KeyError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if payload.model not in provider.models:
+        raise HTTPException(status_code=400, detail="Model is not allowlisted for provider")
+    conversation = runtime.database.create_conversation(
+        provider=payload.provider,
+        model=payload.model,
+        project_id=payload.project_id,
+        title=payload.title,
+    )
+    return conversation.model_dump(mode="json")
+
+
+@router.get("/conversations/{conversation_id}")
+def conversation_detail(conversation_id: str, request: Request) -> dict[str, object]:
+    runtime = runtime_from(request)
+    conversation = runtime.database.get_conversation(conversation_id)
+    if conversation is None:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    return {
+        "conversation": conversation.model_dump(mode="json"),
+        "messages": [
+            item.model_dump(mode="json") for item in runtime.database.list_messages(conversation_id)
+        ],
+        "execution_events": [
+            item.model_dump(mode="json")
+            for item in runtime.database.list_execution_events(conversation_id)
+        ],
+    }
 
 
 @router.get("/conversations/{conversation_id}/messages")
@@ -54,7 +112,7 @@ def conversation_messages(conversation_id: str, request: Request) -> dict[str, o
 @router.post("/chat/stream")
 def chat_stream(payload: ChatRequest, request: Request) -> StreamingResponse:
     return StreamingResponse(
-        stream_chat(runtime_from(request), payload),
+        stream_chat(runtime_from(request), payload, request.is_disconnected),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
@@ -131,23 +189,97 @@ def repository_timeline(request: Request) -> dict[str, object]:
 
 
 @router.get("/mcp/tools")
-def list_mcp_tools(request: Request, project_id: str = "general") -> dict[str, object]:
+async def list_mcp_tools(
+    request: Request,
+    project_id: str = "general",
+    connector_id: str | None = None,
+) -> dict[str, object]:
+    runtime = runtime_from(request)
     try:
-        items = runtime_from(request).mcp.list_tools(project_id)
+        if connector_id:
+            items = await runtime.external_mcp.discover(connector_id)
+        else:
+            items = runtime.mcp.list_tools(project_id)
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
     return {"items": [item.model_dump() for item in items]}
 
 
 @router.post("/mcp/invoke")
 async def invoke_mcp(payload: MCPInvokeRequest, request: Request) -> dict[str, object]:
+    runtime = runtime_from(request)
     try:
-        result = await runtime_from(request).mcp.invoke(
-            payload.project_id, payload.tool_name, payload.arguments
-        )
+        if payload.connector_id:
+            result = await runtime.external_mcp.invoke(
+                payload.project_id,
+                payload.connector_id,
+                payload.tool_name,
+                payload.arguments,
+            )
+        else:
+            result = await runtime.mcp.invoke(
+                payload.project_id, payload.tool_name, payload.arguments
+            )
     except (KeyError, RuntimeError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return {"tool": payload.tool_name, "result": result}
+    return {
+        "connector_id": payload.connector_id or "local-reference",
+        "tool": payload.tool_name,
+        "result": result,
+    }
+
+
+@router.get("/mcp/connectors")
+def list_mcp_connectors(request: Request) -> dict[str, object]:
+    return {
+        "items": [
+            item.model_dump(mode="json") for item in runtime_from(request).external_mcp.list()
+        ]
+    }
+
+
+@router.post("/mcp/connectors", status_code=201)
+def create_mcp_connector(
+    payload: MCPConnectorCreate, request: Request
+) -> dict[str, object]:
+    try:
+        connector = runtime_from(request).external_mcp.create(payload.model_dump())
+    except RuntimeError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return connector.model_dump(mode="json")
+
+
+@router.patch("/mcp/connectors/{connector_id}")
+def update_mcp_connector(
+    connector_id: str, payload: MCPConnectorUpdate, request: Request
+) -> dict[str, object]:
+    try:
+        connector = runtime_from(request).external_mcp.update(
+            connector_id, payload.model_dump(exclude_unset=True)
+        )
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return connector.model_dump(mode="json")
+
+
+@router.post("/mcp/connectors/{connector_id}/discover")
+async def discover_mcp_connector(connector_id: str, request: Request) -> dict[str, object]:
+    runtime = runtime_from(request)
+    try:
+        tools = await runtime.external_mcp.discover(connector_id)
+        connector = runtime.external_mcp.get(connector_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    return {
+        "connector": connector.model_dump(mode="json"),
+        "tools": [tool.model_dump() for tool in tools],
+    }
 
 
 @router.get("/settings")
@@ -159,7 +291,13 @@ def get_settings(request: Request) -> dict[str, object]:
         "default_provider": default_provider,
         "default_model": default_model,
         "providers": runtime.providers.describe(),
-        "mcp": {"servers": [{"id": "local-reference", "configured": True}]},
+        "mcp": {
+            "servers": [{"id": "local-reference", "configured": True}],
+            "connectors": [
+                item.model_dump(mode="json") for item in runtime.external_mcp.list()
+            ],
+            "stdio_command_aliases": runtime.external_mcp.registry.stdio_command_aliases,
+        },
         "secrets": {"storage": "environment", "values_exposed": False},
     }
 

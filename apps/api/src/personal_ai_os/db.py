@@ -8,7 +8,16 @@ from pathlib import Path
 from typing import Any, Iterator
 from uuid import uuid4
 
-from personal_ai_os_core import Artifact, Conversation, MemoryRecord, Message, MessageRole, RepositoryEvent
+from personal_ai_os_core import (
+    Artifact,
+    Conversation,
+    ExecutionEvent,
+    MemoryRecord,
+    Message,
+    MessageRole,
+    RepositoryEvent,
+)
+from personal_ai_os_mcp import ConnectionStatus, ConnectorDefinition
 
 
 def _now() -> str:
@@ -51,7 +60,38 @@ MIGRATIONS: list[tuple[int, str]] = [
             key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL
         );
         """,
-    )
+    ),
+    (
+        2,
+        """
+        CREATE INDEX IF NOT EXISTS conversations_project_updated
+            ON conversations(project_id, updated_at DESC);
+        CREATE INDEX IF NOT EXISTS execution_events_conversation_created
+            ON execution_events(conversation_id, created_at);
+        """,
+    ),
+    (
+        3,
+        """
+        CREATE TABLE IF NOT EXISTS mcp_connectors (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            transport TEXT NOT NULL,
+            endpoint TEXT,
+            command TEXT,
+            enabled INTEGER NOT NULL,
+            allowed_tools_json TEXT NOT NULL DEFAULT '[]',
+            connection_status TEXT NOT NULL,
+            last_error TEXT,
+            last_seen TEXT,
+            timeout_seconds REAL NOT NULL,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS mcp_connectors_enabled_updated
+            ON mcp_connectors(enabled, updated_at DESC);
+        """,
+    ),
 ]
 
 
@@ -72,14 +112,22 @@ class Database:
             connection.close()
 
     def migrate(self) -> None:
+        existed_before = self.path.exists() and self.path.stat().st_size > 0
         with self.connect() as connection:
             connection.execute(
                 "CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL)"
             )
             applied = {row["version"] for row in connection.execute("SELECT version FROM schema_migrations")}
-            for version, sql in MIGRATIONS:
-                if version in applied:
-                    continue
+        pending = [(version, sql) for version, sql in MIGRATIONS if version not in applied]
+        if existed_before and applied and pending:
+            timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+            backup_path = self.path.with_name(
+                f"{self.path.name}.backup-before-v{pending[0][0]}-{timestamp}"
+            )
+            with sqlite3.connect(self.path) as source, sqlite3.connect(backup_path) as target:
+                source.backup(target)
+        with self.connect() as connection:
+            for version, sql in pending:
                 connection.executescript(sql)
                 connection.execute(
                     "INSERT INTO schema_migrations(version, applied_at) VALUES (?, ?)", (version, _now())
@@ -109,10 +157,23 @@ class Database:
             row = connection.execute("SELECT * FROM conversations WHERE id = ?", (conversation_id,)).fetchone()
         return Conversation(**dict(row)) if row else None
 
-    def list_conversations(self) -> list[Conversation]:
+    def list_conversations(self, project_id: str | None = None) -> list[Conversation]:
+        query = "SELECT * FROM conversations"
+        params: tuple[Any, ...] = ()
+        if project_id:
+            query += " WHERE project_id = ?"
+            params = (project_id,)
+        query += " ORDER BY updated_at DESC"
         with self.connect() as connection:
-            rows = connection.execute("SELECT * FROM conversations ORDER BY updated_at DESC").fetchall()
+            rows = connection.execute(query, params).fetchall()
         return [Conversation(**dict(row)) for row in rows]
+
+    def update_conversation_title(self, conversation_id: str, title: str) -> None:
+        with self.connect() as connection:
+            connection.execute(
+                "UPDATE conversations SET title = ?, updated_at = ? WHERE id = ?",
+                (title[:120], _now(), conversation_id),
+            )
 
     def update_conversation_route(self, conversation_id: str, provider: str, model: str) -> None:
         with self.connect() as connection:
@@ -326,6 +387,26 @@ class Database:
                 ),
             )
 
+    def list_execution_events(self, conversation_id: str) -> list[ExecutionEvent]:
+        with self.connect() as connection:
+            rows = connection.execute(
+                "SELECT * FROM execution_events WHERE conversation_id = ? ORDER BY created_at, rowid",
+                (conversation_id,),
+            ).fetchall()
+        return [
+            ExecutionEvent(
+                id=row["id"],
+                conversation_id=row["conversation_id"],
+                type=row["type"],
+                status=row["status"],
+                tool=row["tool"],
+                duration_ms=row["duration_ms"],
+                payload=json.loads(row["payload_json"]),
+                created_at=row["created_at"],
+            )
+            for row in rows
+        ]
+
     def get_setting(self, key: str) -> str | None:
         with self.connect() as connection:
             row = connection.execute("SELECT value FROM app_settings WHERE key = ?", (key,)).fetchone()
@@ -338,3 +419,86 @@ class Database:
                 "ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at",
                 (key, value, _now()),
             )
+
+    @staticmethod
+    def _connector_from_row(row: sqlite3.Row) -> ConnectorDefinition:
+        return ConnectorDefinition(
+            id=row["id"],
+            name=row["name"],
+            transport=row["transport"],
+            endpoint=row["endpoint"],
+            command=row["command"],
+            enabled=bool(row["enabled"]),
+            allowed_tools=json.loads(row["allowed_tools_json"]),
+            connection_status=row["connection_status"],
+            last_error=row["last_error"],
+            last_seen=row["last_seen"],
+            timeout_seconds=row["timeout_seconds"],
+            created_at=row["created_at"],
+            updated_at=row["updated_at"],
+        )
+
+    def create_mcp_connector(self, values: dict[str, Any]) -> ConnectorDefinition:
+        now = _now()
+        enabled = bool(values.get("enabled", True))
+        record = ConnectorDefinition(
+            id=str(uuid4()),
+            connection_status=(
+                ConnectionStatus.CONFIGURED if enabled else ConnectionStatus.DISABLED
+            ),
+            created_at=now,
+            updated_at=now,
+            **values,
+        )
+        self.save_mcp_connector(record, insert=True)
+        return record
+
+    def save_mcp_connector(
+        self, connector: ConnectorDefinition, *, insert: bool = False
+    ) -> None:
+        values = (
+            connector.id,
+            connector.name,
+            connector.transport.value,
+            connector.endpoint,
+            connector.command,
+            int(connector.enabled),
+            json.dumps(connector.allowed_tools),
+            connector.connection_status.value,
+            connector.last_error,
+            connector.last_seen.isoformat() if connector.last_seen else None,
+            connector.timeout_seconds,
+            connector.created_at.isoformat(),
+            connector.updated_at.isoformat(),
+        )
+        with self.connect() as connection:
+            if insert:
+                connection.execute(
+                    "INSERT INTO mcp_connectors VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    values,
+                )
+            else:
+                connection.execute(
+                    """
+                    UPDATE mcp_connectors SET
+                        name = ?, transport = ?, endpoint = ?, command = ?, enabled = ?,
+                        allowed_tools_json = ?, connection_status = ?, last_error = ?,
+                        last_seen = ?, timeout_seconds = ?, created_at = ?, updated_at = ?
+                    WHERE id = ?
+                    """,
+                    (*values[1:], connector.id),
+                )
+
+    def get_mcp_connector(self, connector_id: str) -> ConnectorDefinition | None:
+        with self.connect() as connection:
+            row = connection.execute(
+                "SELECT * FROM mcp_connectors WHERE id = ?", (connector_id,)
+            ).fetchone()
+        return self._connector_from_row(row) if row else None
+
+    def list_mcp_connectors(self) -> list[ConnectorDefinition]:
+        with self.connect() as connection:
+            rows = connection.execute(
+                "SELECT * FROM mcp_connectors ORDER BY updated_at DESC"
+            ).fetchall()
+        return [self._connector_from_row(row) for row in rows]

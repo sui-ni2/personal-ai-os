@@ -6,13 +6,21 @@ A mobile-first, general-purpose AI workbench built as a modular monolith. Chat, 
 
 - Next.js App Shell with Chat, Memory, Repository, Projects, and Settings views.
 - FastAPI API with SQLite persistence and automatic schema migration.
-- OpenAI and Anthropic adapters behind one streaming interface.
+- OpenAI and Anthropic adapters behind one streaming interface, with timeout,
+  cancellation, bounded retry, rate-limit normalization, and interrupted-stream handling.
 - SSE execution protocol: `message`, `tool_start`, `tool_result`, `error`, `done`.
-- Allowlisted MCP gateway with a stateless JSON-RPC `system.echo` reference server.
+- Restart-safe conversation history with project filtering and restored execution traces.
+- Allowlisted MCP gateway with a stateless JSON-RPC `system.echo` reference server plus
+  configurable HTTP and fixed-command-alias stdio connectors.
 - General and Soccer project plugins using the same project contract.
 - API and boundary tests.
 
 Provider calls require server-side environment variables. The application still starts without keys and reports each provider as unconfigured without exposing secret values.
+
+stdio connectors are configured server-side through
+`PERSONAL_AI_OS_MCP_STDIO_COMMANDS`. Each entry maps a display alias to one fixed argv
+array whose executable is an absolute path. The browser and model can select an alias;
+they cannot submit a command or shell string.
 
 ## Start locally
 
@@ -54,6 +62,8 @@ pnpm build:web
 - Execution traces contain observable status and tool summaries, never raw private chain-of-thought.
 - Secrets stay in server-side environment variables and are never returned by Settings.
 - MCP tools are registered and allowlisted; the model cannot supply shell commands.
+- HTTP connector endpoints and stdio aliases are operator configuration; discovered tools
+  must still be explicitly added to each connector's `allowed_tools` list.
 - V0.1 is a modular monolith, not a microservice system.
 
 See `docs/implementation-decisions.md` for the quick specification consistency check and `docs/architecture.md` for the package boundaries.

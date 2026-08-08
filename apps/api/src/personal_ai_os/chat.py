@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import json
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Awaitable, Callable
 from time import perf_counter
+from typing import Any
 from uuid import uuid4
 
 from personal_ai_os_core import EventType, ExecutionEvent, Message, MessageRole
+from personal_ai_os_providers import ProviderCancelled, ProviderError, ProviderTool
 
 from .runtime import Runtime
 from .schemas import ChatRequest
@@ -39,34 +41,81 @@ def _event(
     return event
 
 
-async def stream_chat(runtime: Runtime, request: ChatRequest) -> AsyncIterator[str]:
+def _json_type(value: Any) -> str:
+    if isinstance(value, bool):
+        return "boolean"
+    if isinstance(value, int) and not isinstance(value, bool):
+        return "integer"
+    if isinstance(value, float):
+        return "number"
+    if isinstance(value, list):
+        return "array"
+    if isinstance(value, dict):
+        return "object"
+    return "string"
+
+
+def _provider_tool(request: ChatRequest) -> ProviderTool:
+    assert request.tool is not None
+    properties = {
+        key: {"type": _json_type(value)} for key, value in request.tool.arguments.items()
+    }
+    return ProviderTool(
+        name=request.tool.name,
+        description=(
+            "Use this allowlisted MCP tool when the user asks for the selected operation. "
+            "Return arguments only; never construct a shell command."
+        ),
+        input_schema={
+            "type": "object",
+            "properties": properties,
+            "required": list(properties),
+            "additionalProperties": False,
+        },
+        suggested_arguments=request.tool.arguments,
+    )
+
+
+async def stream_chat(
+    runtime: Runtime,
+    request: ChatRequest,
+    is_disconnected: Callable[[], Awaitable[bool]] | None = None,
+) -> AsyncIterator[str]:
     started = perf_counter()
     conversation = (
-        runtime.database.get_conversation(request.conversation_id) if request.conversation_id else None
+        runtime.database.get_conversation(request.conversation_id)
+        if request.conversation_id
+        else None
     )
     if request.conversation_id and not conversation:
-        event = ExecutionEvent(
-            id=str(uuid4()),
-            type=EventType.ERROR,
-            status="failed",
-            conversation_id=request.conversation_id,
-            payload={"message": "Conversation not found"},
+        yield _sse(
+            ExecutionEvent(
+                id=str(uuid4()),
+                type=EventType.ERROR,
+                status="failed",
+                conversation_id=request.conversation_id,
+                payload={"message": "Conversation not found"},
+            )
         )
-        yield _sse(event)
         return
 
     try:
         project = runtime.projects.get(request.project_id)
         provider = runtime.providers.get(request.provider)
+        if request.model not in provider.models:
+            raise KeyError(
+                f"Model is not allowlisted for provider {request.provider}: {request.model}"
+            )
     except KeyError as exc:
-        event = ExecutionEvent(
-            id=str(uuid4()),
-            type=EventType.ERROR,
-            status="failed",
-            conversation_id=request.conversation_id,
-            payload={"message": str(exc)},
+        yield _sse(
+            ExecutionEvent(
+                id=str(uuid4()),
+                type=EventType.ERROR,
+                status="failed",
+                conversation_id=request.conversation_id,
+                payload={"message": str(exc)},
+            )
         )
-        yield _sse(event)
         return
 
     if conversation is None:
@@ -77,53 +126,31 @@ async def stream_chat(runtime: Runtime, request: ChatRequest) -> AsyncIterator[s
             title=request.content.strip().splitlines()[0],
         )
     elif conversation.project_id != request.project_id:
-        error = _event(
-            runtime,
-            event_type=EventType.ERROR,
-            status="failed",
-            conversation_id=conversation.id,
-            payload={"message": "A conversation cannot change project context"},
+        yield _sse(
+            _event(
+                runtime,
+                event_type=EventType.ERROR,
+                status="failed",
+                conversation_id=conversation.id,
+                payload={"message": "A conversation cannot change project context"},
+            )
         )
-        yield _sse(error)
         return
     else:
-        runtime.database.update_conversation_route(conversation.id, request.provider, request.model)
+        if conversation.title == "New conversation" and not runtime.database.list_messages(
+            conversation.id
+        ):
+            runtime.database.update_conversation_title(
+                conversation.id, request.content.strip().splitlines()[0]
+            )
+        runtime.database.update_conversation_route(
+            conversation.id, request.provider, request.model
+        )
 
     runtime.database.add_message(conversation.id, MessageRole.USER, request.content)
-    tool_ref: list[str] = []
+    tool_refs: list[str] = []
 
     try:
-        if request.tool:
-            tool_started = perf_counter()
-            start_event = _event(
-                runtime,
-                event_type=EventType.TOOL_START,
-                status="started",
-                conversation_id=conversation.id,
-                tool=request.tool.name,
-                payload={"server": "allowlisted", "arguments": sorted(request.tool.arguments)},
-            )
-            yield _sse(start_event)
-            result = await runtime.mcp.invoke(request.project_id, request.tool.name, request.tool.arguments)
-            tool_ref.append(request.tool.name)
-            duration = int((perf_counter() - tool_started) * 1000)
-            result_event = _event(
-                runtime,
-                event_type=EventType.TOOL_RESULT,
-                status="succeeded",
-                conversation_id=conversation.id,
-                tool=request.tool.name,
-                duration_ms=duration,
-                payload={"result": result},
-            )
-            yield _sse(result_event)
-            runtime.database.add_repository_event(
-                event_type="tool.completed",
-                summary=f"Completed {request.tool.name}",
-                project_id=request.project_id,
-                details={"conversation_id": conversation.id, "duration_ms": duration},
-            )
-
         history = runtime.database.list_messages(conversation.id)
         system_message = Message(
             id="project-context",
@@ -134,60 +161,140 @@ async def stream_chat(runtime: Runtime, request: ChatRequest) -> AsyncIterator[s
                 + json.dumps(project.context(), ensure_ascii=False)
             ),
         )
+        provider_messages = [system_message, *history]
+
+        call = None
+        tool_result: dict[str, Any] | None = None
         if request.tool:
-            history.append(
-                Message(
-                    id="tool-result",
-                    conversation_id=conversation.id,
-                    role=MessageRole.SYSTEM,
-                    content="Verified tool result: " + json.dumps(result, ensure_ascii=False),
-                    tool_refs=tool_ref,
+            call = await provider.request_tool(
+                provider_messages, request.model, _provider_tool(request)
+            )
+            if call.name != request.tool.name:
+                raise ProviderError(
+                    "Provider requested a tool that was not offered",
+                    code="tool_not_allowlisted",
                 )
+            tool_started = perf_counter()
+            yield _sse(
+                _event(
+                    runtime,
+                    event_type=EventType.TOOL_START,
+                    status="started",
+                    conversation_id=conversation.id,
+                    tool=call.name,
+                    payload={
+                        "connector_id": request.tool.connector_id or "local-reference",
+                        "provider_tool_call_id": call.id,
+                        "arguments": sorted(call.arguments),
+                    },
+                )
+            )
+            if request.tool.connector_id:
+                result = await runtime.external_mcp.invoke(
+                    request.project_id,
+                    request.tool.connector_id,
+                    call.name,
+                    call.arguments,
+                )
+                tool_reference = f"{request.tool.connector_id}:{call.name}"
+            else:
+                result = await runtime.mcp.invoke(
+                    request.project_id, call.name, call.arguments
+                )
+                tool_reference = call.name
+            tool_refs.append(tool_reference)
+            tool_result = result
+            duration = int((perf_counter() - tool_started) * 1000)
+            yield _sse(
+                _event(
+                    runtime,
+                    event_type=EventType.TOOL_RESULT,
+                    status="succeeded",
+                    conversation_id=conversation.id,
+                    tool=call.name,
+                    duration_ms=duration,
+                    payload={
+                        "connector_id": request.tool.connector_id or "local-reference",
+                        "provider_tool_call_id": call.id,
+                        "result": result,
+                    },
+                )
+            )
+            runtime.database.add_repository_event(
+                event_type="tool.completed",
+                summary=f"Completed {call.name}",
+                project_id=request.project_id,
+                details={"conversation_id": conversation.id, "duration_ms": duration},
             )
 
         chunks: list[str] = []
-        async for chunk in provider.stream([system_message, *history], request.model):
-            chunks.append(chunk)
-            message_event = _event(
-                runtime,
-                event_type=EventType.MESSAGE,
-                status="running",
-                conversation_id=conversation.id,
-                payload={"delta": chunk},
+        stream = (
+            provider.stream_after_tool(
+                provider_messages, request.model, call, tool_result
             )
-            yield _sse(message_event)
+            if call is not None and tool_result is not None
+            else provider.stream(provider_messages, request.model)
+        )
+        async for chunk in stream:
+            if is_disconnected is not None and await is_disconnected():
+                raise ProviderCancelled(
+                    "Client disconnected during provider stream", code="cancelled"
+                )
+            chunks.append(chunk)
+            yield _sse(
+                _event(
+                    runtime,
+                    event_type=EventType.MESSAGE,
+                    status="running",
+                    conversation_id=conversation.id,
+                    payload={"delta": chunk},
+                )
+            )
 
         assistant = runtime.database.add_message(
             conversation.id,
             MessageRole.ASSISTANT,
             "".join(chunks),
-            tool_refs=tool_ref,
+            tool_refs=tool_refs,
         )
-        done = _event(
-            runtime,
-            event_type=EventType.DONE,
-            status="succeeded",
-            conversation_id=conversation.id,
-            duration_ms=int((perf_counter() - started) * 1000),
-            payload={"message_id": assistant.id, "conversation_id": conversation.id},
+        yield _sse(
+            _event(
+                runtime,
+                event_type=EventType.DONE,
+                status="succeeded",
+                conversation_id=conversation.id,
+                duration_ms=int((perf_counter() - started) * 1000),
+                payload={"message_id": assistant.id, "conversation_id": conversation.id},
+            )
         )
-        yield _sse(done)
     except Exception as exc:
-        error = _event(
-            runtime,
-            event_type=EventType.ERROR,
-            status="failed",
-            conversation_id=conversation.id,
-            duration_ms=int((perf_counter() - started) * 1000),
-            payload={"message": str(exc)},
+        payload: dict[str, object] = {"message": str(exc)}
+        if isinstance(exc, ProviderError):
+            payload.update(
+                {
+                    "code": exc.code,
+                    "provider": request.provider,
+                    "retryable": exc.retryable,
+                    "status_code": exc.status_code,
+                }
+            )
+        yield _sse(
+            _event(
+                runtime,
+                event_type=EventType.ERROR,
+                status="failed",
+                conversation_id=conversation.id,
+                duration_ms=int((perf_counter() - started) * 1000),
+                payload=payload,
+            )
         )
-        yield _sse(error)
-        done = _event(
-            runtime,
-            event_type=EventType.DONE,
-            status="failed",
-            conversation_id=conversation.id,
-            duration_ms=int((perf_counter() - started) * 1000),
-            payload={"conversation_id": conversation.id},
+        yield _sse(
+            _event(
+                runtime,
+                event_type=EventType.DONE,
+                status="failed",
+                conversation_id=conversation.id,
+                duration_ms=int((perf_counter() - started) * 1000),
+                payload={"conversation_id": conversation.id},
+            )
         )
-        yield _sse(done)

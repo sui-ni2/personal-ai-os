@@ -17,7 +17,7 @@ class GeneralProject:
         return {"scope": "general", "instructions": ["Use only explicitly granted tools and sources."]}
 
     def tools(self) -> set[str]:
-        return {"system.echo"}
+        return {"system.echo", "external:*"}
 
     def views(self) -> list[ProjectView]:
         return [ProjectView(id="overview", label="Overview", route="/projects/general")]
@@ -26,4 +26,4 @@ class GeneralProject:
         return {"file", "url", "note"}
 
     def permissions(self) -> dict[str, list[str]]:
-        return {"tools": ["system.echo"], "files": []}
+        return {"tools": ["system.echo", "external:*"], "files": []}

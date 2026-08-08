@@ -13,12 +13,18 @@ FastAPI application
   |
   +-- personal_ai_os_core       generic records and project contract
   +-- personal_ai_os_providers  OpenAI / Anthropic adapters
-  +-- personal_ai_os_mcp        allowlisted gateway and reference connector
+  +-- personal_ai_os_mcp        allowlisted gateway, registry, HTTP/stdio transports
   +-- personal_ai_os_projects   General / Soccer plugin registrations
         |
         v
 SQLite + migration ledger
 ```
+
+Chat asks the selected provider for a structured call to the single tool selected by the
+user. The provider-safe function name is mapped back to the exact MCP tool ID, the gateway
+checks project and connector allowlists, and the native provider tool-result protocol is
+used for the final streamed answer. Only observable calls, results, status, and timing are
+written to the execution trace.
 
 The deployable unit is one API process and one web process, with package boundaries inside one repository. SQLite is accessed through a small repository layer so a later PostgreSQL implementation can replace it without changing core schemas.
 

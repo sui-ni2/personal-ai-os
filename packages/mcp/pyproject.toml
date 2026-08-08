@@ -8,6 +8,7 @@ version = "0.1.0"
 description = "Allowlisted MCP gateway for Personal AI OS"
 requires-python = ">=3.11"
 dependencies = [
+  "httpx>=0.28,<1",
   "pydantic>=2.10,<3",
   "personal-ai-os-core==0.1.0",
 ]
