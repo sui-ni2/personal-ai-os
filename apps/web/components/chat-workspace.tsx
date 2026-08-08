@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, KeyboardEvent as ReactKeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
+  BookmarkPlus,
+  Check,
   ChevronDown,
   History,
   MessageCircle,
@@ -31,6 +33,8 @@ type ConversationDetail = { conversation: Conversation; messages: PersistedMessa
 type MCPConnector = { id: string; name: string; enabled: boolean; allowed_tools: string[]; connection_status: "disabled" | "configured" | "connected" | "error" };
 type RealtimeStatus = { configured: boolean; model: string; transcription_model: string; transport: "webrtc" };
 type LiveState = "idle" | "connecting" | "listening" | "error";
+type MemoryKind = "fact" | "preference" | "rule" | "project";
+type MemoryTarget = UiMessage & { index: number };
 
 const ACTIVE_CONVERSATION_KEY = "personal-ai-os.active-conversation";
 
@@ -60,7 +64,12 @@ export function ChatWorkspace() {
   const [liveMessage, setLiveMessage] = useState("Tap start when you are ready. Microphone access is requested only then.");
   const [liveCaption, setLiveCaption] = useState("");
   const [liveSaveWarning, setLiveSaveWarning] = useState("");
+  const [memoryTarget, setMemoryTarget] = useState<MemoryTarget>();
+  const [memoryKind, setMemoryKind] = useState<MemoryKind>("fact");
+  const [memoryText, setMemoryText] = useState("");
+  const [memoryState, setMemoryState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const conversationRef = useRef<HTMLDivElement>(null);
+  const memoryDialogRef = useRef<HTMLElement>(null);
   const peerRef = useRef<RTCPeerConnection | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -106,6 +115,14 @@ export function ChatWorkspace() {
   }, []);
 
   useEffect(() => { conversationRef.current?.scrollTo({ top: conversationRef.current.scrollHeight, behavior: running ? "auto" : "smooth" }); }, [messages, running]);
+
+  useEffect(() => {
+    if (!memoryTarget) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    window.requestAnimationFrame(() => memoryDialogRef.current?.querySelector<HTMLElement>("textarea")?.focus());
+    return () => { document.body.style.overflow = previous; };
+  }, [memoryTarget]);
 
   const selectedConnector = useMemo(() => connectors.find((item) => item.id === connectorId), [connectorId, connectors]);
   const activeConversation = useMemo(() => conversations.find((item) => item.id === conversationId), [conversationId, conversations]);
@@ -294,6 +311,60 @@ export function ChatWorkspace() {
     setMode(next);
   }
 
+  function openMemoryDialog(message: UiMessage, index: number) {
+    setMemoryTarget({ ...message, index });
+    setMemoryText(message.content.trim());
+    setMemoryKind(message.role === "user" ? "preference" : "fact");
+    setMemoryState("idle");
+  }
+
+  function closeMemoryDialog() {
+    setMemoryTarget(undefined);
+    setMemoryText("");
+    setMemoryState("idle");
+  }
+
+  async function saveMemory() {
+    const normalized = memoryText.trim();
+    if (!memoryTarget || !conversationId || !normalized || memoryState === "saving") return;
+    setMemoryState("saving");
+    const messageRef = memoryTarget.id ? `message:${memoryTarget.id}` : `turn:${memoryTarget.index + 1}`;
+    try {
+      await apiJson("/api/memory", {
+        method: "POST",
+        body: JSON.stringify({
+          type: memoryKind,
+          text: normalized,
+          source: `conversation:${conversationId}:${messageRef}`,
+          confidence: 1,
+          project_id: project,
+        }),
+      });
+      setMemoryState("saved");
+    } catch {
+      setMemoryState("error");
+    }
+  }
+
+  function handleMemoryDialogKeyDown(event: ReactKeyboardEvent<HTMLElement>) {
+    if (event.key === "Escape") {
+      closeMemoryDialog();
+      return;
+    }
+    if (event.key !== "Tab") return;
+    const focusable = Array.from(event.currentTarget.querySelectorAll<HTMLElement>("button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), a[href]"));
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
+
   const history = (
     <div className="space-y-4">
       <div className="flex gap-2">
@@ -347,7 +418,22 @@ export function ChatWorkspace() {
                   </div>
                 )}
                 <div className="space-y-8">
-                  {messages.map((message, index) => message.role === "user" ? <article key={message.id || index} className="ml-auto max-w-[88%] rounded-card bg-accent-soft px-4 py-3 text-sm leading-7 sm:max-w-[78%]"><RichMessage content={message.content} /></article> : message.role === "system" ? <article key={message.id || index} className="rounded-control border border-danger/25 bg-surface px-4 py-3 text-sm leading-6 text-danger">{message.content}</article> : <article key={message.id || index} className="grid grid-cols-[24px_minmax(0,1fr)] gap-3 text-[15px]"><Sparkles aria-hidden className="mt-2 text-accent" size={17} />{message.content ? <RichMessage content={message.content} /> : <span className="mt-2 text-sm text-text-tertiary">Responding…</span>}</article>)}
+                  {messages.map((message, index) => message.role === "user" ? (
+                    <div key={message.id || index} className="ml-auto max-w-[88%] sm:max-w-[78%]">
+                      <article className="rounded-card bg-accent-soft px-4 py-3 text-sm leading-7"><RichMessage content={message.content} /></article>
+                      {message.content && conversationId && !running && <button type="button" className="mt-1.5 inline-flex min-h-9 items-center gap-1.5 rounded-control px-2 text-[11px] font-medium text-text-tertiary hover:bg-surface-subtle hover:text-text-primary" onClick={() => openMemoryDialog(message, index)}><BookmarkPlus aria-hidden size={14} />Save to Memory</button>}
+                    </div>
+                  ) : message.role === "system" ? (
+                    <article key={message.id || index} className="rounded-control border border-danger/25 bg-surface px-4 py-3 text-sm leading-6 text-danger">{message.content}</article>
+                  ) : (
+                    <article key={message.id || index} className="grid grid-cols-[24px_minmax(0,1fr)] gap-3 text-[15px]">
+                      <Sparkles aria-hidden className="mt-2 text-accent" size={17} />
+                      <div className="min-w-0">
+                        {message.content ? <RichMessage content={message.content} /> : <span className="mt-2 text-sm text-text-tertiary">Responding…</span>}
+                        {message.content && conversationId && !running && <button type="button" className="mt-2 inline-flex min-h-9 items-center gap-1.5 rounded-control px-2 text-[11px] font-medium text-text-tertiary hover:bg-surface-subtle hover:text-text-primary" onClick={() => openMemoryDialog(message, index)}><BookmarkPlus aria-hidden size={14} />Save to Memory</button>}
+                      </div>
+                    </article>
+                  ))}
                 </div>
               </div>
             </div>
@@ -375,6 +461,30 @@ export function ChatWorkspace() {
       </section>
 
       {historyOpen && <div className="fixed inset-0 z-50"><button className="absolute inset-0 bg-text-primary/20" onClick={() => setHistoryOpen(false)} aria-label="Close conversation history" /><aside role="dialog" aria-modal="true" aria-label="Conversation history" className="absolute inset-y-0 right-0 w-[min(340px,90vw)] border-l border-line bg-surface-elevated p-4 shadow-composer"><div className="mb-4 flex items-center justify-between"><h2 className="text-lg font-medium">Conversations</h2><button className="icon-button" onClick={() => setHistoryOpen(false)} aria-label="Close conversation history"><X aria-hidden size={20} /></button></div>{history}</aside></div>}
+
+      {memoryTarget && (
+        <div className="fixed inset-0 z-[60] flex items-end justify-center md:items-center md:p-6">
+          <button className="absolute inset-0 bg-text-primary/25" onClick={closeMemoryDialog} aria-label="Close save to memory" />
+          <section ref={memoryDialogRef} role="dialog" aria-modal="true" aria-labelledby="save-memory-title" className="relative w-full rounded-t-[28px] border border-line bg-surface-elevated px-5 pb-[max(24px,env(safe-area-inset-bottom))] pt-4 shadow-composer md:max-w-lg md:rounded-card md:p-6" onKeyDown={handleMemoryDialogKeyDown}>
+            <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-line-strong md:hidden" aria-hidden />
+            <div className="flex items-start justify-between gap-4">
+              <div><p className="eyebrow">Long-term memory</p><h2 id="save-memory-title" className="mt-1 text-xl font-medium tracking-[-0.02em]">Save what matters</h2></div>
+              <button type="button" className="icon-button -mr-2 -mt-2" onClick={closeMemoryDialog} aria-label="Close save to memory"><X aria-hidden size={20} /></button>
+            </div>
+            <p className="mt-3 text-sm leading-6 text-text-secondary">Only this reviewed note will be saved. The rest of the conversation stays out of long-term Memory.</p>
+            <div className="scrollbar-subtle mt-5 flex gap-2 overflow-x-auto pb-1" role="group" aria-label="Memory type">
+              {(["fact", "preference", "rule", "project"] as MemoryKind[]).map((item) => <button key={item} type="button" className={`chip shrink-0 capitalize ${memoryKind === item ? "bg-accent-soft text-accent-hover" : ""}`} aria-pressed={memoryKind === item} onClick={() => setMemoryKind(item)}>{item}</button>)}
+            </div>
+            <label className="mt-4 block text-xs font-medium text-text-secondary">Memory note<textarea className="textarea-field mt-2 min-h-36 w-full resize-y text-[15px] leading-6" value={memoryText} onChange={(event) => { setMemoryText(event.target.value); if (memoryState !== "idle") setMemoryState("idle"); }} /></label>
+            <p className="mt-2 text-xs text-text-tertiary">Project: {projects.find((item) => item.id === project)?.name || project} · Source: this conversation</p>
+            {memoryState === "error" && <p className="mt-3 text-sm text-danger" role="alert">This note could not be saved. Check the local API and try again.</p>}
+            <div className="mt-5 flex gap-3">
+              <button type="button" className="button-secondary flex-1" onClick={closeMemoryDialog}>Cancel</button>
+              <button type="button" className="button-primary flex-1" onClick={() => void saveMemory()} disabled={!memoryText.trim() || memoryState === "saving" || memoryState === "saved"}>{memoryState === "saved" ? <><Check aria-hidden size={17} />Saved</> : memoryState === "saving" ? "Saving…" : "Save memory"}</button>
+            </div>
+          </section>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,12 +1,27 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Clock3, FileText, FolderOpen, Plus } from "lucide-react";
 import { apiJson } from "@/lib/api";
 import { EmptyState, ErrorState, LoadingState } from "@/components/ui-states";
 
 type Artifact = { id: string; kind: string; title: string; locator: string; project_id?: string; created_at: string };
-type TimelineEvent = { id: string; event_type: string; summary: string; project_id?: string; created_at: string; details: Record<string, unknown> };
+type TimelineEvent = { id: string; event_type: string; summary: string; artifact_id?: string; project_id?: string; created_at: string; details: Record<string, unknown> };
+
+function dayKey(value: string | Date) {
+  const date = value instanceof Date ? value : new Date(value);
+  return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+}
+
+function dayLabel(value: string) {
+  const date = new Date(value);
+  const today = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate() - 1);
+  if (dayKey(date) === dayKey(today)) return "Today";
+  if (dayKey(date) === dayKey(yesterday)) return "Yesterday";
+  return date.toLocaleDateString([], { month: "long", day: "numeric", year: date.getFullYear() === today.getFullYear() ? undefined : "numeric" });
+}
 
 export function RepositoryManager() {
   const [artifacts, setArtifacts] = useState<Artifact[]>([]);
@@ -16,6 +31,18 @@ export function RepositoryManager() {
   const [view, setView] = useState<"timeline" | "files">("timeline");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+
+  const artifactById = useMemo(() => new Map(artifacts.map((item) => [item.id, item])), [artifacts]);
+  const groupedEvents = useMemo(() => {
+    const groups: { key: string; label: string; items: TimelineEvent[] }[] = [];
+    for (const item of events) {
+      const key = dayKey(item.created_at);
+      const existing = groups.find((group) => group.key === key);
+      if (existing) existing.items.push(item);
+      else groups.push({ key, label: dayLabel(item.created_at), items: [item] });
+    }
+    return groups;
+  }, [events]);
 
   async function load() {
     try {
@@ -60,29 +87,42 @@ export function RepositoryManager() {
         <section aria-label="Repository timeline" className="max-w-3xl">
           <div className="mb-4 flex items-center gap-2">
             <Clock3 aria-hidden size={17} className="text-text-tertiary" strokeWidth={1.7} />
-            <h2 className="text-sm font-medium uppercase tracking-[0.11em] text-text-tertiary">Activity</h2>
+            <h2 className="text-sm font-medium text-text-secondary">What your AI has done</h2>
           </div>
           {events.length === 0 ? (
             <EmptyState title="No activity yet" description="Memory, tool, and artifact changes will appear here as they happen." />
           ) : (
-            <ol className="relative space-y-1 before:absolute before:bottom-6 before:left-[19px] before:top-6 before:w-px before:bg-line sm:before:left-[77px]">
-              {events.map((item) => (
-                <li key={item.id} className="relative grid grid-cols-[40px_minmax(0,1fr)] gap-3 rounded-card px-1 py-4 sm:grid-cols-[78px_minmax(0,1fr)] sm:gap-5">
-                  <time className="z-10 hidden bg-background pt-0.5 text-xs text-text-tertiary sm:block">{new Date(item.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time>
-                  <span className="z-10 grid size-10 place-items-center rounded-control border border-line bg-surface text-text-secondary sm:absolute sm:left-[58px] sm:top-2.5">
-                    <FileText aria-hidden size={17} strokeWidth={1.7} />
-                  </span>
-                  <article className="min-w-0 sm:pl-14">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="text-[15px] font-medium">{item.summary}</h3>
-                      <span className="chip capitalize">{item.event_type.replaceAll("_", " ")}</span>
-                    </div>
-                    <p className="mt-1 text-sm text-text-secondary">{item.project_id || "General"}</p>
-                    <time className="mt-1 block text-xs text-text-tertiary sm:hidden">{new Date(item.created_at).toLocaleString()}</time>
-                  </article>
-                </li>
+            <div className="space-y-8">
+              {groupedEvents.map((group) => (
+                <section key={group.key} aria-labelledby={`repository-day-${group.key}`}>
+                  <h3 id={`repository-day-${group.key}`} className="mb-2 text-xs font-medium uppercase tracking-[0.12em] text-text-tertiary">{group.label}</h3>
+                  <ol className="overflow-hidden rounded-card border border-line bg-surface">
+                    {group.items.map((item) => {
+                      const artifact = item.artifact_id ? artifactById.get(item.artifact_id) : undefined;
+                      return (
+                        <li key={item.id} className="grid grid-cols-[52px_minmax(0,1fr)] gap-3 border-b border-line px-4 py-4 last:border-b-0 sm:grid-cols-[64px_minmax(0,1fr)] sm:px-5">
+                          <time className="pt-0.5 text-xs font-medium tabular-nums text-text-tertiary">{new Date(item.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time>
+                          <article className="min-w-0">
+                            <div className="flex items-start gap-3">
+                              <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-control bg-surface-subtle text-text-secondary"><FileText aria-hidden size={16} strokeWidth={1.7} /></span>
+                              <div className="min-w-0 flex-1">
+                                <h4 className="text-[15px] font-medium leading-6">{item.summary}</h4>
+                                <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-text-tertiary">
+                                  <span>{item.project_id || "General"}</span>
+                                  <span aria-hidden>·</span>
+                                  <span className="capitalize">{item.event_type.replaceAll("_", " ").replaceAll(".", " ")}</span>
+                                </div>
+                                {artifact && <p className="mt-2 truncate font-mono text-[11px] text-text-secondary">{artifact.locator}</p>}
+                              </div>
+                            </div>
+                          </article>
+                        </li>
+                      );
+                    })}
+                  </ol>
+                </section>
               ))}
-            </ol>
+            </div>
           )}
         </section>
       )}

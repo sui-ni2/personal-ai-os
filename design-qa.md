@@ -47,11 +47,12 @@ Blocked for the same reason. The required focused comparisons for header control
 
 - Iteration 1: source visuals opened; implementation capture unavailable; final visual comparison blocked.
 - Iteration 2: retried the required in-app Browser, then the allowed Chrome fallback; neither control interface is exposed. Added completed-transcript persistence, Live short-title generation, PWA icons/installability, and stronger automated Realtime tests. These changes improve product completeness but do not substitute for browser visual evidence.
+- Iteration 3: the required in-app Browser control interface is still unavailable. Added explicit per-message Save to Memory with an editable, categorized modal; Active/Archived Memory filtering; date-grouped Repository timeline rows; and tighter mobile density for Projects and Settings. Backend tests, TypeScript, production build, Python compile, service-worker syntax, and diff checks pass, but these checks still do not substitute for a browser-rendered comparison.
 
 ## Implementation checklist
 
 - Capture Home and empty Text conversation at 390 x 844.
-- Test Home to Text, Home to GPT Live, Text/Live switching, More sheet, install prompt, history sheet, and first-title update.
+- Test Home to Text, Home to GPT Live, Text/Live switching, More sheet, install prompt, history sheet, first-title update, per-message Save to Memory, Memory filters, Repository tabs, Project open, and Settings anchors.
 - Check console errors, focus order, horizontal overflow, safe areas, keyboard/composer behavior, and 44 px minimum touch targets.
 - Run a real configured GPT Live audio turn.
 - Perform combined-image comparisons and resolve every P0/P1/P2 finding.

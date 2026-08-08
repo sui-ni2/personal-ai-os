@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { Archive, ChevronDown, Plus, Search } from "lucide-react";
+import { Archive, Check, ChevronDown, Plus, Search } from "lucide-react";
 import { apiJson } from "@/lib/api";
 import { EmptyState, ErrorState, LoadingState } from "@/components/ui-states";
 
@@ -17,6 +17,7 @@ type Memory = {
 };
 
 const filters = ["all", "rule", "preference", "project", "fact"] as const;
+const statusFilters = ["active", "archived", "all"] as const;
 
 export function MemoryManager() {
   const [items, setItems] = useState<Memory[]>([]);
@@ -25,8 +26,12 @@ export function MemoryManager() {
   const [type, setType] = useState("fact");
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<(typeof filters)[number]>("all");
+  const [statusFilter, setStatusFilter] = useState<(typeof statusFilters)[number]>("active");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [mutationError, setMutationError] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   async function load() {
     try {
@@ -46,28 +51,45 @@ export function MemoryManager() {
     const normalized = query.trim().toLowerCase();
     return items.filter((item) => {
       const typeMatches = filter === "all" || item.type.toLowerCase() === filter || (filter === "project" && Boolean(item.project_id));
+      const statusMatches = statusFilter === "all" || (statusFilter === "active" ? item.status === "active" : item.status === "inactive");
       const textMatches = !normalized || `${item.text} ${item.source} ${item.project_id || ""}`.toLowerCase().includes(normalized);
-      return typeMatches && textMatches;
+      return typeMatches && statusMatches && textMatches;
     });
-  }, [filter, items, query]);
+  }, [filter, items, query, statusFilter]);
 
   async function create(event: FormEvent) {
     event.preventDefault();
     if (!text.trim()) return;
-    await apiJson("/api/memory", {
-      method: "POST",
-      body: JSON.stringify({ type, text: text.trim(), source, confidence: 1, project_id: "general" }),
-    });
-    setText("");
-    await load();
+    setSaving(true);
+    setMutationError("");
+    try {
+      await apiJson("/api/memory", {
+        method: "POST",
+        body: JSON.stringify({ type, text: text.trim(), source, confidence: 1, project_id: "general" }),
+      });
+      setText("");
+      setSaved(true);
+      setStatusFilter("active");
+      window.setTimeout(() => setSaved(false), 1600);
+      await load();
+    } catch {
+      setMutationError("This memory could not be saved. Check the local API and try again.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function toggle(item: Memory) {
-    await apiJson(`/api/memory/${item.id}`, {
-      method: "PATCH",
-      body: JSON.stringify({ status: item.status === "active" ? "inactive" : "active" }),
-    });
-    await load();
+    setMutationError("");
+    try {
+      await apiJson(`/api/memory/${item.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ status: item.status === "active" ? "inactive" : "active" }),
+      });
+      await load();
+    } catch {
+      setMutationError("The memory status could not be changed. Try again after the API reconnects.");
+    }
   }
 
   return (
@@ -97,18 +119,25 @@ export function MemoryManager() {
             <label className="mt-3 block text-xs font-medium text-text-secondary">Memory
               <textarea className="textarea-field mt-1.5 min-h-32 w-full resize-y" value={text} onChange={(event) => setText(event.target.value)} placeholder="A preference, rule, or verified fact…" />
             </label>
-            <button className="button-primary mt-3 w-full" disabled={!text.trim()}>Save memory</button>
+            <button className="button-primary mt-3 w-full" disabled={!text.trim() || saving}>{saved ? <><Check aria-hidden size={17} />Saved</> : saving ? "Saving…" : "Save memory"}</button>
           </form>
         </details>
       </div>
 
-      <div className="scrollbar-subtle flex gap-2 overflow-x-auto pb-1" aria-label="Memory filters">
-        {filters.map((item) => (
-          <button key={item} type="button" className={`chip shrink-0 capitalize ${filter === item ? "bg-accent-soft text-accent-hover" : "hover:bg-surface"}`} onClick={() => setFilter(item)} aria-pressed={filter === item}>
-            {item === "all" ? "All" : `${item.charAt(0).toUpperCase()}${item.slice(1)}s`}
-          </button>
-        ))}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="scrollbar-subtle flex gap-2 overflow-x-auto pb-1" aria-label="Memory categories">
+          {filters.map((item) => (
+            <button key={item} type="button" className={`chip shrink-0 capitalize ${filter === item ? "bg-accent-soft text-accent-hover" : "hover:bg-surface"}`} onClick={() => setFilter(item)} aria-pressed={filter === item}>
+              {item === "all" ? "All types" : `${item.charAt(0).toUpperCase()}${item.slice(1)}s`}
+            </button>
+          ))}
+        </div>
+        <div className="inline-flex self-start rounded-control bg-surface-subtle p-1" role="group" aria-label="Memory status">
+          {statusFilters.map((item) => <button key={item} type="button" className={`min-h-9 rounded-small px-3 text-xs font-medium capitalize ${statusFilter === item ? "bg-surface-elevated text-text-primary shadow-soft" : "text-text-secondary"}`} aria-pressed={statusFilter === item} onClick={() => setStatusFilter(item)}>{item}</button>)}
+        </div>
       </div>
+
+      {mutationError && <p className="rounded-control bg-surface px-4 py-3 text-sm leading-6 text-danger" role="alert">{mutationError}</p>}
 
       {loading && <LoadingState label="Gathering your memories" />}
       {!loading && error && <ErrorState title="Memory is unavailable" detail="The memory service could not be reached. Refresh after the API is running." />}
@@ -118,7 +147,7 @@ export function MemoryManager() {
       {!loading && !error && visibleItems.length > 0 && (
         <section className="grid gap-3 md:grid-cols-2" aria-label="Saved memories">
           {visibleItems.map((item) => (
-            <article key={item.id} className={`panel flex min-h-48 flex-col p-5 ${item.status === "inactive" ? "bg-surface/55" : ""}`}>
+            <article key={item.id} className={`panel flex flex-col p-4 sm:p-5 md:min-h-48 ${item.status === "inactive" ? "bg-surface/55" : ""}`}>
               <div className="flex items-center justify-between gap-3">
                 <div className="flex flex-wrap gap-2">
                   <span className="chip capitalize">{item.type}</span>
@@ -126,7 +155,7 @@ export function MemoryManager() {
                 </div>
                 {item.status === "inactive" && <Archive aria-label="Archived" size={16} className="text-text-tertiary" />}
               </div>
-              <p className="mt-5 flex-1 text-[15px] leading-7">{item.text}</p>
+              <p className="mt-4 flex-1 text-[15px] leading-7 sm:mt-5">{item.text}</p>
               <div className="mt-5 flex items-center justify-between gap-4 border-t border-line pt-4">
                 <p className="truncate text-xs text-text-tertiary">{item.project_id || "General"} · {item.source}</p>
                 <button className="button-quiet shrink-0 px-2 text-xs" onClick={() => void toggle(item)}>{item.status === "active" ? "Archive" : "Restore"}</button>

@@ -129,13 +129,16 @@ export function SettingsPanel() {
   if (!settings) return <LoadingState label="Loading safe configuration" />;
 
   return (
-    <div className="space-y-10">
-      <section aria-labelledby="models-settings">
+    <div className="space-y-8 sm:space-y-10">
+      <nav className="scrollbar-subtle -mx-1 flex gap-2 overflow-x-auto px-1 pb-1" aria-label="Settings sections">
+        {[{ href: "#models-settings", label: "Models" }, { href: "#mcp-settings", label: "MCP" }, { href: "#appearance-settings", label: "Appearance" }, { href: "#data-settings", label: "Data" }].map((item) => <a key={item.href} href={item.href} className="chip shrink-0 hover:bg-accent-soft hover:text-accent-hover">{item.label}</a>)}
+      </nav>
+      <section className="scroll-mt-6" aria-labelledby="models-settings">
         <div className="mb-4 flex items-center gap-2"><Server aria-hidden size={18} className="text-text-tertiary" /><h2 id="models-settings" className="section-title">Models</h2></div>
         <div className="grid gap-4 lg:grid-cols-[1fr_380px]">
           <div className="grid gap-3 sm:grid-cols-2">
             {settings.providers.map((item) => (
-              <article key={item.id} className="panel p-5">
+              <article key={item.id} className="panel p-4 sm:p-5">
                 <div className="flex items-center justify-between gap-4">
                   <h3 className="text-[15px] font-medium">{providerName(item.id)}</h3>
                   <span className={`chip ${item.configured ? "bg-success/10 text-success" : ""}`}><span className={`status-dot ${item.configured ? "bg-success" : "bg-warning"}`} />{item.configured ? "Configured" : "Not configured"}</span>
@@ -144,7 +147,7 @@ export function SettingsPanel() {
               </article>
             ))}
           </div>
-          <form onSubmit={submitDefaults} className="panel p-5">
+          <form onSubmit={submitDefaults} className="panel p-4 sm:p-5">
             <h3 className="text-[15px] font-medium">Default model</h3>
             <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
               <label className="text-xs font-medium text-text-secondary">Provider
@@ -163,7 +166,7 @@ export function SettingsPanel() {
         </div>
       </section>
 
-      <section aria-labelledby="mcp-settings">
+      <section className="scroll-mt-6" aria-labelledby="mcp-settings">
         <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
           <div>
             <div className="flex items-center gap-2"><Cable aria-hidden size={18} className="text-text-tertiary" /><h2 id="mcp-settings" className="section-title">MCP</h2></div>
@@ -193,7 +196,7 @@ export function SettingsPanel() {
             <div className="panel col-span-full flex items-center gap-3 p-5 text-sm text-text-secondary"><ShieldCheck aria-hidden size={18} className="text-success" />No external connectors configured. The built-in allowlisted reference tool remains available.</div>
           )}
           {settings.mcp.connectors.map((connector) => (
-            <article key={connector.id} className="panel p-5">
+            <article key={connector.id} className="panel p-4 sm:p-5">
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2"><h3 className="text-[15px] font-medium">{connector.name}</h3><span className="chip uppercase">{connector.transport}</span></div>
@@ -229,11 +232,11 @@ export function SettingsPanel() {
       </section>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <section className="panel p-5" aria-labelledby="appearance-settings">
+        <section className="panel scroll-mt-6 p-4 sm:p-5" aria-labelledby="appearance-settings">
           <div className="flex items-center gap-2"><Palette aria-hidden size={18} className="text-text-tertiary" /><h2 id="appearance-settings" className="section-title">Appearance</h2></div>
           <div className="mt-5 flex items-center justify-between rounded-control bg-surface-subtle p-4"><span className="text-sm font-medium">Theme</span><span className="chip">Light</span></div>
         </section>
-        <section className="panel p-5" aria-labelledby="data-settings">
+        <section className="panel scroll-mt-6 p-4 sm:p-5" aria-labelledby="data-settings">
           <div className="flex items-center gap-2"><Database aria-hidden size={18} className="text-text-tertiary" /><h2 id="data-settings" className="section-title">Data</h2></div>
           <div className="mt-5 flex gap-3 rounded-control bg-surface-subtle p-4"><ShieldCheck aria-hidden size={18} className="mt-0.5 shrink-0 text-success" /><div><p className="text-sm font-medium">Local persistence</p><p className="mt-1 text-xs leading-5 text-text-secondary">Conversation, memory, and repository data remain managed by the local API. Secret values are never exposed here.</p></div></div>
         </section>
