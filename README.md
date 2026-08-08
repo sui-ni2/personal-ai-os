@@ -1,10 +1,14 @@
-# Personal AI OS V0.1
+# Personal AI OS V0.2
 
 A mobile-first, general-purpose AI workbench built as a modular monolith. Chat, structured memory, repository events, providers, auditable execution traces, MCP tools, and project plugins share one core without making Soccer a system-level concern.
 
 ## What is runnable now
 
 - Next.js App Shell with Chat, Memory, Repository, Projects, and Settings views.
+- Installable mobile PWA shell with standalone display, app icons, safe-area-aware
+  navigation, and a production service worker for the cached app shell.
+- Focused Text and GPT Live conversation modes. Completed Live transcripts stay in the
+  same conversation, update its short title, and do not become long-term Memory automatically.
 - FastAPI API with SQLite persistence and automatic schema migration.
 - OpenAI and Anthropic adapters behind one streaming interface, with timeout,
   cancellation, bounded retry, rate-limit normalization, and interrupted-stream handling.
@@ -16,6 +20,11 @@ A mobile-first, general-purpose AI workbench built as a modular monolith. Chat, 
 - API and boundary tests.
 
 Provider calls require server-side environment variables. The application still starts without keys and reports each provider as unconfigured without exposing secret values.
+
+GPT Live uses a server-mediated WebRTC session so the standard OpenAI key never reaches
+the browser. It uses `PERSONAL_AI_OS_OPENAI_API_KEY`; optional model overrides are
+`PERSONAL_AI_OS_REALTIME_MODEL`, `PERSONAL_AI_OS_REALTIME_VOICE`, and
+`PERSONAL_AI_OS_REALTIME_TRANSCRIPTION_MODEL`.
 
 stdio connectors are configured server-side through
 `PERSONAL_AI_OS_MCP_STDIO_COMMANDS`. Each entry maps a display alias to one fixed argv
@@ -46,6 +55,16 @@ In terminal 2:
 ```
 
 Open `http://localhost:3000`. The API health endpoint is `http://localhost:8000/health`.
+
+## Install on a phone
+
+For local desktop testing, use the URL above. Installing on a separate phone requires an
+HTTPS deployment that can reach the API. Open the deployed app in the phone browser and
+choose **More → Install app** when the browser offers installation. On iOS, use Safari's
+**Add to Home Screen** action if the install prompt is not shown.
+
+The cached shell can open without a network connection, but provider calls, GPT Live,
+memory, and repository data still require the API.
 
 ## Checks
 

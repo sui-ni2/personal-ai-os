@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import AsyncIterator, Awaitable, Callable
 from time import perf_counter
 from typing import Any
@@ -11,6 +12,28 @@ from personal_ai_os_providers import ProviderCancelled, ProviderError, ProviderT
 
 from .runtime import Runtime
 from .schemas import ChatRequest
+
+
+_POLITE_PREFIXES = re.compile(
+    r"^(?:请(?:你)?|麻烦(?:你)?|可以(?:请你)?|能不能|帮我|帮忙|我想(?:请你)?|please\s+|could you\s+|can you\s+|help me\s+)",
+    re.IGNORECASE,
+)
+
+
+def conversation_title(content: str) -> str:
+    """Create a stable, compact label from the first user message."""
+    normalized = re.sub(r"\s+", " ", content).strip()
+    previous = None
+    while normalized != previous:
+        previous = normalized
+        normalized = _POLITE_PREFIXES.sub("", normalized).strip(" ，,。.!！？?:：")
+    first_thought = re.split(r"[。！？!?\n]", normalized, maxsplit=1)[0].strip()
+    candidate = first_thought or normalized or "New conversation"
+    has_cjk = bool(re.search(r"[\u3400-\u9fff]", candidate))
+    limit = 20 if has_cjk else 42
+    if len(candidate) <= limit:
+        return candidate
+    return candidate[: limit - 1].rstrip(" ，,。.!！？?:：") + "…"
 
 
 def _sse(event: ExecutionEvent) -> str:
@@ -123,7 +146,7 @@ async def stream_chat(
             provider=request.provider,
             model=request.model,
             project_id=request.project_id,
-            title=request.content.strip().splitlines()[0],
+            title=conversation_title(request.content),
         )
     elif conversation.project_id != request.project_id:
         yield _sse(
@@ -141,7 +164,7 @@ async def stream_chat(
             conversation.id
         ):
             runtime.database.update_conversation_title(
-                conversation.id, request.content.strip().splitlines()[0]
+                conversation.id, conversation_title(request.content)
             )
         runtime.database.update_conversation_route(
             conversation.id, request.provider, request.model

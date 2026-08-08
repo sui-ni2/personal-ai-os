@@ -1,15 +1,21 @@
 "use client";
 
+import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import {
+  ArrowLeft,
   ChevronDown,
   History,
   MessageCircle,
+  Mic2,
+  MoreHorizontal,
   Paperclip,
   Plus,
   Send,
   Sparkles,
+  Square,
   Wrench,
+  X,
 } from "lucide-react";
 import { ActivityPanel } from "@/components/activity-panel";
 import { ModelSelector, type ProviderOption } from "@/components/model-selector";
@@ -18,33 +24,15 @@ import { ErrorState } from "@/components/ui-states";
 import { apiJson, type SseEvent, streamSse } from "@/lib/api";
 
 type Project = { id: string; name: string; description: string };
-type Conversation = {
-  id: string;
-  title: string;
-  provider: string;
-  model: string;
-  project_id?: string;
-  created_at: string;
-  updated_at: string;
-};
+type Conversation = { id: string; title: string; provider: string; model: string; project_id?: string; created_at: string; updated_at: string };
 type PersistedMessage = { id: string; role: "user" | "assistant" | "system" | "tool"; content: string };
 type UiMessage = { id?: string; role: "user" | "assistant" | "system"; content: string };
 type ConversationDetail = { conversation: Conversation; messages: PersistedMessage[]; execution_events: SseEvent[] };
-type MCPConnector = {
-  id: string;
-  name: string;
-  enabled: boolean;
-  allowed_tools: string[];
-  connection_status: "disabled" | "configured" | "connected" | "error";
-};
+type MCPConnector = { id: string; name: string; enabled: boolean; allowed_tools: string[]; connection_status: "disabled" | "configured" | "connected" | "error" };
+type RealtimeStatus = { configured: boolean; model: string; transcription_model: string; transport: "webrtc" };
+type LiveState = "idle" | "connecting" | "listening" | "error";
 
 const ACTIVE_CONVERSATION_KEY = "personal-ai-os.active-conversation";
-
-function providerLabel(id: string) {
-  if (id === "openai") return "OpenAI";
-  if (id === "anthropic") return "Anthropic";
-  return id.charAt(0).toUpperCase() + id.slice(1);
-}
 
 export function ChatWorkspace() {
   const [providers, setProviders] = useState<ProviderOption[]>([]);
@@ -65,45 +53,63 @@ export function ChatWorkspace() {
   const [running, setRunning] = useState(false);
   const [loadingConversation, setLoadingConversation] = useState(false);
   const [apiError, setApiError] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [mode, setMode] = useState<"text" | "live">("text");
+  const [realtime, setRealtime] = useState<RealtimeStatus>();
+  const [liveState, setLiveState] = useState<LiveState>("idle");
+  const [liveMessage, setLiveMessage] = useState("Tap start when you are ready. Microphone access is requested only then.");
+  const [liveCaption, setLiveCaption] = useState("");
+  const [liveSaveWarning, setLiveSaveWarning] = useState("");
   const conversationRef = useRef<HTMLDivElement>(null);
+  const peerRef = useRef<RTCPeerConnection | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const inputTranscriptRef = useRef("");
+  const outputTranscriptRef = useRef("");
+  const savedLiveItemsRef = useRef(new Set<string>());
 
   useEffect(() => {
+    let cancelled = false;
+    const params = new URLSearchParams(window.location.search);
+    const requestedMode = params.get("mode") === "live" ? "live" : "text";
+    setMode(requestedMode);
     void Promise.all([
       apiJson<{ items: ProviderOption[] }>("/api/providers"),
       apiJson<{ items: Project[] }>("/api/projects"),
       apiJson<{ default_provider: string; default_model: string }>("/api/settings"),
       apiJson<{ items: Conversation[] }>("/api/conversations"),
       apiJson<{ items: MCPConnector[] }>("/api/mcp/connectors"),
+      apiJson<RealtimeStatus>("/api/realtime/status"),
     ])
-      .then(async ([providerData, projectData, settings, conversationData, connectorData]) => {
+      .then(async ([providerData, projectData, settings, conversationData, connectorData, realtimeData]) => {
+        if (cancelled) return;
         setProviders(providerData.items);
         setProjects(projectData.items);
         setProvider(settings.default_provider);
         setModel(settings.default_model);
-        const requestedProject = new URLSearchParams(window.location.search).get("project");
-        if (requestedProject && projectData.items.some((item) => item.id === requestedProject)) {
-          setProject(requestedProject);
-        }
         setConversations(conversationData.items);
         setConnectors(connectorData.items);
+        setRealtime(realtimeData);
+        const requestedProject = params.get("project");
+        if (requestedProject && projectData.items.some((item) => item.id === requestedProject)) setProject(requestedProject);
+        if (params.get("new") === "1") {
+          window.localStorage.removeItem(ACTIVE_CONVERSATION_KEY);
+          return;
+        }
         const savedId = window.localStorage.getItem(ACTIVE_CONVERSATION_KEY);
         if (savedId) {
-          try {
-            await openConversation(savedId);
-          } catch {
-            window.localStorage.removeItem(ACTIVE_CONVERSATION_KEY);
-          }
+          try { await openConversation(savedId); } catch { window.localStorage.removeItem(ACTIVE_CONVERSATION_KEY); }
         }
       })
       .catch(() => setApiError(true));
+    return () => { cancelled = true; stopLive(false); };
   }, []);
 
-  useEffect(() => {
-    conversationRef.current?.scrollTo({ top: conversationRef.current.scrollHeight, behavior: running ? "auto" : "smooth" });
-  }, [messages, running]);
+  useEffect(() => { conversationRef.current?.scrollTo({ top: conversationRef.current.scrollHeight, behavior: running ? "auto" : "smooth" }); }, [messages, running]);
 
-  const selectedProvider = useMemo(() => providers.find((item) => item.id === provider), [provider, providers]);
   const selectedConnector = useMemo(() => connectors.find((item) => item.id === connectorId), [connectorId, connectors]);
+  const activeConversation = useMemo(() => conversations.find((item) => item.id === conversationId), [conversationId, conversations]);
+  const title = activeConversation?.title || "New conversation";
 
   function selectConnector(id: string) {
     setConnectorId(id);
@@ -115,6 +121,7 @@ export function ChatWorkspace() {
     const query = filter === "all" ? "" : `?project_id=${encodeURIComponent(filter)}`;
     const data = await apiJson<{ items: Conversation[] }>(`/api/conversations${query}`);
     setConversations(data.items);
+    return data.items;
   }
 
   async function openConversation(id: string) {
@@ -125,29 +132,22 @@ export function ChatWorkspace() {
       setProvider(detail.conversation.provider);
       setModel(detail.conversation.model);
       setProject(detail.conversation.project_id || "general");
-      setMessages(detail.messages.map((item) => ({
-        id: item.id,
-        role: item.role === "user" || item.role === "assistant" ? item.role : "system",
-        content: item.content,
-      })));
+      setMessages(detail.messages.map((item) => ({ id: item.id, role: item.role === "user" || item.role === "assistant" ? item.role : "system", content: item.content })));
       setTrace(detail.execution_events);
+      setHistoryOpen(false);
       window.localStorage.setItem(ACTIVE_CONVERSATION_KEY, detail.conversation.id);
-    } finally {
-      setLoadingConversation(false);
-    }
+    } finally { setLoadingConversation(false); }
   }
 
   async function createConversation() {
-    if (!model || running) return;
-    const created = await apiJson<Conversation>("/api/conversations", {
-      method: "POST",
-      body: JSON.stringify({ provider, model, project_id: project, title: "New conversation" }),
-    });
+    if (!model || running) return undefined;
+    const created = await apiJson<Conversation>("/api/conversations", { method: "POST", body: JSON.stringify({ provider, model, project_id: project, title: "New conversation" }) });
     setConversationId(created.id);
     setMessages([]);
     setTrace([]);
     window.localStorage.setItem(ACTIVE_CONVERSATION_KEY, created.id);
     await loadConversations();
+    return created.id;
   }
 
   async function submit(event: FormEvent) {
@@ -158,221 +158,223 @@ export function ChatWorkspace() {
     setInput("");
     setRunning(true);
     try {
-      await streamSse(
-        "/api/chat/stream",
-        {
-          conversation_id: conversationId,
-          provider,
-          model,
-          project_id: project,
-          content,
-          tool: useMcp ? {
-            name: toolName,
-            connector_id: connectorId === "local-reference" ? null : connectorId,
-            arguments: { message: content },
-          } : null,
-        },
-        (item) => {
-          setTrace((current) => [...current, item]);
-          if (item.type === "message") {
-            const delta = String(item.payload.delta || "");
-            setMessages((current) => current.map((message, index) => index === current.length - 1 ? { ...message, content: message.content + delta } : message));
-          }
-          if (item.type === "error") {
-            setMessages((current) => current.map((message, index) => index === current.length - 1 ? {
-              role: "system",
-              content: "The request could not be completed. Check your provider or tool settings, then try again.",
-            } : message));
-          }
-          if (item.type === "done" && typeof item.payload.conversation_id === "string") {
-            const id = item.payload.conversation_id;
-            setConversationId(id);
-            window.localStorage.setItem(ACTIVE_CONVERSATION_KEY, id);
-          }
-        },
-      );
+      await streamSse("/api/chat/stream", {
+        conversation_id: conversationId, provider, model, project_id: project, content,
+        tool: useMcp ? { name: toolName, connector_id: connectorId === "local-reference" ? null : connectorId, arguments: { message: content } } : null,
+      }, (item) => {
+        setTrace((current) => [...current, item]);
+        if (item.type === "message") {
+          const delta = String(item.payload.delta || "");
+          setMessages((current) => current.map((message, index) => index === current.length - 1 ? { ...message, content: message.content + delta } : message));
+        }
+        if (item.type === "error") setMessages((current) => current.map((message, index) => index === current.length - 1 ? { role: "system", content: "The request could not be completed. Check your provider or tool settings, then try again." } : message));
+        if (item.type === "done" && typeof item.payload.conversation_id === "string") {
+          setConversationId(item.payload.conversation_id);
+          window.localStorage.setItem(ACTIVE_CONVERSATION_KEY, item.payload.conversation_id);
+        }
+      });
       await loadConversations();
     } catch {
-      setMessages((current) => current.map((message, index) => index === current.length - 1 ? {
-        role: "system",
-        content: "The connection ended before the response completed. Check the service and try again.",
-      } : message));
-    } finally {
-      setRunning(false);
+      setMessages((current) => current.map((message, index) => index === current.length - 1 ? { role: "system", content: "The connection ended before the response completed. Check the service and try again." } : message));
+    } finally { setRunning(false); }
+  }
+
+  function stopLive(update = true) {
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+    peerRef.current?.close();
+    peerRef.current = null;
+    if (audioRef.current) { audioRef.current.srcObject = null; audioRef.current.remove(); audioRef.current = null; }
+    if (update) { setLiveState("idle"); setLiveMessage("Live conversation ended. Tap start whenever you want to continue."); }
+  }
+
+  async function persistLiveTranscript(
+    activeId: string,
+    role: "user" | "assistant",
+    content: string,
+    eventKey: string,
+  ) {
+    const normalized = content.trim();
+    if (!normalized || savedLiveItemsRef.current.has(eventKey)) return;
+    savedLiveItemsRef.current.add(eventKey);
+    try {
+      const saved = await apiJson<{ message: PersistedMessage; conversation: Conversation }>(
+        `/api/conversations/${activeId}/realtime-transcript`,
+        { method: "POST", body: JSON.stringify({ role, content: normalized }) },
+      );
+      setMessages((current) => [...current, { id: saved.message.id, role, content: normalized }]);
+      setConversations((current) => {
+        const exists = current.some((item) => item.id === saved.conversation.id);
+        return exists
+          ? current.map((item) => item.id === saved.conversation.id ? saved.conversation : item)
+          : [saved.conversation, ...current];
+      });
+    } catch {
+      savedLiveItemsRef.current.delete(eventKey);
+      setLiveSaveWarning("Live is still connected, but this completed transcript could not be saved.");
     }
+  }
+
+  async function startLive() {
+    if (!realtime?.configured) {
+      setLiveState("error");
+      setLiveMessage("GPT Live is not configured. Add the server-side OpenAI key in Settings, then try again.");
+      return;
+    }
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setLiveState("error");
+      setLiveMessage("This browser does not provide microphone access for GPT Live.");
+      return;
+    }
+    setLiveState("connecting");
+    setLiveMessage("Requesting microphone access…");
+    setLiveCaption("");
+    setLiveSaveWarning("");
+    inputTranscriptRef.current = "";
+    outputTranscriptRef.current = "";
+    savedLiveItemsRef.current.clear();
+    try {
+      const activeId = conversationId || await createConversation();
+      const pc = new RTCPeerConnection();
+      peerRef.current = pc;
+      const audio = document.createElement("audio");
+      audio.autoplay = true;
+      audioRef.current = audio;
+      pc.ontrack = (event) => { audio.srcObject = event.streams[0]; };
+      pc.onconnectionstatechange = () => {
+        if (pc.connectionState === "connected") { setLiveState("listening"); setLiveMessage("Listening — speak naturally. You can interrupt at any time."); }
+        if (["failed", "disconnected"].includes(pc.connectionState) && peerRef.current === pc) { setLiveState("error"); setLiveMessage("The Live connection ended. You can start again."); }
+      };
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+      streamRef.current = stream;
+      stream.getAudioTracks().forEach((track) => pc.addTrack(track, stream));
+      const channel = pc.createDataChannel("oai-events");
+      channel.onmessage = (event) => {
+        try {
+          const item = JSON.parse(event.data) as { type?: string; delta?: string; transcript?: string; item_id?: string };
+          if (item.type === "conversation.item.input_audio_transcription.delta" && item.delta) {
+            inputTranscriptRef.current += item.delta;
+            setLiveCaption(`You: ${inputTranscriptRef.current}`);
+          }
+          if (item.type === "conversation.item.input_audio_transcription.completed" && item.transcript && activeId) {
+            inputTranscriptRef.current = item.transcript;
+            setLiveCaption(`You: ${item.transcript}`);
+            void persistLiveTranscript(activeId, "user", item.transcript, `input:${item.item_id || item.transcript}`);
+          }
+          if (item.type === "response.output_audio_transcript.delta" && item.delta) {
+            outputTranscriptRef.current += item.delta;
+            setLiveCaption(`GPT: ${outputTranscriptRef.current}`);
+          }
+          if (item.type === "response.output_audio_transcript.done" && item.transcript && activeId) {
+            outputTranscriptRef.current = item.transcript;
+            setLiveCaption(`GPT: ${item.transcript}`);
+            void persistLiveTranscript(activeId, "assistant", item.transcript, `output:${item.item_id || item.transcript}`);
+            inputTranscriptRef.current = "";
+            outputTranscriptRef.current = "";
+          }
+        } catch { /* Realtime events are best-effort UI updates. */ }
+      };
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      const params = new URLSearchParams({ project_id: project });
+      if (activeId) params.set("conversation_id", activeId);
+      const response = await fetch(`/api/realtime/session?${params}`, { method: "POST", body: offer.sdp, headers: { "Content-Type": "application/sdp" } });
+      if (!response.ok) throw new Error(`Live session failed (${response.status})`);
+      await pc.setRemoteDescription({ type: "answer", sdp: await response.text() });
+    } catch (error) {
+      stopLive(false);
+      setLiveState("error");
+      setLiveMessage(error instanceof DOMException && error.name === "NotAllowedError" ? "Microphone access was not allowed. You can enable it in the browser and try again." : "GPT Live could not connect. Check the server configuration and try again.");
+    }
+  }
+
+  function changeMode(next: "text" | "live") {
+    if (next === mode) return;
+    if (mode === "live") stopLive();
+    setMode(next);
   }
 
   const history = (
     <div className="space-y-4">
       <div className="flex gap-2">
-        <select
-          className="field min-w-0 flex-1"
-          value={projectFilter}
-          onChange={(event) => {
-            const next = event.target.value;
-            setProjectFilter(next);
-            void loadConversations(next);
-          }}
-          aria-label="Filter conversations by project"
-        >
-          <option value="all">All projects</option>
-          {projects.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+        <select className="field min-w-0 flex-1" value={projectFilter} onChange={(event) => { setProjectFilter(event.target.value); void loadConversations(event.target.value); }} aria-label="Filter conversations by project">
+          <option value="all">All projects</option>{projects.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
         </select>
-        <button className="icon-button border border-line" onClick={() => void createConversation()} disabled={!model || running} aria-label="New conversation">
-          <Plus aria-hidden size={18} strokeWidth={1.8} />
-        </button>
+        <button className="icon-button border border-line" onClick={() => void createConversation()} disabled={!model || running} aria-label="New conversation"><Plus aria-hidden size={18} /></button>
       </div>
       <div className="scrollbar-subtle max-h-[calc(100vh-180px)] space-y-1.5 overflow-y-auto pr-1">
         {conversations.length === 0 && <p className="rounded-control bg-surface-subtle/55 px-3 py-4 text-sm leading-6 text-text-secondary">No conversations yet.</p>}
-        {conversations.map((item) => (
-          <button
-            key={item.id}
-            className={`w-full rounded-control px-3 py-3 text-left transition-colors duration-150 ${item.id === conversationId ? "bg-accent-soft" : "hover:bg-surface-subtle"}`}
-            onClick={() => void openConversation(item.id)}
-            disabled={running || loadingConversation}
-            aria-current={item.id === conversationId ? "true" : undefined}
-          >
-            <span className="block truncate text-sm font-medium">{item.title}</span>
-            <span className="mt-1 block truncate text-xs text-text-tertiary">{item.project_id || "general"} · {new Date(item.updated_at).toLocaleDateString()}</span>
-          </button>
-        ))}
+        {conversations.map((item) => <button key={item.id} className={`w-full rounded-control px-3 py-3 text-left ${item.id === conversationId ? "bg-accent-soft" : "hover:bg-surface-subtle"}`} onClick={() => void openConversation(item.id)} disabled={running || loadingConversation} aria-current={item.id === conversationId ? "true" : undefined}><span className="block truncate text-sm font-medium">{item.title}</span><span className="mt-1 block truncate text-xs text-text-tertiary">{item.project_id || "general"} · {new Date(item.updated_at).toLocaleDateString()}</span></button>)}
       </div>
     </div>
   );
 
-  if (apiError) {
-    return <ErrorState title="Chat is not connected" detail="The local API is unavailable. Start the service, then refresh to restore providers, projects, and conversation history." />;
-  }
+  if (apiError) return <ErrorState title="Chat is not connected" detail="The local API is unavailable. Start the service, then refresh to restore providers, projects, and conversation history." />;
 
   return (
-    <div className="space-y-3 lg:grid lg:grid-cols-[232px_minmax(0,1fr)] lg:gap-4 lg:space-y-0">
-      <details className="group panel p-3 lg:hidden">
-        <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 px-2 text-sm font-medium">
-          <History aria-hidden size={17} strokeWidth={1.7} />
-          Conversation history
-          <ChevronDown aria-hidden size={16} className="ml-auto transition-transform duration-150 group-open:rotate-180" />
-        </summary>
-        <div className="pt-3">{history}</div>
-      </details>
+    <div className="h-[100dvh] md:h-auto md:space-y-3 lg:grid lg:grid-cols-[232px_minmax(0,1fr)] lg:gap-4 lg:space-y-0">
+      <aside className="hidden rounded-card border border-line bg-surface/55 p-3 lg:block" aria-label="Conversation history"><div className="mb-4 flex items-center gap-2 px-2 pt-1"><History aria-hidden size={16} className="text-text-tertiary" /><h2 className="text-sm font-medium">Conversations</h2></div>{history}</aside>
 
-      <aside className="hidden rounded-card border border-line bg-surface/55 p-3 lg:block" aria-label="Conversation history">
-        <div className="mb-4 flex items-center gap-2 px-2 pt-1">
-          <History aria-hidden size={16} strokeWidth={1.7} className="text-text-tertiary" />
-          <h2 className="text-sm font-medium">Conversations</h2>
-        </div>
-        {history}
-      </aside>
+      <section className="flex h-[100dvh] min-h-0 w-full min-w-0 flex-col overflow-hidden bg-background md:panel-elevated md:h-[calc(100vh-48px)] md:min-h-[680px]" aria-label="Chat workspace">
+        <header className="flex min-h-[58px] items-center gap-2 border-b border-line px-2 pt-[env(safe-area-inset-top)] sm:px-4 md:pt-0">
+          <Link href="/" className="icon-button" aria-label="Back to home"><ArrowLeft aria-hidden size={21} /></Link>
+          <div className="min-w-0 flex-1 text-center"><h1 className="truncate text-[15px] font-medium">{title}</h1><p className="text-[11px] text-text-tertiary">{mode === "live" ? "GPT Live" : "Text conversation"}</p></div>
+          <button className="icon-button" onClick={() => setHistoryOpen(true)} aria-label="Open conversation history"><MoreHorizontal aria-hidden size={21} /></button>
+        </header>
 
-      <section className="panel-elevated flex h-[calc(100dvh-202px)] min-h-[610px] w-full min-w-0 flex-col overflow-hidden md:h-[calc(100vh-154px)] md:min-h-[620px] lg:h-[calc(100vh-72px)] lg:min-h-[680px]" aria-label="Chat workspace">
-        <div className="flex min-h-16 flex-wrap items-center gap-1 border-b border-line bg-surface/85 px-2 py-2 sm:gap-2 sm:px-4">
-          <ModelSelector
-            providers={providers}
-            provider={provider}
-            model={model}
-            onChange={(nextProvider, nextModel) => {
-              setProvider(nextProvider);
-              setModel(nextModel);
-            }}
-          />
-          <label className="flex min-h-11 min-w-0 items-center gap-2 rounded-control px-3 transition-colors duration-150 hover:bg-surface-subtle">
-            <MessageCircle aria-hidden size={17} strokeWidth={1.7} className="shrink-0 text-text-tertiary" />
-            <span className="min-w-0">
-              <span className="block text-xs text-text-tertiary">Project</span>
-              <select className="block max-w-32 cursor-pointer appearance-none bg-transparent pr-4 text-sm font-medium outline-none" value={project} disabled={Boolean(conversationId)} onChange={(event) => setProject(event.target.value)} aria-label="Project context">
-                {projects.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-              </select>
-            </span>
-          </label>
-          <div className="ml-auto hidden items-center gap-2 px-2 text-xs text-text-secondary sm:flex">
-            <span className={`status-dot ${selectedProvider?.configured ? "bg-success" : "bg-warning"}`} />
-            {providerLabel(provider)} · {selectedProvider?.configured ? "Ready" : "Not configured"}
+        <div className="scrollbar-subtle flex min-h-[52px] items-center gap-1 overflow-x-auto border-b border-line px-3 py-1.5">
+          <label className="shrink-0"><span className="sr-only">Project context</span><select className="h-10 max-w-28 rounded-full bg-surface-subtle px-3 text-xs font-medium outline-none" value={project} disabled={Boolean(conversationId)} onChange={(event) => setProject(event.target.value)}>{projects.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+          <div className="shrink-0 scale-[0.92] origin-left"><ModelSelector providers={providers} provider={provider} model={model} onChange={(nextProvider, nextModel) => { setProvider(nextProvider); setModel(nextModel); }} /></div>
+          <div className="ml-auto flex shrink-0 rounded-full bg-surface-subtle p-1" role="group" aria-label="Conversation mode">
+            <button onClick={() => changeMode("text")} className={`flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-medium ${mode === "text" ? "bg-surface-elevated shadow-soft" : "text-text-secondary"}`} aria-pressed={mode === "text"}><MessageCircle aria-hidden size={14} />Text</button>
+            <button onClick={() => changeMode("live")} className={`flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-medium ${mode === "live" ? "bg-surface-elevated shadow-soft" : "text-text-secondary"}`} aria-pressed={mode === "live"}><Mic2 aria-hidden size={14} />Live</button>
           </div>
         </div>
 
-        <div ref={conversationRef} className="scrollbar-subtle min-h-0 flex-1 overflow-y-auto" aria-live="polite" aria-busy={running || loadingConversation}>
-          <div className="mx-auto w-full max-w-[780px] px-4 py-8 sm:px-6 sm:py-10">
-            {loadingConversation && (
-              <div className="space-y-3" role="status" aria-label="Restoring conversation">
-                <div className="skeleton h-4 w-24" /><div className="skeleton h-20 w-4/5" />
-              </div>
-            )}
-            {!loadingConversation && messages.length === 0 && (
-              <div className="mx-auto flex min-h-[360px] max-w-lg flex-col items-center justify-center text-center">
-                <span className="grid size-11 place-items-center rounded-control bg-accent-soft text-accent">
-                  <Sparkles aria-hidden size={19} strokeWidth={1.7} />
-                </span>
-                <h1 className="mt-5 text-[26px] font-medium leading-tight tracking-[-0.03em]">What would you like to explore?</h1>
-                <p className="mt-3 text-sm leading-6 text-text-secondary">Ask a question, shape a plan, or continue work with your saved project context.</p>
-                <div className="mt-6 flex flex-wrap justify-center gap-2">
-                  {["Help me plan today", "Summarize my next steps", "Think through a decision"].map((prompt) => (
-                    <button key={prompt} type="button" className="button-secondary min-h-10 px-3 text-xs" onClick={() => setInput(prompt)}>{prompt}</button>
-                  ))}
+        {mode === "text" ? (
+          <>
+            <div ref={conversationRef} className="scrollbar-subtle min-h-0 flex-1 overflow-y-auto" aria-live="polite" aria-busy={running || loadingConversation}>
+              <div className="mx-auto w-full max-w-[780px] px-5 py-8 sm:px-6 sm:py-10">
+                {loadingConversation && <div className="space-y-3" role="status"><div className="skeleton h-4 w-24" /><div className="skeleton h-20 w-4/5" /></div>}
+                {!loadingConversation && messages.length === 0 && (
+                  <div className="mx-auto flex min-h-[380px] max-w-lg flex-col justify-center">
+                    <span className="grid size-12 place-items-center rounded-full bg-accent-soft text-accent-hover"><Sparkles aria-hidden size={20} /></span>
+                    <h2 className="mt-6 text-[28px] font-medium leading-tight tracking-[-0.035em]">What should we work on?</h2>
+                    <p className="mt-3 text-sm leading-6 text-text-secondary">Start with a question, a plan, or something you want to understand.</p>
+                    <div className="mt-7 divide-y divide-line border-y border-line">
+                      {["Help me plan today", "Think through a decision", "Turn an idea into next steps"].map((prompt) => <button key={prompt} type="button" className="group flex min-h-14 w-full items-center text-left text-sm" onClick={() => setInput(prompt)}><span className="flex-1">{prompt}</span><ArrowLeft aria-hidden className="rotate-180 text-text-tertiary transition-transform group-hover:translate-x-1" size={16} /></button>)}
+                    </div>
+                  </div>
+                )}
+                <div className="space-y-8">
+                  {messages.map((message, index) => message.role === "user" ? <article key={message.id || index} className="ml-auto max-w-[88%] rounded-card bg-accent-soft px-4 py-3 text-sm leading-7 sm:max-w-[78%]"><RichMessage content={message.content} /></article> : message.role === "system" ? <article key={message.id || index} className="rounded-control border border-danger/25 bg-surface px-4 py-3 text-sm leading-6 text-danger">{message.content}</article> : <article key={message.id || index} className="grid grid-cols-[24px_minmax(0,1fr)] gap-3 text-[15px]"><Sparkles aria-hidden className="mt-2 text-accent" size={17} />{message.content ? <RichMessage content={message.content} /> : <span className="mt-2 text-sm text-text-tertiary">Responding…</span>}</article>)}
                 </div>
               </div>
-            )}
-            <div className="space-y-8">
-              {messages.map((message, index) => {
-                if (message.role === "user") {
-                  return <article key={message.id || index} className="ml-auto max-w-[88%] rounded-card bg-accent-soft px-4 py-3 text-sm leading-7 sm:max-w-[78%]"><RichMessage content={message.content} /></article>;
-                }
-                if (message.role === "system") {
-                  return <article key={message.id || index} className="rounded-control border border-danger/25 bg-surface px-4 py-3 text-sm leading-6 text-danger">{message.content}</article>;
-                }
-                return (
-                  <article key={message.id || index} className="grid grid-cols-[24px_minmax(0,1fr)] gap-3 text-[15px] text-text-primary">
-                    <Sparkles aria-hidden className="mt-2 text-accent" size={17} strokeWidth={1.7} />
-                    {message.content ? <RichMessage content={message.content} /> : <span className="mt-2 text-sm text-text-tertiary">Responding…</span>}
-                  </article>
-                );
-              })}
             </div>
+            <ActivityPanel trace={trace} />
+            <form onSubmit={submit} className="bg-surface px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-3 sm:px-5 sm:pb-5">
+              {useMcp && <div className="mx-auto mb-2 grid max-w-[780px] gap-2 rounded-control bg-surface-subtle p-2 sm:grid-cols-2"><label className="text-xs font-medium text-text-secondary">Connector<select className="field mt-1 w-full" value={connectorId} onChange={(event) => selectConnector(event.target.value)}><option value="local-reference">Built-in reference</option>{connectors.filter((item) => item.enabled).map((item) => <option key={item.id} value={item.id}>{item.name} · {item.connection_status}</option>)}</select></label><label className="text-xs font-medium text-text-secondary">Tool<select className="field mt-1 w-full" value={toolName} onChange={(event) => setToolName(event.target.value)}>{(connectorId === "local-reference" ? ["system.echo"] : selectedConnector?.allowed_tools || []).map((item) => <option key={item} value={item}>{item}</option>)}</select></label></div>}
+              <div className="mx-auto max-w-[780px] rounded-[22px] border border-line-strong bg-surface-elevated p-2 shadow-composer focus-within:border-accent">
+                <textarea className="scrollbar-subtle max-h-40 min-h-[48px] w-full resize-none bg-transparent px-2 py-2 text-[15px] leading-6 outline-none placeholder:text-text-tertiary" placeholder="Ask anything…" aria-label="Message" value={input} rows={1} onChange={(event) => setInput(event.target.value)} />
+                <div className="flex items-center gap-1"><button type="button" className="icon-button" disabled title="Attachments are planned" aria-label="Attach a file (planned)"><Paperclip aria-hidden size={18} /></button><button type="button" className={`icon-button ${useMcp ? "bg-accent-soft text-accent" : ""}`} onClick={() => setUseMcp((current) => !current)} aria-pressed={useMcp} aria-label="Use an MCP tool"><Wrench aria-hidden size={18} /></button><button className="button-primary ml-auto size-10 min-h-10 px-0" aria-label={running ? "Sending message" : "Send message"} disabled={!input.trim() || !model || running || (useMcp && !toolName)}><Send aria-hidden size={17} /></button></div>
+              </div>
+            </form>
+          </>
+        ) : (
+          <div className="relative flex min-h-0 flex-1 flex-col items-center justify-center overflow-hidden px-6 pb-[max(28px,env(safe-area-inset-bottom))] text-center">
+            <div className={`relative grid size-52 place-items-center overflow-hidden rounded-full transition duration-500 ${liveState === "listening" ? "scale-105 shadow-composer" : ""}`}><img src="/assets/personal-ai-flow.png" alt="" className="absolute inset-0 h-full w-full scale-[1.8] object-cover" /><span className={`relative grid size-20 place-items-center rounded-full bg-surface-elevated/90 text-accent-hover shadow-soft ${liveState === "listening" ? "animate-pulse" : ""}`}><Mic2 aria-hidden size={30} strokeWidth={1.6} /></span></div>
+            <h2 className="mt-8 text-[28px] font-medium tracking-[-0.035em]">{liveState === "listening" ? "I’m listening" : liveState === "connecting" ? "Connecting…" : "Talk it through"}</h2>
+            <p className={`mt-3 max-w-md text-sm leading-6 ${liveState === "error" ? "text-danger" : "text-text-secondary"}`}>{liveMessage}</p>
+            {liveCaption && <p className="mt-5 max-w-lg rounded-card bg-surface/75 px-4 py-3 text-sm leading-6 text-text-primary">{liveCaption}</p>}
+            {liveSaveWarning && <p className="mt-3 max-w-md text-xs leading-5 text-warning">{liveSaveWarning}</p>}
+            <p className="mt-4 text-xs text-text-tertiary">{realtime?.model || "Realtime model"} · WebRTC · {project}</p>
+            <p className="mt-2 max-w-md text-[11px] leading-5 text-text-tertiary">Completed Live transcripts stay in this conversation and can create its short title. They are not added to Memory automatically.</p>
+            {liveState === "listening" || liveState === "connecting" ? <button onClick={() => stopLive()} className="mt-8 inline-flex size-16 items-center justify-center rounded-full bg-text-primary text-surface-elevated shadow-composer" aria-label="End live conversation"><Square aria-hidden size={21} fill="currentColor" /></button> : <button onClick={() => void startLive()} className="mt-8 inline-flex min-h-14 items-center justify-center gap-2 rounded-full bg-text-primary px-7 text-sm font-medium text-surface-elevated shadow-composer"><Mic2 aria-hidden size={18} />Start GPT Live</button>}
           </div>
-        </div>
-
-        <ActivityPanel trace={trace} />
-
-        <form onSubmit={submit} className="bg-surface px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-3 sm:px-5 sm:pb-5">
-          {useMcp && (
-            <div className="mb-2 grid gap-2 rounded-control bg-surface-subtle p-2 sm:grid-cols-2">
-              <label className="text-xs font-medium text-text-secondary">
-                Connector
-                <select className="field mt-1 w-full" value={connectorId} onChange={(event) => selectConnector(event.target.value)}>
-                  <option value="local-reference">Built-in reference</option>
-                  {connectors.filter((item) => item.enabled).map((item) => <option key={item.id} value={item.id}>{item.name} · {item.connection_status}</option>)}
-                </select>
-              </label>
-              <label className="text-xs font-medium text-text-secondary">
-                Tool
-                <select className="field mt-1 w-full" value={toolName} onChange={(event) => setToolName(event.target.value)}>
-                  {(connectorId === "local-reference" ? ["system.echo"] : selectedConnector?.allowed_tools || []).map((item) => <option key={item} value={item}>{item}</option>)}
-                </select>
-              </label>
-            </div>
-          )}
-          <div className="mx-auto max-w-[780px] rounded-large border border-line-strong bg-surface-elevated p-2 shadow-composer focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/10">
-            <textarea
-              className="scrollbar-subtle max-h-48 min-h-[58px] w-full resize-none bg-transparent px-2 py-2 text-[15px] leading-6 outline-none placeholder:text-text-tertiary"
-              placeholder="Ask, plan, or make something…"
-              aria-label="Message"
-              value={input}
-              rows={2}
-              onChange={(event) => setInput(event.target.value)}
-            />
-            <div className="flex items-center gap-1">
-              <button type="button" className="icon-button" disabled title="Attachments are planned" aria-label="Attach a file (planned)">
-                <Paperclip aria-hidden size={18} strokeWidth={1.7} />
-              </button>
-              <button type="button" className={`icon-button ${useMcp ? "bg-accent-soft text-accent" : ""}`} onClick={() => setUseMcp((current) => !current)} aria-pressed={useMcp} aria-label="Use an MCP tool">
-                <Wrench aria-hidden size={18} strokeWidth={1.7} />
-              </button>
-              <span className="ml-1 hidden text-xs text-text-tertiary sm:inline">{useMcp ? "Tool enabled" : "Tools optional"}</span>
-              <button className="button-primary ml-auto size-10 min-h-10 px-0" aria-label={running ? "Sending message" : "Send message"} disabled={!input.trim() || !model || running || (useMcp && !toolName)}>
-                <Send aria-hidden size={17} strokeWidth={1.8} />
-              </button>
-            </div>
-          </div>
-        </form>
+        )}
       </section>
+
+      {historyOpen && <div className="fixed inset-0 z-50"><button className="absolute inset-0 bg-text-primary/20" onClick={() => setHistoryOpen(false)} aria-label="Close conversation history" /><aside role="dialog" aria-modal="true" aria-label="Conversation history" className="absolute inset-y-0 right-0 w-[min(340px,90vw)] border-l border-line bg-surface-elevated p-4 shadow-composer"><div className="mb-4 flex items-center justify-between"><h2 className="text-lg font-medium">Conversations</h2><button className="icon-button" onClick={() => setHistoryOpen(false)} aria-label="Close conversation history"><X aria-hidden size={20} /></button></div>{history}</aside></div>}
     </div>
   );
 }

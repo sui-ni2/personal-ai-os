@@ -29,6 +29,19 @@ class ConversationCreate(BaseModel):
     title: str = Field(default="New conversation", min_length=1, max_length=120)
 
 
+class RealtimeTranscriptCreate(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str = Field(min_length=1, max_length=20_000)
+
+    @field_validator("content")
+    @classmethod
+    def normalize_content(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("content must not be blank")
+        return normalized
+
+
 class MemoryCreate(BaseModel):
     type: str = Field(min_length=1, max_length=80)
     text: str = Field(min_length=1, max_length=50_000)

@@ -43,6 +43,9 @@ class Settings:
     provider_timeout_seconds: float = 90
     provider_max_retries: int = 2
     provider_retry_base_seconds: float = 0.25
+    realtime_model: str = "gpt-realtime-2.1"
+    realtime_voice: str = "marin"
+    realtime_transcription_model: str = "gpt-live-transcribe"
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -69,6 +72,13 @@ class Settings:
             ),
             provider_retry_base_seconds=max(
                 0, float(os.getenv("PERSONAL_AI_OS_PROVIDER_RETRY_BASE_SECONDS", "0.25"))
+            ),
+            realtime_model=os.getenv(
+                "PERSONAL_AI_OS_REALTIME_MODEL", "gpt-realtime-2.1"
+            ),
+            realtime_voice=os.getenv("PERSONAL_AI_OS_REALTIME_VOICE", "marin"),
+            realtime_transcription_model=os.getenv(
+                "PERSONAL_AI_OS_REALTIME_TRANSCRIPTION_MODEL", "gpt-live-transcribe"
             ),
         )
 

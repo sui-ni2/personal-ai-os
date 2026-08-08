@@ -5,10 +5,11 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import {
   Archive,
+  Download,
   FolderKanban,
   Home,
-  Menu,
   MessageCircle,
+  MoreHorizontal,
   NotebookTabs,
   Settings,
   Sparkles,
@@ -23,6 +24,13 @@ const navigation = [
   { href: "/projects", label: "Projects", icon: FolderKanban },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
+
+const mobileNavigation = navigation.filter((item) => ["/", "/chat", "/projects"].includes(item.href));
+
+type InstallPromptEvent = Event & {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
+};
 
 function SidebarContent({ pathname, onNavigate }: { pathname: string; onNavigate?: () => void }) {
   return (
@@ -61,12 +69,10 @@ function SidebarContent({ pathname, onNavigate }: { pathname: string; onNavigate
         <p className="px-3 text-xs font-medium uppercase tracking-[0.12em] text-text-tertiary">Projects</p>
         <div className="mt-2 space-y-1">
           <Link href="/projects#general" onClick={onNavigate} className="flex min-h-10 items-center gap-3 rounded-control px-3 text-sm text-text-secondary hover:bg-surface-subtle/65 hover:text-text-primary">
-            <span className="size-2 rounded-full bg-success" aria-hidden />
-            General
+            <span className="size-2 rounded-full bg-success" aria-hidden /> General
           </Link>
           <Link href="/projects#soccer" onClick={onNavigate} className="flex min-h-10 items-center gap-3 rounded-control px-3 text-sm text-text-secondary hover:bg-surface-subtle/65 hover:text-text-primary">
-            <span className="size-2 rounded-full bg-accent" aria-hidden />
-            Soccer
+            <span className="size-2 rounded-full bg-accent" aria-hidden /> Soccer
           </Link>
         </div>
       </div>
@@ -83,86 +89,98 @@ function SidebarContent({ pathname, onNavigate }: { pathname: string; onNavigate
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const drawerRef = useRef<HTMLElement>(null);
-  const drawerTriggerRef = useRef<HTMLButtonElement>(null);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null);
+  const sheetRef = useRef<HTMLElement>(null);
+  const moreTriggerRef = useRef<HTMLButtonElement>(null);
+  const focusedChat = pathname.startsWith("/chat");
+
+  useEffect(() => setMoreOpen(false), [pathname]);
 
   useEffect(() => {
-    setDrawerOpen(false);
-  }, [pathname]);
+    const handlePrompt = (event: Event) => {
+      event.preventDefault();
+      setInstallPrompt(event as InstallPromptEvent);
+    };
+    const handleInstalled = () => setInstallPrompt(null);
+    window.addEventListener("beforeinstallprompt", handlePrompt);
+    window.addEventListener("appinstalled", handleInstalled);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handlePrompt);
+      window.removeEventListener("appinstalled", handleInstalled);
+    };
+  }, []);
 
   useEffect(() => {
-    if (!drawerOpen) return;
+    if (!moreOpen) return;
     const previous = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    window.requestAnimationFrame(() => drawerRef.current?.querySelector<HTMLElement>("button, a")?.focus());
-    return () => {
-      document.body.style.overflow = previous;
-    };
-  }, [drawerOpen]);
+    window.requestAnimationFrame(() => sheetRef.current?.querySelector<HTMLElement>("button, a")?.focus());
+    return () => { document.body.style.overflow = previous; };
+  }, [moreOpen]);
 
-  function closeDrawer() {
-    setDrawerOpen(false);
-    window.requestAnimationFrame(() => drawerTriggerRef.current?.focus());
+  function closeMore() {
+    setMoreOpen(false);
+    window.requestAnimationFrame(() => moreTriggerRef.current?.focus());
   }
 
-  function handleDrawerKeys(event: React.KeyboardEvent<HTMLElement>) {
-    if (event.key === "Escape") {
-      event.preventDefault();
-      closeDrawer();
-      return;
-    }
-    if (event.key !== "Tab") return;
-    const focusable = Array.from(drawerRef.current?.querySelectorAll<HTMLElement>("button:not([disabled]), a[href]") || []);
-    if (!focusable.length) return;
-    const first = focusable[0];
-    const last = focusable[focusable.length - 1];
-    if (event.shiftKey && document.activeElement === first) {
-      event.preventDefault();
-      last.focus();
-    } else if (!event.shiftKey && document.activeElement === last) {
-      event.preventDefault();
-      first.focus();
-    }
+  async function installApp() {
+    if (!installPrompt) return;
+    await installPrompt.prompt();
+    const choice = await installPrompt.userChoice;
+    if (choice.outcome === "accepted") setInstallPrompt(null);
   }
 
   return (
     <div className="min-h-screen md:grid md:grid-cols-[264px_minmax(0,1fr)]">
-      <a href="#main-content" className="fixed left-3 top-3 z-[80] -translate-y-20 rounded-control bg-text-primary px-4 py-3 text-sm text-surface focus:translate-y-0">
-        Skip to content
-      </a>
+      <a href="#main-content" className="fixed left-3 top-3 z-[80] -translate-y-20 rounded-control bg-text-primary px-4 py-3 text-sm text-surface focus:translate-y-0">Skip to content</a>
 
       <aside className="sticky top-0 hidden h-screen border-r border-line bg-sidebar px-5 py-6 md:block lg:px-6 lg:py-7">
         <SidebarContent pathname={pathname} />
       </aside>
 
-      <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b border-line bg-background/95 px-4 backdrop-blur-sm md:hidden">
-        <Link href="/" className="flex min-h-11 items-center gap-2.5 rounded-control font-medium">
-          <span className="grid size-8 place-items-center rounded-control bg-accent-soft text-accent">
-            <Sparkles aria-hidden size={16} strokeWidth={1.8} />
-          </span>
-          Personal AI OS
-        </Link>
-        <button ref={drawerTriggerRef} className="icon-button" onClick={() => setDrawerOpen(true)} aria-label="Open navigation" aria-expanded={drawerOpen}>
-          <Menu aria-hidden size={21} strokeWidth={1.7} />
-        </button>
-      </header>
+      <main id="main-content" className={`min-w-0 ${focusedChat ? "" : "pb-[calc(76px+env(safe-area-inset-bottom))] md:pb-0"}`}>{children}</main>
 
-      {drawerOpen && (
+      {!focusedChat && (
+        <nav className="fixed inset-x-0 bottom-0 z-40 grid h-[calc(66px+env(safe-area-inset-bottom))] grid-cols-4 border-t border-line bg-surface/95 px-2 pb-[env(safe-area-inset-bottom)] backdrop-blur-md md:hidden" aria-label="Mobile navigation">
+          {mobileNavigation.map((item) => {
+            const active = item.exact ? pathname === item.href : pathname.startsWith(item.href);
+            const Icon = item.icon;
+            return (
+              <Link key={item.href} href={item.href} aria-current={active ? "page" : undefined} className={`flex min-h-14 flex-col items-center justify-center gap-1 text-[11px] font-medium ${active ? "text-accent-hover" : "text-text-tertiary"}`}>
+                <Icon aria-hidden size={20} strokeWidth={active ? 2 : 1.7} /> {item.label}
+              </Link>
+            );
+          })}
+          <button ref={moreTriggerRef} onClick={() => setMoreOpen(true)} className="flex min-h-14 flex-col items-center justify-center gap-1 text-[11px] font-medium text-text-tertiary" aria-haspopup="dialog" aria-expanded={moreOpen}>
+            <MoreHorizontal aria-hidden size={20} strokeWidth={1.7} /> More
+          </button>
+        </nav>
+      )}
+
+      {moreOpen && (
         <div className="fixed inset-0 z-50 md:hidden" role="presentation">
-          <button className="absolute inset-0 bg-text-primary/20" tabIndex={-1} aria-label="Close navigation" onClick={closeDrawer} />
-          <aside ref={drawerRef} role="dialog" aria-modal="true" onKeyDown={handleDrawerKeys} className="absolute inset-y-0 left-0 w-[min(310px,86vw)] border-r border-line bg-sidebar px-5 py-5 shadow-soft" aria-label="Mobile navigation">
-            <div className="mb-5 flex justify-end">
-              <button className="icon-button" onClick={closeDrawer} aria-label="Close navigation">
-                <X aria-hidden size={21} strokeWidth={1.7} />
-              </button>
+          <button className="absolute inset-0 bg-text-primary/20" tabIndex={-1} aria-label="Close more menu" onClick={closeMore} />
+          <aside ref={sheetRef} role="dialog" aria-modal="true" className="absolute inset-x-0 bottom-0 rounded-t-[28px] border-t border-line bg-surface-elevated px-5 pb-[max(24px,env(safe-area-inset-bottom))] pt-4 shadow-composer" aria-label="More destinations" onKeyDown={(event) => { if (event.key === "Escape") closeMore(); }}>
+            <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-line-strong" aria-hidden />
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-lg font-medium">More</h2>
+              <button className="icon-button" onClick={closeMore} aria-label="Close more menu"><X aria-hidden size={20} /></button>
             </div>
-            <SidebarContent pathname={pathname} onNavigate={closeDrawer} />
+            <div className="grid gap-2">
+              {installPrompt && (
+                <button type="button" className="flex min-h-14 items-center gap-3 rounded-control bg-accent-soft px-4 text-left text-sm font-medium text-accent-hover" onClick={() => void installApp()}>
+                  <Download aria-hidden size={19} strokeWidth={1.7} /> Install app
+                </button>
+              )}
+              {navigation.filter((item) => ["/memory", "/repository", "/settings"].includes(item.href)).map((item) => {
+                const Icon = item.icon;
+                return <Link key={item.href} href={item.href} className="flex min-h-14 items-center gap-3 rounded-control bg-surface-subtle/60 px-4 text-sm font-medium" onClick={closeMore}><Icon aria-hidden size={19} strokeWidth={1.7} />{item.label}</Link>;
+              })}
+            </div>
           </aside>
         </div>
       )}
-
-      <main id="main-content" className="min-w-0">{children}</main>
     </div>
   );
 }

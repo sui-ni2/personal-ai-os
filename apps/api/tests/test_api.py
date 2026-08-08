@@ -6,11 +6,13 @@ from threading import Thread
 from typing import Any
 
 import pytest
+import httpx
 from fastapi.testclient import TestClient
 from personal_ai_os_mcp import EchoMCPServer
 
 from personal_ai_os.main import create_app
 from personal_ai_os.chat import stream_chat
+from personal_ai_os.chat import conversation_title
 from personal_ai_os.schemas import ChatRequest
 
 
@@ -84,6 +86,126 @@ def test_health_and_secret_redaction(client: TestClient) -> None:
     assert switched.status_code == 200
     assert switched.json()["default_model"] == "anthropic-test"
     assert client.patch("/api/settings", json={"default_model": "not-allowlisted"}).status_code == 400
+
+
+def test_realtime_status_is_safe_when_unconfigured(client: TestClient) -> None:
+    status = client.get("/api/realtime/status")
+    assert status.status_code == 200
+    assert status.json() == {
+        "configured": False,
+        "model": "gpt-realtime-2.1",
+        "transcription_model": "gpt-live-transcribe",
+        "transport": "webrtc",
+    }
+    assert client.post(
+        "/api/realtime/session",
+        content="v=0",
+        headers={"content-type": "application/sdp"},
+    ).status_code == 503
+
+
+@pytest.mark.parametrize(
+    ("content", "expected"),
+    [
+        ("帮我规划一下明天的工作，并找出最重要的三件事。", "规划一下明天的工作，并找出最重要的三件事"),
+        ("Please help me compare these two options and explain the tradeoffs.", "compare these two options and explain the…"),
+        ("\n\n今天聊什么？\n第二行", "今天聊什么"),
+    ],
+)
+def test_conversation_title_is_compact(content: str, expected: str) -> None:
+    assert conversation_title(content) == expected
+
+
+def test_realtime_transcript_updates_title_and_stays_in_conversation(client: TestClient) -> None:
+    conversation = client.post(
+        "/api/conversations",
+        json={
+            "provider": "openai",
+            "model": "openai-test",
+            "project_id": "general",
+            "title": "New conversation",
+        },
+    ).json()
+    first = client.post(
+        f"/api/conversations/{conversation['id']}/realtime-transcript",
+        json={"role": "user", "content": "帮我把今天最重要的工作理清楚。"},
+    )
+    assert first.status_code == 201
+    assert first.json()["conversation"]["title"] == "把今天最重要的工作理清楚"
+    second = client.post(
+        f"/api/conversations/{conversation['id']}/realtime-transcript",
+        json={"role": "assistant", "content": "我们先列出三件最重要的事。"},
+    )
+    assert second.status_code == 201
+    messages = client.get(
+        f"/api/conversations/{conversation['id']}/messages"
+    ).json()["items"]
+    assert [(item["role"], item["content"]) for item in messages] == [
+        ("user", "帮我把今天最重要的工作理清楚。"),
+        ("assistant", "我们先列出三件最重要的事。"),
+    ]
+    assert client.post(
+        f"/api/conversations/{conversation['id']}/realtime-transcript",
+        json={"role": "user", "content": "   "},
+    ).status_code == 422
+
+
+def test_realtime_session_uses_server_key_context_and_transcription(
+    runtime,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, Any] = {}
+
+    class FakeAsyncClient:
+        def __init__(self, timeout: int) -> None:
+            assert timeout == 30
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args: object) -> None:
+            return None
+
+        async def post(self, url: str, **kwargs: Any) -> httpx.Response:
+            captured.update({"url": url, **kwargs})
+            return httpx.Response(
+                200,
+                content=b"v=0\r\na=answer",
+                request=httpx.Request("POST", url),
+            )
+
+    object.__setattr__(runtime.settings, "openai_api_key", "test-server-key")
+    monkeypatch.setattr("personal_ai_os.routes.httpx.AsyncClient", FakeAsyncClient)
+
+    with TestClient(create_app(runtime=runtime)) as client:
+        conversation = client.post(
+            "/api/conversations",
+            json={
+                "provider": "openai",
+                "model": "openai-test",
+                "project_id": "general",
+                "title": "New conversation",
+            },
+        ).json()
+        client.post(
+            f"/api/conversations/{conversation['id']}/realtime-transcript",
+            json={"role": "user", "content": "Plan the day."},
+        )
+        response = client.post(
+            f"/api/realtime/session?project_id=general&conversation_id={conversation['id']}",
+            content="v=0\r\na=offer",
+            headers={"content-type": "application/sdp"},
+        )
+
+    assert response.status_code == 200
+    assert response.content == b"v=0\r\na=answer"
+    assert captured["url"] == "https://api.openai.com/v1/realtime/calls"
+    assert captured["headers"] == {"Authorization": "Bearer test-server-key"}
+    session = json.loads(captured["files"]["session"][1])
+    assert session["model"] == "gpt-realtime-2.1"
+    assert session["audio"]["input"]["transcription"]["model"] == "gpt-live-transcribe"
+    assert "Plan the day." in session["instructions"]
+    assert "test-server-key" not in response.text
 
 
 def test_database_migrations_are_current(client: TestClient, runtime) -> None:
