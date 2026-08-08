@@ -1,0 +1,7 @@
+-e ./packages/core
+-e ./packages/providers
+-e ./packages/mcp
+-e ./packages/projects
+-e ./apps/api
+pytest>=8.3,<10
+pytest-asyncio>=0.25,<2

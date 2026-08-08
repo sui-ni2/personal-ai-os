@@ -1,0 +1,131 @@
+from __future__ import annotations
+
+from typing import Any, Protocol
+from uuid import uuid4
+
+from personal_ai_os_core import ProjectRegistry
+from pydantic import BaseModel, Field
+
+
+class MCPTool(BaseModel):
+    name: str
+    description: str
+    input_schema: dict[str, Any] = Field(default_factory=dict)
+    server: str
+
+
+class MCPServer(Protocol):
+    id: str
+
+    def tools(self) -> list[MCPTool]: ...
+
+    async def request(self, payload: dict[str, Any]) -> dict[str, Any]: ...
+
+
+class MCPInvocationError(RuntimeError):
+    pass
+
+
+class EchoMCPServer:
+    """A no-I/O, stateless JSON-RPC MCP reference server for gateway verification."""
+
+    id = "local-reference"
+    protocol_version = "2026-07-28"
+
+    def tools(self) -> list[MCPTool]:
+        return [
+            MCPTool(
+                name="system.echo",
+                description="Return a caller-provided message for MCP trace verification.",
+                input_schema={
+                    "type": "object",
+                    "properties": {"message": {"type": "string", "maxLength": 2000}},
+                    "required": ["message"],
+                    "additionalProperties": False,
+                },
+                server=self.id,
+            )
+        ]
+
+    async def _call(self, tool_name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+        if tool_name != "system.echo":
+            raise MCPInvocationError(f"Unknown tool: {tool_name}")
+        if set(arguments) != {"message"} or not isinstance(arguments.get("message"), str):
+            raise MCPInvocationError("system.echo requires one string field: message")
+        if len(arguments["message"]) > 2000:
+            raise MCPInvocationError("system.echo message exceeds 2000 characters")
+        return {"content": [{"type": "text", "text": arguments["message"]}], "isError": False}
+
+    async def request(self, payload: dict[str, Any]) -> dict[str, Any]:
+        request_id = payload.get("id")
+        if payload.get("jsonrpc") != "2.0" or request_id is None:
+            return {"jsonrpc": "2.0", "id": request_id, "error": {"code": -32600, "message": "Invalid Request"}}
+        method = payload.get("method")
+        if method == "server/discover":
+            return {
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "result": {"protocolVersion": self.protocol_version, "capabilities": {"tools": {}}},
+            }
+        if method == "tools/list":
+            tools = [
+                {
+                    "name": tool.name,
+                    "description": tool.description,
+                    "inputSchema": tool.input_schema,
+                }
+                for tool in self.tools()
+            ]
+            return {"jsonrpc": "2.0", "id": request_id, "result": {"tools": tools}}
+        if method == "tools/call":
+            params = payload.get("params") or {}
+            try:
+                result = await self._call(params.get("name"), params.get("arguments") or {})
+            except MCPInvocationError as exc:
+                return {"jsonrpc": "2.0", "id": request_id, "error": {"code": -32602, "message": str(exc)}}
+            return {"jsonrpc": "2.0", "id": request_id, "result": result}
+        return {"jsonrpc": "2.0", "id": request_id, "error": {"code": -32601, "message": "Method not found"}}
+
+
+class MCPGateway:
+    def __init__(self, projects: ProjectRegistry, servers: list[MCPServer]) -> None:
+        self._projects = projects
+        self._servers = {server.id: server for server in servers}
+        self._tools: dict[str, tuple[MCPServer, MCPTool]] = {}
+        for server in servers:
+            for tool in server.tools():
+                if tool.name in self._tools:
+                    raise ValueError(f"Duplicate MCP tool: {tool.name}")
+                self._tools[tool.name] = (server, tool)
+
+    def list_tools(self, project_id: str) -> list[MCPTool]:
+        allowed = self._projects.get(project_id).tools()
+        return [tool for name, (_, tool) in self._tools.items() if name in allowed]
+
+    async def invoke(self, project_id: str, tool_name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+        if tool_name not in self._projects.get(project_id).tools():
+            raise MCPInvocationError(f"Tool is not permitted for project {project_id}: {tool_name}")
+        try:
+            server, _ = self._tools[tool_name]
+        except KeyError as exc:
+            raise MCPInvocationError(f"Tool is not registered: {tool_name}") from exc
+        response = await server.request(
+            {
+                "jsonrpc": "2.0",
+                "id": str(uuid4()),
+                "method": "tools/call",
+                "params": {
+                    "name": tool_name,
+                    "arguments": arguments,
+                    "_meta": {
+                        "io.modelcontextprotocol/clientInfo": {
+                            "name": "personal-ai-os",
+                            "version": "0.1.0",
+                        }
+                    },
+                },
+            }
+        )
+        if "error" in response:
+            raise MCPInvocationError(response["error"].get("message", "MCP request failed"))
+        return response["result"]

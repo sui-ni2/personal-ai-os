@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "personal-ai-os-mcp"
+version = "0.1.0"
+description = "Allowlisted MCP gateway for Personal AI OS"
+requires-python = ">=3.11"
+dependencies = [
+  "pydantic>=2.10,<3",
+  "personal-ai-os-core==0.1.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
