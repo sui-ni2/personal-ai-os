@@ -1,7 +1,9 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { Cable, Check, ChevronDown, Database, Palette, Plus, RefreshCw, Server, ShieldCheck } from "lucide-react";
 import { apiJson } from "@/lib/api";
+import { ErrorState, LoadingState } from "@/components/ui-states";
 
 type Provider = { id: string; configured: boolean; models: string[] };
 type MCPConnector = {
@@ -22,13 +24,15 @@ type Settings = {
   default_provider: string;
   default_model: string;
   providers: Provider[];
-  mcp: {
-    servers: { id: string; configured: boolean }[];
-    connectors: MCPConnector[];
-    stdio_command_aliases: string[];
-  };
+  mcp: { servers: { id: string; configured: boolean }[]; connectors: MCPConnector[]; stdio_command_aliases: string[] };
   secrets: { storage: string; values_exposed: boolean };
 };
+
+function providerName(id: string) {
+  if (id === "openai") return "OpenAI";
+  if (id === "anthropic") return "Anthropic";
+  return id.charAt(0).toUpperCase() + id.slice(1);
+}
 
 export function SettingsPanel() {
   const [settings, setSettings] = useState<Settings>();
@@ -41,23 +45,24 @@ export function SettingsPanel() {
   const [command, setCommand] = useState("");
   const [allowedTools, setAllowedTools] = useState("");
   const [connectorError, setConnectorError] = useState("");
+  const [loadError, setLoadError] = useState(false);
   const [discovered, setDiscovered] = useState<Record<string, DiscoveredTool[]>>({});
 
   async function load() {
-    const item = await apiJson<Settings>("/api/settings");
-    setSettings(item);
-    setProvider(item.default_provider);
-    setModel(item.default_model);
-    if (!command && item.mcp.stdio_command_aliases.length) {
-      setCommand(item.mcp.stdio_command_aliases[0]);
+    try {
+      const item = await apiJson<Settings>("/api/settings");
+      setSettings(item);
+      setProvider(item.default_provider);
+      setModel(item.default_model);
+      if (!command && item.mcp.stdio_command_aliases.length) setCommand(item.mcp.stdio_command_aliases[0]);
+      setLoadError(false);
+    } catch {
+      setLoadError(true);
     }
   }
 
   useEffect(() => { void load(); }, []);
-  const selected = useMemo(
-    () => settings?.providers.find((item) => item.id === provider),
-    [provider, settings],
-  );
+  const selected = useMemo(() => settings?.providers.find((item) => item.id === provider), [provider, settings]);
 
   async function submitDefaults(event: FormEvent) {
     event.preventDefault();
@@ -90,30 +95,24 @@ export function SettingsPanel() {
       setEndpoint("");
       setAllowedTools("");
       await load();
-    } catch (error) {
-      setConnectorError(error instanceof Error ? error.message : "Connector creation failed");
+    } catch {
+      setConnectorError("The connector could not be added. Check the configuration and try again.");
     }
   }
 
   async function toggleConnector(connector: MCPConnector) {
-    await apiJson(`/api/mcp/connectors/${connector.id}`, {
-      method: "PATCH",
-      body: JSON.stringify({ enabled: !connector.enabled }),
-    });
+    await apiJson(`/api/mcp/connectors/${connector.id}`, { method: "PATCH", body: JSON.stringify({ enabled: !connector.enabled }) });
     await load();
   }
 
   async function discoverConnector(connector: MCPConnector) {
     setConnectorError("");
     try {
-      const result = await apiJson<{ tools: DiscoveredTool[] }>(
-        `/api/mcp/connectors/${connector.id}/discover`,
-        { method: "POST" },
-      );
+      const result = await apiJson<{ tools: DiscoveredTool[] }>(`/api/mcp/connectors/${connector.id}/discover`, { method: "POST" });
       setDiscovered((current) => ({ ...current, [connector.id]: result.tools }));
       await load();
-    } catch (error) {
-      setConnectorError(error instanceof Error ? error.message : "Tool discovery failed");
+    } catch {
+      setConnectorError("Tool discovery failed. Check that the connector is enabled and reachable.");
       await load();
     }
   }
@@ -122,87 +121,123 @@ export function SettingsPanel() {
     const next = connector.allowed_tools.includes(toolName)
       ? connector.allowed_tools.filter((item) => item !== toolName)
       : [...connector.allowed_tools, toolName];
-    await apiJson(`/api/mcp/connectors/${connector.id}`, {
-      method: "PATCH",
-      body: JSON.stringify({ allowed_tools: next }),
-    });
+    await apiJson(`/api/mcp/connectors/${connector.id}`, { method: "PATCH", body: JSON.stringify({ allowed_tools: next }) });
     await load();
   }
 
-  if (!settings) return <div className="panel p-8 text-sm text-muted">Loading safe configuration...</div>;
-  return (
-    <div className="space-y-5">
-      <div className="grid gap-5 lg:grid-cols-[1fr_360px]">
-        <form onSubmit={submitDefaults} className="panel p-6">
-          <p className="eyebrow">Model routing</p><h2 className="mt-2 text-2xl font-semibold">Defaults</h2>
-          <div className="mt-6 grid gap-4 sm:grid-cols-2">
-            <label className="text-xs font-semibold text-muted">Provider
-              <select className="field mt-2 w-full" value={provider} onChange={(event) => { const id = event.target.value; setProvider(id); setModel(settings.providers.find((item) => item.id === id)?.models[0] || ""); }}>
-                {settings.providers.map((item) => <option key={item.id} value={item.id}>{item.id}</option>)}
-              </select>
-            </label>
-            <label className="text-xs font-semibold text-muted">Model
-              <select className="field mt-2 w-full" value={model} onChange={(event) => setModel(event.target.value)}>
-                {(selected?.models || []).map((item) => <option key={item} value={item}>{item}</option>)}
-              </select>
-            </label>
-          </div>
-          <button className="button-primary mt-5">{saved ? "Saved" : "Save defaults"}</button>
-        </form>
-        <section className="panel p-6">
-          <p className="eyebrow">Security</p>
-          <p className="mt-3 text-sm leading-6 text-muted">Secrets are read from {settings.secrets.storage}. Values exposed to the browser: <strong>{String(settings.secrets.values_exposed)}</strong>.</p>
-          <div className="mt-4 rounded-2xl bg-black/[0.025] p-4 text-sm"><span className="mr-2 inline-block size-2 rounded-full bg-emerald-500" />Built-in MCP {settings.mcp.servers[0]?.id} connected</div>
-        </section>
-      </div>
+  if (loadError) return <ErrorState title="Settings are unavailable" detail="Safe configuration could not be loaded. Start the API and refresh this page." />;
+  if (!settings) return <LoadingState label="Loading safe configuration" />;
 
-      <section className="panel p-6">
-        <p className="eyebrow">MCP connectors</p>
-        <div className="mt-2 flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
-          <div><h2 className="text-2xl font-semibold">External transports</h2><p className="mt-2 text-sm leading-6 text-muted">HTTP endpoints are fixed configuration. stdio uses server-side command aliases only; no shell string is accepted.</p></div>
-          <span className="text-sm text-muted">{settings.mcp.connectors.length} configured</span>
+  return (
+    <div className="space-y-10">
+      <section aria-labelledby="models-settings">
+        <div className="mb-4 flex items-center gap-2"><Server aria-hidden size={18} className="text-text-tertiary" /><h2 id="models-settings" className="section-title">Models</h2></div>
+        <div className="grid gap-4 lg:grid-cols-[1fr_380px]">
+          <div className="grid gap-3 sm:grid-cols-2">
+            {settings.providers.map((item) => (
+              <article key={item.id} className="panel p-5">
+                <div className="flex items-center justify-between gap-4">
+                  <h3 className="text-[15px] font-medium">{providerName(item.id)}</h3>
+                  <span className={`chip ${item.configured ? "bg-success/10 text-success" : ""}`}><span className={`status-dot ${item.configured ? "bg-success" : "bg-warning"}`} />{item.configured ? "Configured" : "Not configured"}</span>
+                </div>
+                <p className="mt-3 text-sm leading-6 text-text-secondary">{item.models.length} {item.models.length === 1 ? "model" : "models"} available from provider configuration.</p>
+              </article>
+            ))}
+          </div>
+          <form onSubmit={submitDefaults} className="panel p-5">
+            <h3 className="text-[15px] font-medium">Default model</h3>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+              <label className="text-xs font-medium text-text-secondary">Provider
+                <select className="field mt-1.5 w-full" value={provider} onChange={(event) => { const id = event.target.value; setProvider(id); setModel(settings.providers.find((item) => item.id === id)?.models[0] || ""); }}>
+                  {settings.providers.map((item) => <option key={item.id} value={item.id}>{providerName(item.id)}</option>)}
+                </select>
+              </label>
+              <label className="text-xs font-medium text-text-secondary">Model
+                <select className="field mt-1.5 w-full" value={model} onChange={(event) => setModel(event.target.value)}>
+                  {(selected?.models || []).map((item) => <option key={item} value={item}>{item}</option>)}
+                </select>
+              </label>
+            </div>
+            <button className="button-primary mt-4 w-full">{saved ? <><Check aria-hidden size={17} />Saved</> : "Save default"}</button>
+          </form>
         </div>
-        <form onSubmit={createConnector} className="mt-6 grid gap-3 rounded-3xl bg-black/[0.025] p-4 md:grid-cols-2 xl:grid-cols-5">
-          <input className="field" placeholder="Connector name" value={connectorName} onChange={(event) => setConnectorName(event.target.value)} required />
-          <select className="field" value={transport} onChange={(event) => setTransport(event.target.value as "http" | "stdio")}><option value="http">HTTP</option><option value="stdio">stdio</option></select>
-          {transport === "http" ? (
-            <input className="field xl:col-span-2" placeholder="https://server.example/mcp" value={endpoint} onChange={(event) => setEndpoint(event.target.value)} required />
-          ) : (
-            <select className="field xl:col-span-2" value={command} onChange={(event) => setCommand(event.target.value)} required>
-              <option value="">Choose allowlisted command</option>
-              {settings.mcp.stdio_command_aliases.map((item) => <option key={item} value={item}>{item}</option>)}
-            </select>
+      </section>
+
+      <section aria-labelledby="mcp-settings">
+        <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+          <div>
+            <div className="flex items-center gap-2"><Cable aria-hidden size={18} className="text-text-tertiary" /><h2 id="mcp-settings" className="section-title">MCP</h2></div>
+            <p className="mt-2 text-sm leading-6 text-text-secondary">Allowlisted tool connections available to your workspace.</p>
+          </div>
+          <details className="group relative">
+            <summary className="button-primary cursor-pointer list-none"><Plus aria-hidden size={17} />Add connector</summary>
+            <form onSubmit={createConnector} className="panel-elevated mt-2 grid gap-3 p-4 sm:absolute sm:right-0 sm:z-20 sm:w-[520px] sm:grid-cols-2">
+              <input className="field" aria-label="Connector name" placeholder="Connector name" value={connectorName} onChange={(event) => setConnectorName(event.target.value)} required />
+              <select className="field" aria-label="Connector transport" value={transport} onChange={(event) => setTransport(event.target.value as "http" | "stdio")}><option value="http">HTTP</option><option value="stdio">stdio</option></select>
+              {transport === "http" ? (
+                <input className="field sm:col-span-2" aria-label="Connector HTTP endpoint" placeholder="https://server.example/mcp" value={endpoint} onChange={(event) => setEndpoint(event.target.value)} required />
+              ) : (
+                <select className="field sm:col-span-2" aria-label="Connector command alias" value={command} onChange={(event) => setCommand(event.target.value)} required>
+                  <option value="">Choose allowlisted command</option>
+                  {settings.mcp.stdio_command_aliases.map((item) => <option key={item} value={item}>{item}</option>)}
+                </select>
+              )}
+              <input className="field sm:col-span-2" aria-label="Allowed tools" placeholder="Allowed tools, comma separated" value={allowedTools} onChange={(event) => setAllowedTools(event.target.value)} />
+              <button className="button-primary sm:col-span-2" disabled={transport === "stdio" && !command}>Add connector</button>
+            </form>
+          </details>
+        </div>
+        {connectorError && <div className="mt-4"><ErrorState title="Connection needs attention" detail={connectorError} /></div>}
+        <div className="mt-4 grid gap-3 lg:grid-cols-2">
+          {settings.mcp.connectors.length === 0 && (
+            <div className="panel col-span-full flex items-center gap-3 p-5 text-sm text-text-secondary"><ShieldCheck aria-hidden size={18} className="text-success" />No external connectors configured. The built-in allowlisted reference tool remains available.</div>
           )}
-          <input className="field" placeholder="Allowed tools, comma separated" value={allowedTools} onChange={(event) => setAllowedTools(event.target.value)} />
-          <button className="button-primary md:col-span-2 xl:col-span-5" disabled={transport === "stdio" && !command}>Add connector</button>
-        </form>
-        {connectorError && <p className="mt-4 rounded-2xl bg-red-50 p-4 text-sm text-red-800">{connectorError}</p>}
-        <div className="mt-6 grid gap-4 lg:grid-cols-2">
           {settings.mcp.connectors.map((connector) => (
-            <article key={connector.id} className="rounded-3xl border border-black/5 bg-white/55 p-5">
+            <article key={connector.id} className="panel p-5">
               <div className="flex items-start justify-between gap-4">
-                <div><p className="eyebrow">{connector.transport} · {connector.connection_status}</p><h3 className="mt-2 text-xl font-semibold">{connector.name}</h3><p className="mt-2 break-all text-xs text-muted">{connector.endpoint || `command alias: ${connector.command}`}</p></div>
-                <button className="min-h-11 rounded-2xl border border-black/10 px-4 text-xs font-semibold" onClick={() => void toggleConnector(connector)}>{connector.enabled ? "Disable" : "Enable"}</button>
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2"><h3 className="text-[15px] font-medium">{connector.name}</h3><span className="chip uppercase">{connector.transport}</span></div>
+                  <p className="mt-2 text-sm text-text-secondary">{connector.connection_status === "error" ? "Connection error" : connector.connection_status.charAt(0).toUpperCase() + connector.connection_status.slice(1)}</p>
+                </div>
+                <button className="button-secondary px-3 text-xs" onClick={() => void toggleConnector(connector)}>{connector.enabled ? "Disable" : "Enable"}</button>
               </div>
               <div className="mt-4 flex flex-wrap gap-2">
-                <button className="button-primary" onClick={() => void discoverConnector(connector)} disabled={!connector.enabled}>Discover tools</button>
-                {connector.allowed_tools.map((item) => <span key={item} className="rounded-full bg-emerald-100 px-3 py-2 text-xs font-semibold text-emerald-800">allowed: {item}</span>)}
+                <button className="button-quiet px-2 text-xs" onClick={() => void discoverConnector(connector)} disabled={!connector.enabled}><RefreshCw aria-hidden size={14} />Discover tools</button>
+                <span className="chip">{connector.allowed_tools.length} allowed</span>
               </div>
               {(discovered[connector.id] || []).length > 0 && (
-                <div className="mt-4 space-y-2 rounded-2xl bg-black/[0.025] p-3">
+                <div className="mt-4 space-y-1 rounded-control bg-surface-subtle p-2">
                   {(discovered[connector.id] || []).map((tool) => (
-                    <button key={tool.name} className="flex min-h-11 w-full items-center justify-between rounded-xl bg-white/70 px-3 text-left text-xs" onClick={() => void toggleAllowedTool(connector, tool.name)}>
-                      <span><strong>{tool.name}</strong><span className="ml-2 text-muted">{tool.description}</span></span>
-                      <span>{connector.allowed_tools.includes(tool.name) ? "Remove" : "Allow"}</span>
+                    <button key={tool.name} className="flex min-h-11 w-full items-center justify-between gap-3 rounded-small bg-surface px-3 text-left text-xs" onClick={() => void toggleAllowedTool(connector, tool.name)}>
+                      <span className="min-w-0"><strong className="block truncate font-medium">{tool.name}</strong><span className="mt-0.5 block truncate text-text-tertiary">{tool.description}</span></span>
+                      <span className="shrink-0 text-accent-hover">{connector.allowed_tools.includes(tool.name) ? "Remove" : "Allow"}</span>
                     </button>
                   ))}
                 </div>
               )}
-              <p className="mt-4 text-xs leading-5 text-muted">Last seen: {connector.last_seen ? new Date(connector.last_seen).toLocaleString() : "never"}{connector.last_error ? ` · Last error: ${connector.last_error}` : ""}</p>
+              <details className="group mt-4 border-t border-line pt-3">
+                <summary className="flex cursor-pointer list-none items-center gap-2 text-xs font-medium text-text-tertiary">Advanced details <ChevronDown aria-hidden size={14} className="transition-transform group-open:rotate-180" /></summary>
+                <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-3 gap-y-2 rounded-small bg-surface-subtle p-3 text-xs text-text-secondary">
+                  <dt>Target</dt><dd className="truncate font-mono">{connector.endpoint || `command alias: ${connector.command}`}</dd>
+                  <dt>Last seen</dt><dd>{connector.last_seen ? new Date(connector.last_seen).toLocaleString() : "Never"}</dd>
+                  <dt>Status</dt><dd>{connector.last_error ? "Last attempt failed" : connector.connection_status}</dd>
+                </dl>
+              </details>
             </article>
           ))}
         </div>
       </section>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <section className="panel p-5" aria-labelledby="appearance-settings">
+          <div className="flex items-center gap-2"><Palette aria-hidden size={18} className="text-text-tertiary" /><h2 id="appearance-settings" className="section-title">Appearance</h2></div>
+          <div className="mt-5 flex items-center justify-between rounded-control bg-surface-subtle p-4"><span className="text-sm font-medium">Theme</span><span className="chip">Light</span></div>
+        </section>
+        <section className="panel p-5" aria-labelledby="data-settings">
+          <div className="flex items-center gap-2"><Database aria-hidden size={18} className="text-text-tertiary" /><h2 id="data-settings" className="section-title">Data</h2></div>
+          <div className="mt-5 flex gap-3 rounded-control bg-surface-subtle p-4"><ShieldCheck aria-hidden size={18} className="mt-0.5 shrink-0 text-success" /><div><p className="text-sm font-medium">Local persistence</p><p className="mt-1 text-xs leading-5 text-text-secondary">Conversation, memory, and repository data remain managed by the local API. Secret values are never exposed here.</p></div></div>
+        </section>
+      </div>
     </div>
   );
 }

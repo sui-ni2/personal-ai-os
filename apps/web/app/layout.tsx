@@ -9,12 +9,14 @@ export const metadata: Metadata = {
   manifest: "/manifest.webmanifest"
 };
 
-export const viewport: Viewport = { width: "device-width", initialScale: 1, themeColor: "#f5f1e8" };
+export const viewport: Viewport = { width: "device-width", initialScale: 1, themeColor: "#f1e9dd" };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body><AppShell>{children}</AppShell></body>
+      <body>
+        <AppShell>{children}</AppShell>
+      </body>
     </html>
   );
 }

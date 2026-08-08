@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Build the independent Personal AI OS V0.1 modular monolith: a mobile-first Next.js workbench backed by FastAPI, SQLite, provider adapters, an auditable SSE execution trace, MCP/tool integration, structured memory, repository events, and project plugins.
+Build the independent Personal AI OS modular monolith. V0.2 focuses on a mobile-first product UI and unified visual system for the existing Next.js workbench backed by FastAPI, SQLite, provider adapters, auditable SSE activity, MCP/tool integration, structured memory, repository events, and project plugins.
 
 ## Important commands
 

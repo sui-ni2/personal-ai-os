@@ -5,9 +5,9 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "Personal AI OS",
     short_name: "AI OS",
     description: "A provider-neutral personal AI workbench",
-    start_url: "/chat",
+    start_url: "/",
     display: "standalone",
-    background_color: "#f5f1e8",
-    theme_color: "#f5f1e8"
+    background_color: "#f1e9dd",
+    theme_color: "#f1e9dd"
   };
 }

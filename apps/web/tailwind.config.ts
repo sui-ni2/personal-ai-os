@@ -5,16 +5,52 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        canvas: "#f5f1e8",
-        ink: "#25241f",
-        muted: "#777267",
-        accent: "#bc6746",
-        card: "#fffdf8"
+        background: "var(--background)",
+        surface: "var(--surface)",
+        "surface-subtle": "var(--surface-subtle)",
+        "surface-elevated": "var(--surface-elevated)",
+        sidebar: "var(--sidebar)",
+        text: {
+          primary: "var(--text-primary)",
+          secondary: "var(--text-secondary)",
+          tertiary: "var(--text-tertiary)",
+        },
+        line: "var(--border)",
+        "line-strong": "var(--border-strong)",
+        accent: {
+          DEFAULT: "var(--accent)",
+          hover: "var(--accent-hover)",
+          soft: "var(--accent-soft)",
+        },
+        success: "var(--success)",
+        warning: "var(--warning)",
+        danger: "var(--danger)",
       },
-      boxShadow: { soft: "0 18px 55px rgba(65, 56, 43, 0.08)" }
-    }
+      borderRadius: {
+        small: "var(--radius-small)",
+        control: "var(--radius-control)",
+        card: "var(--radius-card)",
+        large: "var(--radius-large)",
+      },
+      boxShadow: {
+        soft: "var(--shadow-soft)",
+        composer: "var(--shadow-composer)",
+      },
+      fontFamily: {
+        sans: [
+          "MiSans",
+          "SF Pro Text",
+          "SF Pro Display",
+          "PingFang SC",
+          "system-ui",
+          "Segoe UI",
+          "sans-serif",
+        ],
+        mono: ["JetBrains Mono", "SFMono-Regular", "Consolas", "monospace"],
+      },
+    },
   },
-  plugins: []
+  plugins: [],
 };
 
 export default config;
