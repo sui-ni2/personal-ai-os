@@ -127,13 +127,13 @@ export function MemoryManager() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="scrollbar-subtle flex gap-2 overflow-x-auto pb-1" aria-label="Memory categories">
           {filters.map((item) => (
-            <button key={item} type="button" className={`chip shrink-0 capitalize ${filter === item ? "bg-accent-soft text-accent-hover" : "hover:bg-surface"}`} onClick={() => setFilter(item)} aria-pressed={filter === item}>
+            <button key={item} type="button" className={`chip min-h-11 shrink-0 capitalize ${filter === item ? "bg-accent-soft text-accent-hover" : "hover:bg-surface"}`} onClick={() => setFilter(item)} aria-pressed={filter === item}>
               {item === "all" ? "All types" : `${item.charAt(0).toUpperCase()}${item.slice(1)}s`}
             </button>
           ))}
         </div>
         <div className="inline-flex self-start rounded-control bg-surface-subtle p-1" role="group" aria-label="Memory status">
-          {statusFilters.map((item) => <button key={item} type="button" className={`min-h-9 rounded-small px-3 text-xs font-medium capitalize ${statusFilter === item ? "bg-surface-elevated text-text-primary shadow-soft" : "text-text-secondary"}`} aria-pressed={statusFilter === item} onClick={() => setStatusFilter(item)}>{item}</button>)}
+          {statusFilters.map((item) => <button key={item} type="button" className={`min-h-11 rounded-small px-3 text-xs font-medium capitalize ${statusFilter === item ? "bg-surface-elevated text-text-primary shadow-soft" : "text-text-secondary"}`} aria-pressed={statusFilter === item} onClick={() => setStatusFilter(item)}>{item}</button>)}
         </div>
       </div>
 

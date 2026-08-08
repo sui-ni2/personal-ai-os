@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Check, ChevronDown, Cpu, X } from "lucide-react";
+import { focusableSelector, trapFocus } from "@/lib/focus";
 
 export type ProviderOption = { id: string; configured: boolean; models: string[] };
 
@@ -35,29 +36,24 @@ export function ModelSelector({
 
   useEffect(() => {
     if (!open) return;
-    const first = panelRef.current?.querySelector<HTMLElement>("button:not([disabled])");
-    first?.focus();
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    window.requestAnimationFrame(() => panelRef.current?.querySelector<HTMLElement>(focusableSelector)?.focus());
+    return () => { document.body.style.overflow = previous; };
   }, [open]);
+
+  function closePanel() {
+    setOpen(false);
+    window.requestAnimationFrame(() => triggerRef.current?.focus());
+  }
 
   function handleKeys(event: React.KeyboardEvent<HTMLDivElement>) {
     if (event.key === "Escape") {
       event.preventDefault();
-      setOpen(false);
-      triggerRef.current?.focus();
+      closePanel();
       return;
     }
-    if (event.key !== "Tab") return;
-    const focusable = Array.from(panelRef.current?.querySelectorAll<HTMLElement>("button:not([disabled])") || []);
-    if (!focusable.length) return;
-    const first = focusable[0];
-    const last = focusable[focusable.length - 1];
-    if (event.shiftKey && document.activeElement === first) {
-      event.preventDefault();
-      last.focus();
-    } else if (!event.shiftKey && document.activeElement === last) {
-      event.preventDefault();
-      first.focus();
-    }
+    trapFocus(event);
   }
 
   return (
@@ -80,7 +76,7 @@ export function ModelSelector({
 
       {open && (
         <>
-          <button className="fixed inset-0 z-50 cursor-default bg-text-primary/10 sm:bg-transparent" onClick={() => setOpen(false)} aria-label="Close model selector" />
+          <button className="fixed inset-0 z-50 cursor-default bg-text-primary/10 sm:bg-transparent" onClick={closePanel} aria-label="Close model selector" />
           <div
             ref={panelRef}
             role="dialog"
@@ -94,7 +90,7 @@ export function ModelSelector({
                 <p className="text-sm font-medium">Choose model</p>
                 <p className="mt-0.5 text-xs text-text-tertiary">Models are provided by your configured adapters.</p>
               </div>
-              <button className="icon-button" type="button" onClick={() => setOpen(false)} aria-label="Close model selector">
+              <button className="icon-button" type="button" onClick={closePanel} aria-label="Close model selector">
                 <X aria-hidden size={18} />
               </button>
             </div>
@@ -117,8 +113,7 @@ export function ModelSelector({
                           className={`flex min-h-14 w-full items-center gap-3 rounded-control px-3 py-2 text-left transition-colors duration-150 ${selected ? "bg-accent-soft" : "hover:bg-surface-subtle"}`}
                           onClick={() => {
                             onChange(item.id, candidate);
-                            setOpen(false);
-                            triggerRef.current?.focus();
+                            closePanel();
                           }}
                         >
                           <span className="min-w-0 flex-1">

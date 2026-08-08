@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { trapFocus } from "@/lib/focus";
 import {
   Archive,
   ChevronLeft,
@@ -129,7 +130,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     document.body.style.overflow = "hidden";
     window.requestAnimationFrame(() => sheetRef.current?.querySelector<HTMLElement>("button, a")?.focus());
     return () => { document.body.style.overflow = previous; };
-  }, [moreOpen]);
+  }, [moreOpen, showInstallHelp]);
 
   function closeMore() {
     setMoreOpen(false);
@@ -142,6 +143,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     await installPrompt.prompt();
     const choice = await installPrompt.userChoice;
     if (choice.outcome === "accepted") setInstallPrompt(null);
+  }
+
+  function handleMoreKeys(event: React.KeyboardEvent<HTMLElement>) {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      closeMore();
+      return;
+    }
+    trapFocus(event);
   }
 
   return (
@@ -174,7 +184,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {moreOpen && (
         <div className="fixed inset-0 z-50 md:hidden" role="presentation">
           <button className="absolute inset-0 bg-text-primary/20" tabIndex={-1} aria-label="Close more menu" onClick={closeMore} />
-          <aside ref={sheetRef} role="dialog" aria-modal="true" className="absolute inset-x-0 bottom-0 rounded-t-[28px] border-t border-line bg-surface-elevated px-5 pb-[max(24px,env(safe-area-inset-bottom))] pt-4 shadow-composer" aria-label="More destinations" onKeyDown={(event) => { if (event.key === "Escape") closeMore(); }}>
+          <aside ref={sheetRef} role="dialog" aria-modal="true" className="absolute inset-x-0 bottom-0 rounded-t-[28px] border-t border-line bg-surface-elevated px-5 pb-[max(24px,env(safe-area-inset-bottom))] pt-4 shadow-composer" aria-label="More destinations" onKeyDown={handleMoreKeys}>
             <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-line-strong" aria-hidden />
             <div className="mb-3 flex items-center justify-between">
               <div className="flex min-w-0 items-center gap-1">

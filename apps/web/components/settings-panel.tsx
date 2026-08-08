@@ -131,7 +131,7 @@ export function SettingsPanel() {
   return (
     <div className="space-y-8 sm:space-y-10">
       <nav className="scrollbar-subtle -mx-1 flex gap-2 overflow-x-auto px-1 pb-1" aria-label="Settings sections">
-        {[{ href: "#models-settings", label: "Models" }, { href: "#mcp-settings", label: "MCP" }, { href: "#appearance-settings", label: "Appearance" }, { href: "#data-settings", label: "Data" }].map((item) => <a key={item.href} href={item.href} className="chip shrink-0 hover:bg-accent-soft hover:text-accent-hover">{item.label}</a>)}
+        {[{ href: "#models-settings", label: "Models" }, { href: "#mcp-settings", label: "MCP" }, { href: "#appearance-settings", label: "Appearance" }, { href: "#data-settings", label: "Data" }].map((item) => <a key={item.href} href={item.href} className="chip min-h-11 shrink-0 hover:bg-accent-soft hover:text-accent-hover">{item.label}</a>)}
       </nav>
       <section className="scroll-mt-6" aria-labelledby="models-settings">
         <div className="mb-4 flex items-center gap-2"><Server aria-hidden size={18} className="text-text-tertiary" /><h2 id="models-settings" className="section-title">Models</h2></div>

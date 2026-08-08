@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, KeyboardEvent as ReactKeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   BookmarkPlus,
@@ -24,6 +24,7 @@ import { ModelSelector, type ProviderOption } from "@/components/model-selector"
 import { RichMessage } from "@/components/rich-message";
 import { ErrorState } from "@/components/ui-states";
 import { apiJson, type SseEvent, streamSse } from "@/lib/api";
+import { focusableSelector, trapFocus } from "@/lib/focus";
 
 type Project = { id: string; name: string; description: string };
 type Conversation = { id: string; title: string; provider: string; model: string; project_id?: string; created_at: string; updated_at: string };
@@ -69,7 +70,10 @@ export function ChatWorkspace() {
   const [memoryText, setMemoryText] = useState("");
   const [memoryState, setMemoryState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const conversationRef = useRef<HTMLDivElement>(null);
+  const historyDialogRef = useRef<HTMLElement>(null);
+  const historyTriggerRef = useRef<HTMLButtonElement>(null);
   const memoryDialogRef = useRef<HTMLElement>(null);
+  const memoryReturnFocusRef = useRef<HTMLElement | null>(null);
   const peerRef = useRef<RTCPeerConnection | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -124,6 +128,14 @@ export function ChatWorkspace() {
     return () => { document.body.style.overflow = previous; };
   }, [memoryTarget]);
 
+  useEffect(() => {
+    if (!historyOpen) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    window.requestAnimationFrame(() => historyDialogRef.current?.querySelector<HTMLElement>(focusableSelector)?.focus());
+    return () => { document.body.style.overflow = previous; };
+  }, [historyOpen]);
+
   const selectedConnector = useMemo(() => connectors.find((item) => item.id === connectorId), [connectorId, connectors]);
   const activeConversation = useMemo(() => conversations.find((item) => item.id === conversationId), [conversationId, conversations]);
   const title = activeConversation?.title || "New conversation";
@@ -151,7 +163,8 @@ export function ChatWorkspace() {
       setProject(detail.conversation.project_id || "general");
       setMessages(detail.messages.map((item) => ({ id: item.id, role: item.role === "user" || item.role === "assistant" ? item.role : "system", content: item.content })));
       setTrace(detail.execution_events);
-      setHistoryOpen(false);
+      if (historyOpen) closeHistory();
+      else setHistoryOpen(false);
       window.localStorage.setItem(ACTIVE_CONVERSATION_KEY, detail.conversation.id);
     } finally { setLoadingConversation(false); }
   }
@@ -311,7 +324,8 @@ export function ChatWorkspace() {
     setMode(next);
   }
 
-  function openMemoryDialog(message: UiMessage, index: number) {
+  function openMemoryDialog(message: UiMessage, index: number, trigger: HTMLElement) {
+    memoryReturnFocusRef.current = trigger;
     setMemoryTarget({ ...message, index });
     setMemoryText(message.content.trim());
     setMemoryKind(message.role === "user" ? "preference" : "fact");
@@ -322,6 +336,12 @@ export function ChatWorkspace() {
     setMemoryTarget(undefined);
     setMemoryText("");
     setMemoryState("idle");
+    window.requestAnimationFrame(() => memoryReturnFocusRef.current?.focus());
+  }
+
+  function closeHistory() {
+    setHistoryOpen(false);
+    window.requestAnimationFrame(() => historyTriggerRef.current?.focus());
   }
 
   async function saveMemory() {
@@ -346,23 +366,21 @@ export function ChatWorkspace() {
     }
   }
 
-  function handleMemoryDialogKeyDown(event: ReactKeyboardEvent<HTMLElement>) {
+  function handleMemoryDialogKeyDown(event: React.KeyboardEvent<HTMLElement>) {
     if (event.key === "Escape") {
       closeMemoryDialog();
       return;
     }
-    if (event.key !== "Tab") return;
-    const focusable = Array.from(event.currentTarget.querySelectorAll<HTMLElement>("button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), a[href]"));
-    if (!focusable.length) return;
-    const first = focusable[0];
-    const last = focusable[focusable.length - 1];
-    if (event.shiftKey && document.activeElement === first) {
+    trapFocus(event);
+  }
+
+  function handleHistoryKeys(event: React.KeyboardEvent<HTMLElement>) {
+    if (event.key === "Escape") {
       event.preventDefault();
-      last.focus();
-    } else if (!event.shiftKey && document.activeElement === last) {
-      event.preventDefault();
-      first.focus();
+      closeHistory();
+      return;
     }
+    trapFocus(event);
   }
 
   const history = (
@@ -371,7 +389,7 @@ export function ChatWorkspace() {
         <select className="field min-w-0 flex-1" value={projectFilter} onChange={(event) => { setProjectFilter(event.target.value); void loadConversations(event.target.value); }} aria-label="Filter conversations by project">
           <option value="all">All projects</option>{projects.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
         </select>
-        <button className="icon-button border border-line" onClick={() => void createConversation()} disabled={!model || running} aria-label="New conversation"><Plus aria-hidden size={18} /></button>
+        <button className="icon-button border border-line" onClick={() => void createConversation().then(() => { if (historyOpen) closeHistory(); })} disabled={!model || running} aria-label="New conversation"><Plus aria-hidden size={18} /></button>
       </div>
       <div className="scrollbar-subtle max-h-[calc(100vh-180px)] space-y-1.5 overflow-y-auto pr-1">
         {conversations.length === 0 && <p className="rounded-control bg-surface-subtle/55 px-3 py-4 text-sm leading-6 text-text-secondary">No conversations yet.</p>}
@@ -390,15 +408,15 @@ export function ChatWorkspace() {
         <header className="flex min-h-[58px] items-center gap-2 border-b border-line px-2 pt-[env(safe-area-inset-top)] sm:px-4 md:pt-0">
           <Link href="/" className="icon-button" aria-label="Back to home"><ArrowLeft aria-hidden size={21} /></Link>
           <div className="min-w-0 flex-1 text-center"><h1 className="truncate text-[15px] font-medium">{title}</h1><p className="text-[11px] text-text-tertiary">{mode === "live" ? "GPT Live" : "Text conversation"}</p></div>
-          <button className="icon-button" onClick={() => setHistoryOpen(true)} aria-label="Open conversation history"><MoreHorizontal aria-hidden size={21} /></button>
+          <button ref={historyTriggerRef} className="icon-button" onClick={() => setHistoryOpen(true)} aria-label="Open conversation history"><MoreHorizontal aria-hidden size={21} /></button>
         </header>
 
         <div className="scrollbar-subtle flex min-h-[52px] items-center gap-1 overflow-x-auto border-b border-line px-3 py-1.5">
           <label className="shrink-0"><span className="sr-only">Project context</span><select className="h-10 max-w-28 rounded-full bg-surface-subtle px-3 text-xs font-medium outline-none" value={project} disabled={Boolean(conversationId)} onChange={(event) => setProject(event.target.value)}>{projects.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
           <div className="shrink-0 scale-[0.92] origin-left"><ModelSelector providers={providers} provider={provider} model={model} onChange={(nextProvider, nextModel) => { setProvider(nextProvider); setModel(nextModel); }} /></div>
           <div className="ml-auto flex shrink-0 rounded-full bg-surface-subtle p-1" role="group" aria-label="Conversation mode">
-            <button onClick={() => changeMode("text")} className={`flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-medium ${mode === "text" ? "bg-surface-elevated shadow-soft" : "text-text-secondary"}`} aria-pressed={mode === "text"}><MessageCircle aria-hidden size={14} />Text</button>
-            <button onClick={() => changeMode("live")} className={`flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-medium ${mode === "live" ? "bg-surface-elevated shadow-soft" : "text-text-secondary"}`} aria-pressed={mode === "live"}><Mic2 aria-hidden size={14} />Live</button>
+            <button onClick={() => changeMode("text")} className={`flex h-10 items-center gap-1.5 rounded-full px-3 text-xs font-medium ${mode === "text" ? "bg-surface-elevated shadow-soft" : "text-text-secondary"}`} aria-pressed={mode === "text"}><MessageCircle aria-hidden size={14} />Text</button>
+            <button onClick={() => changeMode("live")} className={`flex h-10 items-center gap-1.5 rounded-full px-3 text-xs font-medium ${mode === "live" ? "bg-surface-elevated shadow-soft" : "text-text-secondary"}`} aria-pressed={mode === "live"}><Mic2 aria-hidden size={14} />Live</button>
           </div>
         </div>
 
@@ -421,7 +439,7 @@ export function ChatWorkspace() {
                   {messages.map((message, index) => message.role === "user" ? (
                     <div key={message.id || index} className="ml-auto max-w-[88%] sm:max-w-[78%]">
                       <article className="rounded-card bg-accent-soft px-4 py-3 text-sm leading-7"><RichMessage content={message.content} /></article>
-                      {message.content && conversationId && !running && <button type="button" className="mt-1.5 inline-flex min-h-9 items-center gap-1.5 rounded-control px-2 text-[11px] font-medium text-text-tertiary hover:bg-surface-subtle hover:text-text-primary" onClick={() => openMemoryDialog(message, index)}><BookmarkPlus aria-hidden size={14} />Save to Memory</button>}
+                      {message.content && conversationId && !running && <button type="button" className="mt-1 inline-flex min-h-11 items-center gap-1.5 rounded-control px-2 text-xs font-medium text-text-tertiary hover:bg-surface-subtle hover:text-text-primary" onClick={(event) => openMemoryDialog(message, index, event.currentTarget)}><BookmarkPlus aria-hidden size={14} />Save to Memory</button>}
                     </div>
                   ) : message.role === "system" ? (
                     <article key={message.id || index} className="rounded-control border border-danger/25 bg-surface px-4 py-3 text-sm leading-6 text-danger">{message.content}</article>
@@ -430,7 +448,7 @@ export function ChatWorkspace() {
                       <Sparkles aria-hidden className="mt-2 text-accent" size={17} />
                       <div className="min-w-0">
                         {message.content ? <RichMessage content={message.content} /> : <span className="mt-2 text-sm text-text-tertiary">Responding…</span>}
-                        {message.content && conversationId && !running && <button type="button" className="mt-2 inline-flex min-h-9 items-center gap-1.5 rounded-control px-2 text-[11px] font-medium text-text-tertiary hover:bg-surface-subtle hover:text-text-primary" onClick={() => openMemoryDialog(message, index)}><BookmarkPlus aria-hidden size={14} />Save to Memory</button>}
+                        {message.content && conversationId && !running && <button type="button" className="mt-1 inline-flex min-h-11 items-center gap-1.5 rounded-control px-2 text-xs font-medium text-text-tertiary hover:bg-surface-subtle hover:text-text-primary" onClick={(event) => openMemoryDialog(message, index, event.currentTarget)}><BookmarkPlus aria-hidden size={14} />Save to Memory</button>}
                       </div>
                     </article>
                   ))}
@@ -460,7 +478,7 @@ export function ChatWorkspace() {
         )}
       </section>
 
-      {historyOpen && <div className="fixed inset-0 z-50"><button className="absolute inset-0 bg-text-primary/20" onClick={() => setHistoryOpen(false)} aria-label="Close conversation history" /><aside role="dialog" aria-modal="true" aria-label="Conversation history" className="absolute inset-y-0 right-0 w-[min(340px,90vw)] border-l border-line bg-surface-elevated p-4 shadow-composer"><div className="mb-4 flex items-center justify-between"><h2 className="text-lg font-medium">Conversations</h2><button className="icon-button" onClick={() => setHistoryOpen(false)} aria-label="Close conversation history"><X aria-hidden size={20} /></button></div>{history}</aside></div>}
+      {historyOpen && <div className="fixed inset-0 z-50"><button className="absolute inset-0 bg-text-primary/20" onClick={closeHistory} aria-label="Close conversation history" /><aside ref={historyDialogRef} role="dialog" aria-modal="true" aria-label="Conversation history" className="absolute inset-y-0 right-0 w-[min(340px,90vw)] border-l border-line bg-surface-elevated p-4 shadow-composer" onKeyDown={handleHistoryKeys}><div className="mb-4 flex items-center justify-between"><h2 className="text-lg font-medium">Conversations</h2><button className="icon-button" onClick={closeHistory} aria-label="Close conversation history"><X aria-hidden size={20} /></button></div>{history}</aside></div>}
 
       {memoryTarget && (
         <div className="fixed inset-0 z-[60] flex items-end justify-center md:items-center md:p-6">
@@ -473,7 +491,7 @@ export function ChatWorkspace() {
             </div>
             <p className="mt-3 text-sm leading-6 text-text-secondary">Only this reviewed note will be saved. The rest of the conversation stays out of long-term Memory.</p>
             <div className="scrollbar-subtle mt-5 flex gap-2 overflow-x-auto pb-1" role="group" aria-label="Memory type">
-              {(["fact", "preference", "rule", "project"] as MemoryKind[]).map((item) => <button key={item} type="button" className={`chip shrink-0 capitalize ${memoryKind === item ? "bg-accent-soft text-accent-hover" : ""}`} aria-pressed={memoryKind === item} onClick={() => setMemoryKind(item)}>{item}</button>)}
+              {(["fact", "preference", "rule", "project"] as MemoryKind[]).map((item) => <button key={item} type="button" className={`chip min-h-11 shrink-0 capitalize ${memoryKind === item ? "bg-accent-soft text-accent-hover" : ""}`} aria-pressed={memoryKind === item} onClick={() => setMemoryKind(item)}>{item}</button>)}
             </div>
             <label className="mt-4 block text-xs font-medium text-text-secondary">Memory note<textarea className="textarea-field mt-2 min-h-36 w-full resize-y text-[15px] leading-6" value={memoryText} onChange={(event) => { setMemoryText(event.target.value); if (memoryState !== "idle") setMemoryState("idle"); }} /></label>
             <p className="mt-2 text-xs text-text-tertiary">Project: {projects.find((item) => item.id === project)?.name || project} · Source: this conversation</p>
