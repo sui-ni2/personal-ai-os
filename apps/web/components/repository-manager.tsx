@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { Clock3, FileText, FolderOpen, Plus } from "lucide-react";
+import { ChevronDown, Clock3, FileText, FolderOpen, Plus } from "lucide-react";
 import { apiJson } from "@/lib/api";
 import { EmptyState, ErrorState, LoadingState } from "@/components/ui-states";
 
@@ -21,6 +21,20 @@ function dayLabel(value: string) {
   if (dayKey(date) === dayKey(today)) return "Today";
   if (dayKey(date) === dayKey(yesterday)) return "Yesterday";
   return date.toLocaleDateString([], { month: "long", day: "numeric", year: date.getFullYear() === today.getFullYear() ? undefined : "numeric" });
+}
+
+function eventDetails(item: TimelineEvent, artifact?: Artifact) {
+  const details: { label: string; value: string; mono?: boolean }[] = [];
+  if (artifact) {
+    details.push({ label: "Artifact", value: artifact.title });
+    details.push({ label: "Location", value: artifact.locator, mono: true });
+  }
+  for (const [key, value] of Object.entries(item.details)) {
+    if (details.length >= 5 || /(^id$|_id$|key|token|secret|cookie|trace|stack|reasoning|thought)/i.test(key)) continue;
+    if (typeof value !== "string" && typeof value !== "number" && typeof value !== "boolean") continue;
+    details.push({ label: key.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase()), value: String(value) });
+  }
+  return details;
 }
 
 export function RepositoryManager() {
@@ -99,23 +113,36 @@ export function RepositoryManager() {
                   <ol className="overflow-hidden rounded-card border border-line bg-surface">
                     {group.items.map((item) => {
                       const artifact = item.artifact_id ? artifactById.get(item.artifact_id) : undefined;
+                      const details = eventDetails(item, artifact);
                       return (
-                        <li key={item.id} className="grid grid-cols-[52px_minmax(0,1fr)] gap-3 border-b border-line px-4 py-4 last:border-b-0 sm:grid-cols-[64px_minmax(0,1fr)] sm:px-5">
-                          <time className="pt-0.5 text-xs font-medium tabular-nums text-text-tertiary">{new Date(item.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time>
-                          <article className="min-w-0">
-                            <div className="flex items-start gap-3">
-                              <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-control bg-surface-subtle text-text-secondary"><FileText aria-hidden size={16} strokeWidth={1.7} /></span>
-                              <div className="min-w-0 flex-1">
-                                <h4 className="text-[15px] font-medium leading-6">{item.summary}</h4>
-                                <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-text-tertiary">
-                                  <span>{item.project_id || "General"}</span>
-                                  <span aria-hidden>·</span>
-                                  <span className="capitalize">{item.event_type.replaceAll("_", " ").replaceAll(".", " ")}</span>
-                                </div>
-                                {artifact && <p className="mt-2 truncate font-mono text-[11px] text-text-secondary">{artifact.locator}</p>}
-                              </div>
+                        <li key={item.id} className="border-b border-line last:border-b-0">
+                          <details className="group/event">
+                            <summary className="cursor-pointer list-none px-4 py-4 sm:px-5">
+                              <span className="grid grid-cols-[52px_minmax(0,1fr)_20px] gap-3 sm:grid-cols-[64px_minmax(0,1fr)_20px]">
+                                <time className="pt-0.5 text-xs font-medium tabular-nums text-text-tertiary">{new Date(item.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time>
+                                <span className="min-w-0">
+                                  <span className="flex items-start gap-3">
+                                    <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-control bg-surface-subtle text-text-secondary"><FileText aria-hidden size={16} strokeWidth={1.7} /></span>
+                                    <span className="min-w-0 flex-1">
+                                      <span className="block text-[15px] font-medium leading-6">{item.summary}</span>
+                                      <span className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-text-tertiary">
+                                        <span>{item.project_id || "General"}</span>
+                                        <span aria-hidden>·</span>
+                                        <span className="capitalize">{item.event_type.replaceAll("_", " ").replaceAll(".", " ")}</span>
+                                        <span aria-hidden>·</span>
+                                        <span className="text-success">Recorded</span>
+                                      </span>
+                                      {artifact && <span className="mt-2 block truncate font-mono text-[11px] text-text-secondary">{artifact.locator}</span>}
+                                    </span>
+                                  </span>
+                                </span>
+                                <ChevronDown aria-hidden size={17} className="mt-1 text-text-tertiary transition-transform duration-150 group-open/event:rotate-180" />
+                              </span>
+                            </summary>
+                            <div className="border-t border-line bg-surface-subtle/45 px-4 py-4 sm:pl-[100px] sm:pr-5">
+                              {details.length ? <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2 text-xs">{details.map((detail) => <div key={`${detail.label}-${detail.value}`} className="contents"><dt className="font-medium text-text-tertiary">{detail.label}</dt><dd className={`min-w-0 break-words text-text-secondary ${detail.mono ? "font-mono text-[11px]" : ""}`}>{detail.value}</dd></div>)}</dl> : <p className="text-xs leading-5 text-text-secondary">No additional details were recorded for this event.</p>}
                             </div>
-                          </article>
+                          </details>
                         </li>
                       );
                     })}

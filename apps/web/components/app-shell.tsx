@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import {
   Archive,
+  ChevronLeft,
   Download,
   FolderKanban,
   Home,
@@ -12,6 +13,8 @@ import {
   MoreHorizontal,
   NotebookTabs,
   Settings,
+  Share,
+  SquarePlus,
   Sparkles,
   X,
 } from "lucide-react";
@@ -91,11 +94,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
   const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null);
+  const [iosInstallAvailable, setIosInstallAvailable] = useState(false);
+  const [showInstallHelp, setShowInstallHelp] = useState(false);
   const sheetRef = useRef<HTMLElement>(null);
   const moreTriggerRef = useRef<HTMLButtonElement>(null);
   const focusedChat = pathname.startsWith("/chat");
 
-  useEffect(() => setMoreOpen(false), [pathname]);
+  useEffect(() => { setMoreOpen(false); setShowInstallHelp(false); }, [pathname]);
 
   useEffect(() => {
     const handlePrompt = (event: Event) => {
@@ -112,6 +117,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
+    const device = window.navigator as Navigator & { standalone?: boolean };
+    const isIos = /iPad|iPhone|iPod/.test(device.userAgent) || (device.platform === "MacIntel" && device.maxTouchPoints > 1);
+    const standalone = Boolean(device.standalone) || window.matchMedia("(display-mode: standalone)").matches;
+    setIosInstallAvailable(isIos && !standalone);
+  }, []);
+
+  useEffect(() => {
     if (!moreOpen) return;
     const previous = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -121,6 +133,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   function closeMore() {
     setMoreOpen(false);
+    setShowInstallHelp(false);
     window.requestAnimationFrame(() => moreTriggerRef.current?.focus());
   }
 
@@ -164,20 +177,35 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <aside ref={sheetRef} role="dialog" aria-modal="true" className="absolute inset-x-0 bottom-0 rounded-t-[28px] border-t border-line bg-surface-elevated px-5 pb-[max(24px,env(safe-area-inset-bottom))] pt-4 shadow-composer" aria-label="More destinations" onKeyDown={(event) => { if (event.key === "Escape") closeMore(); }}>
             <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-line-strong" aria-hidden />
             <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-lg font-medium">More</h2>
+              <div className="flex min-w-0 items-center gap-1">
+                {showInstallHelp && <button type="button" className="icon-button -ml-2" onClick={() => setShowInstallHelp(false)} aria-label="Back to more destinations"><ChevronLeft aria-hidden size={20} /></button>}
+                <h2 className="truncate text-lg font-medium">{showInstallHelp ? "Install on iPhone" : "More"}</h2>
+              </div>
               <button className="icon-button" onClick={closeMore} aria-label="Close more menu"><X aria-hidden size={20} /></button>
             </div>
-            <div className="grid gap-2">
-              {installPrompt && (
-                <button type="button" className="flex min-h-14 items-center gap-3 rounded-control bg-accent-soft px-4 text-left text-sm font-medium text-accent-hover" onClick={() => void installApp()}>
-                  <Download aria-hidden size={19} strokeWidth={1.7} /> Install app
-                </button>
-              )}
-              {navigation.filter((item) => ["/memory", "/repository", "/settings"].includes(item.href)).map((item) => {
-                const Icon = item.icon;
-                return <Link key={item.href} href={item.href} className="flex min-h-14 items-center gap-3 rounded-control bg-surface-subtle/60 px-4 text-sm font-medium" onClick={closeMore}><Icon aria-hidden size={19} strokeWidth={1.7} />{item.label}</Link>;
-              })}
-            </div>
+            {showInstallHelp ? (
+              <div>
+                <p className="text-sm leading-6 text-text-secondary">iPhone installation is handled by Safari. It adds Personal AI OS to your Home Screen without exposing any provider key.</p>
+                <ol className="mt-5 space-y-2">
+                  <li className="flex min-h-14 items-center gap-3 rounded-control bg-surface-subtle/60 px-4"><Share aria-hidden size={19} className="shrink-0 text-accent-hover" /><span className="text-sm"><strong className="font-medium">1. Open in Safari</strong><span className="mt-0.5 block text-xs text-text-secondary">Then tap the Share button.</span></span></li>
+                  <li className="flex min-h-14 items-center gap-3 rounded-control bg-surface-subtle/60 px-4"><SquarePlus aria-hidden size={19} className="shrink-0 text-accent-hover" /><span className="text-sm"><strong className="font-medium">2. Add to Home Screen</strong><span className="mt-0.5 block text-xs text-text-secondary">Scroll the Share menu if needed.</span></span></li>
+                  <li className="flex min-h-14 items-center gap-3 rounded-control bg-surface-subtle/60 px-4"><Download aria-hidden size={19} className="shrink-0 text-accent-hover" /><span className="text-sm"><strong className="font-medium">3. Confirm Add</strong><span className="mt-0.5 block text-xs text-text-secondary">The app opens in its own window afterward.</span></span></li>
+                </ol>
+              </div>
+            ) : (
+              <div className="grid gap-2">
+                {installPrompt && (
+                  <button type="button" className="flex min-h-14 items-center gap-3 rounded-control bg-accent-soft px-4 text-left text-sm font-medium text-accent-hover" onClick={() => void installApp()}>
+                    <Download aria-hidden size={19} strokeWidth={1.7} /> Install app
+                  </button>
+                )}
+                {!installPrompt && iosInstallAvailable && <button type="button" className="flex min-h-14 items-center gap-3 rounded-control bg-accent-soft px-4 text-left text-sm font-medium text-accent-hover" onClick={() => setShowInstallHelp(true)}><SquarePlus aria-hidden size={19} strokeWidth={1.7} />Install on iPhone</button>}
+                {navigation.filter((item) => ["/memory", "/repository", "/settings"].includes(item.href)).map((item) => {
+                  const Icon = item.icon;
+                  return <Link key={item.href} href={item.href} className="flex min-h-14 items-center gap-3 rounded-control bg-surface-subtle/60 px-4 text-sm font-medium" onClick={closeMore}><Icon aria-hidden size={19} strokeWidth={1.7} />{item.label}</Link>;
+                })}
+              </div>
+            )}
           </aside>
         </div>
       )}

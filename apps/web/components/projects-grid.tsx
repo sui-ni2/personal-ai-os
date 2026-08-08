@@ -7,6 +7,7 @@ import { apiJson } from "@/lib/api";
 import { EmptyState, ErrorState, LoadingState } from "@/components/ui-states";
 
 type Project = { id: string; name: string; description: string; icon: string; status: string };
+type RepositoryEvent = { id: string; summary: string; project_id?: string; created_at: string };
 
 const iconMap: Record<string, ComponentType<{ size?: number; strokeWidth?: number; className?: string; "aria-hidden"?: boolean }>> = {
   sparkles: Sparkles,
@@ -20,8 +21,18 @@ const planned = [
   { id: "research", name: "Research", description: "A focused space for source-based exploration.", icon: Microscope },
 ];
 
+function timeAgo(value: string) {
+  const elapsed = Date.now() - new Date(value).getTime();
+  const minutes = Math.max(1, Math.round(elapsed / 60_000));
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return new Date(value).toLocaleDateString([], { month: "short", day: "numeric" });
+}
+
 export function ProjectsGrid() {
   const [items, setItems] = useState<Project[]>([]);
+  const [lastActivity, setLastActivity] = useState<Record<string, RepositoryEvent>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
@@ -30,6 +41,16 @@ export function ProjectsGrid() {
       .then((data) => setItems(data.items))
       .catch(() => setError(true))
       .finally(() => setLoading(false));
+    void apiJson<{ items: RepositoryEvent[] }>("/api/repository/timeline")
+      .then((data) => {
+        const latest: Record<string, RepositoryEvent> = {};
+        for (const event of data.items) {
+          const projectId = event.project_id || "general";
+          if (!latest[projectId]) latest[projectId] = event;
+        }
+        setLastActivity(latest);
+      })
+      .catch(() => { /* Projects remain usable when activity is unavailable. */ });
   }, []);
 
   if (loading) return <LoadingState label="Opening your projects" />;
@@ -49,6 +70,7 @@ export function ProjectsGrid() {
         <div className="grid gap-4 sm:grid-cols-2">
           {items.map((item) => {
             const Icon = iconMap[item.icon] || FolderKanban;
+            const activity = lastActivity[item.id];
             return (
               <article id={item.id} key={item.id} className="panel flex min-h-[220px] scroll-mt-24 flex-col p-5 sm:min-h-[250px] sm:p-7">
                 <div className="flex items-start justify-between gap-4">
@@ -58,7 +80,7 @@ export function ProjectsGrid() {
                 <h3 className="mt-6 text-xl font-medium tracking-[-0.02em] sm:mt-8">{item.name}</h3>
                 <p className="mt-2 flex-1 text-sm leading-6 text-text-secondary">{item.description}</p>
                 <div className="mt-6 flex items-center justify-between gap-4 border-t border-line pt-4 sm:mt-7">
-                  <span className="text-xs text-text-tertiary">Activity in Repository</span>
+                  <span className="min-w-0 text-xs text-text-tertiary"><span className="block">Last activity</span><span className="mt-0.5 block truncate text-text-secondary" title={activity?.summary}>{activity ? timeAgo(activity.created_at) : "No activity yet"}</span></span>
                   <Link href={`/chat?project=${encodeURIComponent(item.id)}`} className="button-quiet px-2 text-accent-hover">Open <ArrowRight aria-hidden size={15} /></Link>
                 </div>
               </article>
