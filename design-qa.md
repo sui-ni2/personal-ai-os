@@ -9,6 +9,8 @@
 - Text implementation screenshot: `output/playwright/.playwright-cli/page-2026-08-09T00-09-14-571Z.png`
 - GPT Live idle screenshot: `output/playwright/.playwright-cli/page-2026-08-09T00-00-39-227Z.png`
 - Desktop Text screenshot: `output/playwright/.playwright-cli/page-2026-08-09T00-10-35-413Z.png`
+- Mobile Settings readiness screenshot: `output/playwright/mobile-ready/settings-390.png`
+- Mobile Live unconfigured screenshot: `output/playwright/mobile-ready/live-unconfigured-390.png`
 - Combined Home comparison: `output/playwright/home-final-compare.png`
 - Combined Text comparison: `output/playwright/chat-final-compare.png`
 - Mobile viewport: 390 x 844 CSS px, deviceScaleFactor 1.
@@ -21,7 +23,7 @@
 
 - No actionable P0, P1, or P2 visual findings remain.
 - The two-color watercolor artwork, dark primary CTA, visible Activity row, and richer model/project controls are intentional parts of the agreed clean-plus-detailed fusion rather than accidental drift.
-- Residual integration gap, not a visual QA failure: the local runtime reports GPT Live `configured: false`. The real microphone/SDP/audio turn still requires a server-side OpenAI Realtime credential or a separately implemented compatible Realtime gateway.
+- Residual integration gap, not a visual QA failure: the local runtime reports GPT Live `configured: false`. OpenAI and compatible Realtime gateway configuration are implemented; the real microphone/SDP/audio turn still requires one usable server-side Realtime credential.
 
 ## Required fidelity surfaces
 
@@ -50,8 +52,9 @@
 - Primary flow: Home, More sheet, Memory navigation, Text/Live switching, first message, automatic title, and history drawer were exercised with Playwright.
 - Responsive routes: `/`, `/chat?new=1`, `/memory`, `/repository`, `/projects`, and `/settings` returned 200 with no horizontal overflow at both 390 x 844 and 1440 x 1000.
 - PWA: manifest exposes three installed-app shortcuts; service worker uses `personal-ai-os-v2` and excludes API requests from caching.
+- Mobile readiness: Settings distinguishes trusted HTTPS, localhost secure context, browser/installed mode, media-capture support, and Realtime credential state. The post-deployment verifier passed locally and rejected both a remote HTTP URL and the strict unconfigured-Realtime gate.
 - Console: final production Home, Text, Live, title/history, and responsive-route runs produced 0 errors and 0 warnings.
-- Automated checks: 26 backend tests passed, 2 skipped; Python compile, TypeScript, service-worker syntax, and Next.js production build passed.
+- Automated checks: 30 backend tests passed, 2 skipped; Python compile, TypeScript, service-worker syntax, mobile-readiness gates, and Next.js production build passed.
 
 ## Comparison history
 
@@ -59,6 +62,7 @@
 - Iteration 6: the user authorized Playwright. First 390 x 844 comparisons identified Home control order/first-screen density and Text hero/spacing as blocking visual mismatches.
 - Iteration 7: Home CTA was moved above the mode switch, mobile density was corrected, the Text watercolor hero was restored, and production mode eliminated dev-only HMR noise. Combined comparisons showed the remaining starter-row icon mismatch.
 - Iteration 8: icon-led starter rows, stable General fallback, PWA shortcuts/cache refresh, and accessible success announcements were added. Final mobile/desktop captures, combined comparisons, interaction flows, overflow checks, and console checks passed.
+- Iteration 9: mobile runtime readiness was added to Settings, Live gained secure-context and audio-recovery handling, and a deployment verifier was introduced. Production 390 x 844 Settings and Live captures had 0 px horizontal overflow and 0 console errors or warnings.
 
 ## Follow-up polish
 

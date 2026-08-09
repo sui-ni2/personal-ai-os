@@ -74,6 +74,7 @@ export function ChatWorkspace() {
   const [liveMessage, setLiveMessage] = useState("Tap start when you are ready. Microphone access is requested only then.");
   const [liveCaption, setLiveCaption] = useState("");
   const [liveSaveWarning, setLiveSaveWarning] = useState("");
+  const [livePlaybackBlocked, setLivePlaybackBlocked] = useState(false);
   const [memoryTarget, setMemoryTarget] = useState<MemoryTarget>();
   const [memoryKind, setMemoryKind] = useState<MemoryKind>("fact");
   const [memoryText, setMemoryText] = useState("");
@@ -89,6 +90,7 @@ export function ChatWorkspace() {
   const inputTranscriptRef = useRef("");
   const outputTranscriptRef = useRef("");
   const savedLiveItemsRef = useRef(new Set<string>());
+  const liveDisconnectTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -219,12 +221,28 @@ export function ChatWorkspace() {
   }
 
   function stopLive(update = true) {
+    if (liveDisconnectTimerRef.current !== null) {
+      window.clearTimeout(liveDisconnectTimerRef.current);
+      liveDisconnectTimerRef.current = null;
+    }
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
     peerRef.current?.close();
     peerRef.current = null;
     if (audioRef.current) { audioRef.current.srcObject = null; audioRef.current.remove(); audioRef.current = null; }
+    setLivePlaybackBlocked(false);
     if (update) { setLiveState("idle"); setLiveMessage("Live conversation ended. Tap start whenever you want to continue."); }
+  }
+
+  async function resumeLiveAudio() {
+    if (!audioRef.current) return;
+    try {
+      await audioRef.current.play();
+      setLivePlaybackBlocked(false);
+      setLiveMessage("Listening — speak naturally. You can interrupt at any time.");
+    } catch {
+      setLiveMessage("Audio is still paused by the browser. Check media permission and try again.");
+    }
   }
 
   async function persistLiveTranscript(
@@ -260,6 +278,11 @@ export function ChatWorkspace() {
       setLiveMessage("GPT Live is not configured. Add a server-side Realtime credential, then try again.");
       return;
     }
+    if (!window.isSecureContext) {
+      setLiveState("error");
+      setLiveMessage("GPT Live needs a secure HTTPS connection on a phone. Reopen this app from its HTTPS address, then try again.");
+      return;
+    }
     if (!navigator.mediaDevices?.getUserMedia) {
       setLiveState("error");
       setLiveMessage("This browser does not provide microphone access for GPT Live.");
@@ -269,6 +292,7 @@ export function ChatWorkspace() {
     setLiveMessage("Requesting microphone access…");
     setLiveCaption("");
     setLiveSaveWarning("");
+    setLivePlaybackBlocked(false);
     inputTranscriptRef.current = "";
     outputTranscriptRef.current = "";
     savedLiveItemsRef.current.clear();
@@ -279,10 +303,39 @@ export function ChatWorkspace() {
       const audio = document.createElement("audio");
       audio.autoplay = true;
       audioRef.current = audio;
-      pc.ontrack = (event) => { audio.srcObject = event.streams[0]; };
+      pc.ontrack = (event) => {
+        audio.srcObject = event.streams[0];
+        void audio.play().catch(() => {
+          setLivePlaybackBlocked(true);
+          setLiveMessage("Connected, but the browser paused audio output. Tap Resume audio to hear the response.");
+        });
+      };
       pc.onconnectionstatechange = () => {
-        if (pc.connectionState === "connected") { setLiveState("listening"); setLiveMessage("Listening — speak naturally. You can interrupt at any time."); }
-        if (["failed", "disconnected"].includes(pc.connectionState) && peerRef.current === pc) { setLiveState("error"); setLiveMessage("The Live connection ended. You can start again."); }
+        if (peerRef.current !== pc) return;
+        if (pc.connectionState === "connected") {
+          if (liveDisconnectTimerRef.current !== null) {
+            window.clearTimeout(liveDisconnectTimerRef.current);
+            liveDisconnectTimerRef.current = null;
+          }
+          setLiveState("listening");
+          if (!livePlaybackBlocked) setLiveMessage("Listening — speak naturally. You can interrupt at any time.");
+        }
+        if (pc.connectionState === "disconnected") {
+          setLiveMessage("Connection interrupted. Trying to recover…");
+          if (liveDisconnectTimerRef.current !== null) window.clearTimeout(liveDisconnectTimerRef.current);
+          liveDisconnectTimerRef.current = window.setTimeout(() => {
+            if (peerRef.current === pc && pc.connectionState === "disconnected") {
+              stopLive(false);
+              setLiveState("error");
+              setLiveMessage("The Live connection ended. You can start again.");
+            }
+          }, 5_000);
+        }
+        if (pc.connectionState === "failed") {
+          stopLive(false);
+          setLiveState("error");
+          setLiveMessage("The Live connection ended. You can start again.");
+        }
       };
       const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
       streamRef.current = stream;
@@ -482,6 +535,7 @@ export function ChatWorkspace() {
             <p className={`mt-3 max-w-md text-sm leading-6 ${liveState === "error" ? "text-danger" : "text-text-secondary"}`}>{liveMessage}</p>
             {liveCaption && <p className="mt-5 max-w-lg rounded-card bg-surface/75 px-4 py-3 text-sm leading-6 text-text-primary">{liveCaption}</p>}
             {liveSaveWarning && <p className="mt-3 max-w-md text-xs leading-5 text-warning">{liveSaveWarning}</p>}
+            {livePlaybackBlocked && <button type="button" className="button-secondary mt-4" onClick={() => void resumeLiveAudio()}>Resume audio</button>}
             <p className="mt-4 text-xs text-text-tertiary">{realtime?.model || "Realtime model"} · WebRTC · {project}</p>
             <p className="mt-2 max-w-md text-[11px] leading-5 text-text-tertiary">Completed Live transcripts stay in this conversation and can create its short title. They are not added to Memory automatically.</p>
             {liveState === "listening" || liveState === "connecting" ? <button onClick={() => stopLive()} className="mt-8 inline-flex size-16 items-center justify-center rounded-full bg-text-primary text-surface-elevated shadow-composer" aria-label="End live conversation"><Square aria-hidden size={21} fill="currentColor" /></button> : <button onClick={() => void startLive()} className="mt-8 inline-flex min-h-14 items-center justify-center gap-2 rounded-full bg-text-primary px-7 text-sm font-medium text-surface-elevated shadow-composer"><Mic2 aria-hidden size={18} />Start GPT Live</button>}

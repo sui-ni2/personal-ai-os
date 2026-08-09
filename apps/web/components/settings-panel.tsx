@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { Cable, Check, ChevronDown, Database, Palette, Plus, RefreshCw, Server, ShieldCheck } from "lucide-react";
+import { Cable, Check, ChevronDown, Database, Mic2, Palette, Plus, RefreshCw, Server, ShieldCheck, Smartphone } from "lucide-react";
 import { apiJson } from "@/lib/api";
 import { ErrorState, LoadingState } from "@/components/ui-states";
 
@@ -27,6 +27,8 @@ type Settings = {
   mcp: { servers: { id: string; configured: boolean }[]; connectors: MCPConnector[]; stdio_command_aliases: string[] };
   secrets: { storage: string; values_exposed: boolean };
 };
+type MobileReadiness = { secure: boolean; https: boolean; standalone: boolean; microphone: boolean };
+type RealtimeStatus = { configured: boolean; provider: "openai" | "compatible"; model: string; transport: "webrtc" };
 
 function providerName(id: string) {
   if (id === "openai") return "OpenAI";
@@ -47,11 +49,17 @@ export function SettingsPanel() {
   const [connectorError, setConnectorError] = useState("");
   const [loadError, setLoadError] = useState(false);
   const [discovered, setDiscovered] = useState<Record<string, DiscoveredTool[]>>({});
+  const [mobileReadiness, setMobileReadiness] = useState<MobileReadiness>();
+  const [realtime, setRealtime] = useState<RealtimeStatus>();
 
   async function load() {
     try {
-      const item = await apiJson<Settings>("/api/settings");
+      const [item, realtimeStatus] = await Promise.all([
+        apiJson<Settings>("/api/settings"),
+        apiJson<RealtimeStatus>("/api/realtime/status"),
+      ]);
       setSettings(item);
+      setRealtime(realtimeStatus);
       setProvider(item.default_provider);
       setModel(item.default_model);
       if (!command && item.mcp.stdio_command_aliases.length) setCommand(item.mcp.stdio_command_aliases[0]);
@@ -62,6 +70,15 @@ export function SettingsPanel() {
   }
 
   useEffect(() => { void load(); }, []);
+  useEffect(() => {
+    const device = window.navigator as Navigator & { standalone?: boolean };
+    setMobileReadiness({
+      secure: window.isSecureContext,
+      https: window.location.protocol === "https:",
+      standalone: Boolean(device.standalone) || window.matchMedia("(display-mode: standalone)").matches,
+      microphone: Boolean(window.isSecureContext && navigator.mediaDevices?.getUserMedia),
+    });
+  }, []);
   const selected = useMemo(() => settings?.providers.find((item) => item.id === provider), [provider, settings]);
 
   async function submitDefaults(event: FormEvent) {
@@ -240,6 +257,29 @@ export function SettingsPanel() {
         <section className="panel scroll-mt-6 p-4 sm:p-5" aria-labelledby="data-settings">
           <div className="flex items-center gap-2"><Database aria-hidden size={18} className="text-text-tertiary" /><h2 id="data-settings" className="section-title">Data</h2></div>
           <div className="mt-5 flex gap-3 rounded-control bg-surface-subtle p-4"><ShieldCheck aria-hidden size={18} className="mt-0.5 shrink-0 text-success" /><div><p className="text-sm font-medium">Local persistence</p><p className="mt-1 text-xs leading-5 text-text-secondary">Conversation, memory, and repository data remain managed by the local API. Secret values are never exposed here.</p></div></div>
+        </section>
+        <section className="panel scroll-mt-6 p-4 sm:col-span-2 sm:p-5" aria-labelledby="mobile-settings">
+          <div className="flex items-center gap-2"><Smartphone aria-hidden size={18} className="text-text-tertiary" /><h2 id="mobile-settings" className="section-title">Mobile app</h2></div>
+          <p className="mt-2 text-sm leading-6 text-text-secondary">Installation and GPT Live depend on the way this address is opened on your phone.</p>
+          <dl className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="rounded-control bg-surface-subtle p-4">
+              <dt className="text-xs font-medium text-text-tertiary">Connection</dt>
+              <dd className="mt-2 flex items-center gap-2 text-sm font-medium"><ShieldCheck aria-hidden size={16} className={!mobileReadiness ? "text-text-tertiary" : mobileReadiness.secure ? "text-success" : "text-warning"} />{!mobileReadiness ? "Checking…" : mobileReadiness.https ? "Secure HTTPS" : mobileReadiness.secure ? "Local secure context" : "HTTPS required"}</dd>
+            </div>
+            <div className="rounded-control bg-surface-subtle p-4">
+              <dt className="text-xs font-medium text-text-tertiary">App mode</dt>
+              <dd className="mt-2 flex items-center gap-2 text-sm font-medium"><Smartphone aria-hidden size={16} className={mobileReadiness?.standalone ? "text-success" : "text-text-tertiary"} />{!mobileReadiness ? "Checking…" : mobileReadiness.standalone ? "Installed" : "Browser"}</dd>
+            </div>
+            <div className="rounded-control bg-surface-subtle p-4">
+              <dt className="text-xs font-medium text-text-tertiary">Media capture</dt>
+              <dd className="mt-2 flex items-center gap-2 text-sm font-medium"><Mic2 aria-hidden size={16} className={!mobileReadiness ? "text-text-tertiary" : mobileReadiness.microphone ? "text-success" : "text-warning"} />{!mobileReadiness ? "Checking…" : mobileReadiness.microphone ? "Browser ready" : "Unavailable"}</dd>
+            </div>
+            <div className="rounded-control bg-surface-subtle p-4">
+              <dt className="text-xs font-medium text-text-tertiary">GPT Live</dt>
+              <dd className="mt-2 flex items-center gap-2 text-sm font-medium"><Server aria-hidden size={16} className={!realtime ? "text-text-tertiary" : realtime.configured ? "text-success" : "text-warning"} />{!realtime ? "Checking…" : realtime.configured ? "Ready" : "Credential required"}</dd>
+            </div>
+          </dl>
+          <p className="mt-4 text-xs leading-5 text-text-tertiary">Use More → Install app when offered. On iPhone, open this HTTPS address in Safari and choose Add to Home Screen.</p>
         </section>
       </div>
     </div>

@@ -32,6 +32,7 @@ Build the independent Personal AI OS modular monolith. V0.2 focuses on a mobile-
 - Backend syntax gate: `python -m compileall -q apps/api/src packages`
 - Frontend gate: `pnpm --filter @personal-ai-os/web typecheck`
 - Production web build: `pnpm --filter @personal-ai-os/web build`
+- Local mobile/PWA readiness gate: `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-mobile-readiness.ps1 -BaseUrl "http://127.0.0.1:3001" -AllowInsecureLocalhost`
 
 ## Project-specific safety rules
 

@@ -70,6 +70,10 @@ choose **More → Install app** when the browser offers installation. On iOS, us
 The cached shell can open without a network connection, but provider calls, GPT Live,
 memory, and repository data still require the API.
 
+Do not use a plain LAN HTTP address as the final phone path: GPT Live needs a trusted HTTPS
+secure context. See `docs/mobile-deployment.md` for the single-origin deployment contract,
+physical-device checklist, and the post-deployment verifier.
+
 ## Checks
 
 ```powershell
@@ -77,6 +81,7 @@ memory, and repository data still require the API.
 .\.venv\Scripts\python.exe -m compileall -q apps/api/src packages
 pnpm check:web
 pnpm build:web
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-mobile-readiness.ps1 -BaseUrl "http://127.0.0.1:3001" -AllowInsecureLocalhost
 ```
 
 ## Boundaries
