@@ -10,7 +10,7 @@ This is the narrow implementation-impacting consistency check between the produc
 4. **Provider/model configuration:** provider and model IDs are supplied by backend configuration/environment variables. The UI discovers them from the API and contains no model-ID list.
 5. **Repository files:** V0.1 stores artifact locators and metadata plus a durable event timeline. It does not crawl arbitrary local directories.
 6. **Project set:** General and Soccer are the first registered plugins. Codex and Research are intentionally deferred because the explicit first-round request requires only General and Soccer.
-7. **Streaming:** both provider text and execution status share SSE. Public event types are `message`, `tool_start`, `tool_result`, `error`, and `done`; internal database rows also retain status, duration, tool name, and safe payload summaries.
+7. **Streaming:** both provider text and execution status share SSE. Public event types are `message`, `tool_start`, `tool_result`, `error`, and `done`; internal database rows also retain status, duration, tool name, and recursively redacted, size-bounded payload summaries. The unredacted tool result exists only on the in-memory provider continuation path.
 8. **Conversation recovery:** conversations, messages, and execution events are queried from SQLite. The browser stores only the active conversation ID; page refresh and process restart rehydrate authoritative history from the API.
 9. **Provider tool continuation:** OpenAI and Anthropic preserve their adapter boundary. Each adapter first returns one structured call for the selected allowlisted tool, then receives the tool result using its native tool-result message format before streaming the final answer.
 

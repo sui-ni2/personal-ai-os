@@ -54,7 +54,7 @@
 - PWA: manifest exposes three installed-app shortcuts; service worker uses `personal-ai-os-v2` and excludes API requests from caching.
 - Mobile readiness: Settings distinguishes trusted HTTPS, localhost secure context, browser/installed mode, media-capture support, and Realtime credential state. The post-deployment verifier passed locally and rejected both a remote HTTP URL and the strict unconfigured-Realtime gate.
 - Console: final production Home, Text, Live, title/history, and responsive-route runs produced 0 errors and 0 warnings.
-- Automated checks: 30 backend tests passed, 2 skipped; Python compile, TypeScript, service-worker syntax, mobile-readiness gates, and Next.js production build passed.
+- Automated checks: 35 backend tests passed, 2 skipped; Python compile, TypeScript, service-worker syntax, mobile-readiness gates, and Next.js production build passed.
 
 ## Comparison history
 

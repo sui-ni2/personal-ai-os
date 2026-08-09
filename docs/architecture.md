@@ -24,7 +24,9 @@ Chat asks the selected provider for a structured call to the single tool selecte
 user. The provider-safe function name is mapped back to the exact MCP tool ID, the gateway
 checks project and connector allowlists, and the native provider tool-result protocol is
 used for the final streamed answer. Only observable calls, results, status, and timing are
-written to the execution trace.
+written to the execution trace. Tool results stay intact on the in-memory provider continuation
+path, while the audit copy is recursively bounded and redacted before SSE delivery and SQLite
+persistence. Historical rows are sanitized again when they are materialized through the API.
 
 The deployable unit is one API process and one web process, with package boundaries inside one repository. SQLite is accessed through a small repository layer so a later PostgreSQL implementation can replace it without changing core schemas.
 

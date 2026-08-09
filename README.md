@@ -88,6 +88,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-mobile-readi
 
 - The core schemas contain no Soccer-specific fields.
 - Execution traces contain observable status and tool summaries, never raw private chain-of-thought.
+- Audit payloads are recursively bounded and redact nested credentials, authorization headers,
+  cookies, tracebacks, and reasoning fields before new events are persisted or streamed.
 - Secrets stay in server-side environment variables and are never returned by Settings.
 - MCP tools are registered and allowlisted; the model cannot supply shell commands.
 - HTTP connector endpoints and stdio aliases are operator configuration; discovered tools

@@ -460,6 +460,67 @@ def test_chat_stream_tool_trace_and_provider_switch(client: TestClient) -> None:
     assert [message["role"] for message in messages] == ["user", "assistant", "user", "assistant"]
 
 
+def test_tool_result_stays_raw_for_provider_but_is_redacted_in_audit_surfaces(
+    client: TestClient,
+    runtime,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    raw_result = {
+        "content": [{"text": "safe tool output"}],
+        "metadata": {
+            "api_key": "tool-nested-secret",
+            "headers": {"Authorization": "Bearer tool-bearer-secret"},
+        },
+    }
+    provider_received: dict[str, Any] = {}
+
+    async def invoke(project_id: str, tool_name: str, arguments: dict[str, Any]):
+        assert project_id == "general"
+        assert tool_name == "system.echo"
+        assert arguments == {"message": "audit-safe"}
+        return raw_result
+
+    async def stream_after_tool(messages, model, call, result):
+        provider_received["result"] = result
+        yield "safe final answer"
+
+    monkeypatch.setattr(runtime.mcp, "invoke", invoke)
+    monkeypatch.setattr(runtime.providers.get("openai"), "stream_after_tool", stream_after_tool)
+
+    response = client.post(
+        "/api/chat/stream",
+        json={
+            "provider": "openai",
+            "model": "openai-test",
+            "project_id": "general",
+            "content": "Use the tool without leaking its credentials.",
+            "tool": {"name": "system.echo", "arguments": {"message": "audit-safe"}},
+        },
+    )
+    assert response.status_code == 200
+    assert provider_received["result"] is raw_result
+    assert provider_received["result"]["metadata"]["api_key"] == "tool-nested-secret"
+    assert "tool-nested-secret" not in response.text
+    assert "tool-bearer-secret" not in response.text
+    events = _sse_data(response.text)
+    result_event = next(item for item in events if item["type"] == "tool_result")
+    assert result_event["payload"]["result"]["metadata"]["api_key"] == "[redacted]"
+    assert result_event["payload"]["result"]["metadata"]["headers"]["Authorization"] == "[redacted]"
+
+    conversation_id = events[-1]["payload"]["conversation_id"]
+    detail = client.get(f"/api/conversations/{conversation_id}").json()
+    serialized_detail = json.dumps(detail)
+    assert "tool-nested-secret" not in serialized_detail
+    assert "tool-bearer-secret" not in serialized_detail
+    with runtime.database.connect() as connection:
+        stored = connection.execute(
+            "SELECT payload_json FROM execution_events WHERE conversation_id = ? AND type = ?",
+            (conversation_id, "tool_result"),
+        ).fetchone()["payload_json"]
+    assert "tool-nested-secret" not in stored
+    assert "tool-bearer-secret" not in stored
+
+
 def test_conversation_filter_detail_trace_and_restart(runtime_factory) -> None:
     first_runtime = runtime_factory()
     with TestClient(create_app(runtime=first_runtime)) as first:
