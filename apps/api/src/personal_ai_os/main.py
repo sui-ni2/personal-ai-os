@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import Settings
+from .p5_routes import router as p5_router
 from .routes import router
 from .runtime import Runtime, create_runtime
 
@@ -38,6 +39,7 @@ def create_app(settings: Settings | None = None, runtime: Runtime | None = None)
         return {"status": "ok", "version": "0.1.0"}
 
     app.include_router(router)
+    app.include_router(p5_router)
     return app
 
 

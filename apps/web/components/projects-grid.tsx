@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState, type ComponentType } from "react";
-import { ArrowRight, CircleDot, Code2, FolderKanban, Microscope, Sparkles } from "lucide-react";
+import { ArrowRight, CircleDot, Code2, Dices, FolderKanban, Microscope, Sparkles } from "lucide-react";
 import { apiJson } from "@/lib/api";
 import { EmptyState, ErrorState, LoadingState } from "@/components/ui-states";
 
@@ -14,6 +14,7 @@ const iconMap: Record<string, ComponentType<{ size?: number; strokeWidth?: numbe
   ball: CircleDot,
   code: Code2,
   research: Microscope,
+  digits: Dices,
 };
 
 const planned = [
@@ -81,7 +82,7 @@ export function ProjectsGrid() {
                 <p className="mt-2 flex-1 text-sm leading-6 text-text-secondary">{item.description}</p>
                 <div className="mt-6 flex items-center justify-between gap-4 border-t border-line pt-4 sm:mt-7">
                   <span className="min-w-0 text-xs text-text-tertiary"><span className="block">Last activity</span><span className="mt-0.5 block truncate text-text-secondary" title={activity?.summary}>{activity ? timeAgo(activity.created_at) : "No activity yet"}</span></span>
-                  <Link href={`/chat?project=${encodeURIComponent(item.id)}`} className="button-quiet px-2 text-accent-hover">Open <ArrowRight aria-hidden size={15} /></Link>
+                  <Link href={item.id === "p5" ? "/projects/p5" : `/chat?project=${encodeURIComponent(item.id)}`} className="button-quiet px-2 text-accent-hover">Open <ArrowRight aria-hidden size={15} /></Link>
                 </div>
               </article>
             );

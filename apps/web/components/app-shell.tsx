@@ -78,6 +78,9 @@ function SidebarContent({ pathname, onNavigate }: { pathname: string; onNavigate
           <Link href="/projects#soccer" onClick={onNavigate} className="flex min-h-10 items-center gap-3 rounded-control px-3 text-sm text-text-secondary hover:bg-surface-subtle/65 hover:text-text-primary">
             <span className="size-2 rounded-full bg-accent" aria-hidden /> Soccer
           </Link>
+          <Link href="/projects/p5" onClick={onNavigate} className="flex min-h-10 items-center gap-3 rounded-control px-3 text-sm text-text-secondary hover:bg-surface-subtle/65 hover:text-text-primary">
+            <span className="size-2 rounded-full bg-warning" aria-hidden /> P5 / 排列5
+          </Link>
         </div>
       </div>
 

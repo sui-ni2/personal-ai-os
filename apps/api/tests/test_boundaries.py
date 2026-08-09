@@ -23,10 +23,12 @@ def test_core_models_have_no_soccer_fields() -> None:
         fields = set(model.model_fields)
         assert not any("soccer" in field.lower() for field in fields)
         assert not any("fixture" in field.lower() for field in fields)
+        assert not any("p5" in field.lower() for field in fields)
+        assert not any("candidate" in field.lower() for field in fields)
 
 
 def test_general_project_runs_without_soccer_plugin() -> None:
-    registry = create_project_registry(include_soccer=False)
+    registry = create_project_registry(include_soccer=False, include_p5=False)
     assert [item.id for item in registry.list()] == ["general"]
     assert registry.get("general").metadata.name == "General"
 

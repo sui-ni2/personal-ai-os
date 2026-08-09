@@ -9,7 +9,7 @@ import pytest
 from fastapi.testclient import TestClient
 from personal_ai_os_core import Message
 from personal_ai_os_mcp import ConnectorRegistry, EchoMCPServer, MCPGateway
-from personal_ai_os_projects import create_project_registry
+from personal_ai_os_projects import P5Project, create_project_registry
 from personal_ai_os_providers import ProviderRegistry, ProviderTool, ProviderToolCall
 
 from personal_ai_os.config import Settings
@@ -17,6 +17,7 @@ from personal_ai_os.db import Database
 from personal_ai_os.main import create_app
 from personal_ai_os.mcp_service import ExternalMCPService
 from personal_ai_os.runtime import Runtime
+from personal_ai_os.p5_mcp import P5MCPServer
 
 
 class FakeProvider:
@@ -76,7 +77,7 @@ def runtime_factory(tmp_path: Path):
                 )
             },
         )
-        projects = create_project_registry()
+        projects = create_project_registry(data_dir=tmp_path)
         database = Database(settings.database_path)
         providers = ProviderRegistry(
             [
@@ -84,12 +85,14 @@ def runtime_factory(tmp_path: Path):
                 FakeProvider("anthropic", ("anthropic-test",)),
             ]
         )
+        p5_project = projects.get("p5")
+        assert isinstance(p5_project, P5Project)
         return Runtime(
             settings=settings,
             database=database,
             providers=providers,
             projects=projects,
-            mcp=MCPGateway(projects, [EchoMCPServer()]),
+            mcp=MCPGateway(projects, [EchoMCPServer(), P5MCPServer(p5_project)]),
             external_mcp=ExternalMCPService(
                 database, projects, ConnectorRegistry(settings.mcp_stdio_commands)
             ),

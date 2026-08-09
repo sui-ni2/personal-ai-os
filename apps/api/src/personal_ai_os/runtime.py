@@ -5,11 +5,13 @@ from dataclasses import dataclass
 from personal_ai_os_core import ProjectRegistry
 from personal_ai_os_mcp import ConnectorRegistry, EchoMCPServer, MCPGateway
 from personal_ai_os_projects import create_project_registry
+from personal_ai_os_projects import P5Project
 from personal_ai_os_providers import AnthropicAdapter, OpenAIAdapter, ProviderRegistry
 
 from .config import Settings
 from .db import Database
 from .mcp_service import ExternalMCPService
+from .p5_mcp import P5MCPServer
 
 
 @dataclass
@@ -23,7 +25,7 @@ class Runtime:
 
 
 def create_runtime(settings: Settings) -> Runtime:
-    projects = create_project_registry()
+    projects = create_project_registry(data_dir=settings.data_dir)
     providers = ProviderRegistry(
         [
             OpenAIAdapter(
@@ -44,11 +46,14 @@ def create_runtime(settings: Settings) -> Runtime:
     )
     database = Database(settings.database_path)
     connector_registry = ConnectorRegistry(settings.mcp_stdio_commands)
+    p5_project = projects.get("p5")
+    if not isinstance(p5_project, P5Project):
+        raise RuntimeError("P5 project registry entry is invalid")
     return Runtime(
         settings=settings,
         database=database,
         providers=providers,
         projects=projects,
-        mcp=MCPGateway(projects=projects, servers=[EchoMCPServer()]),
+        mcp=MCPGateway(projects=projects, servers=[EchoMCPServer(), P5MCPServer(p5_project)]),
         external_mcp=ExternalMCPService(database, projects, connector_registry),
     )

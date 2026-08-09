@@ -14,7 +14,7 @@ FastAPI application
   +-- personal_ai_os_core       generic records and project contract
   +-- personal_ai_os_providers  OpenAI / Anthropic adapters
   +-- personal_ai_os_mcp        allowlisted gateway, registry, HTTP/stdio transports
-  +-- personal_ai_os_projects   General / Soccer plugin registrations
+  +-- personal_ai_os_projects   General / Soccer / isolated P5 plugin registrations
         |
         v
 SQLite + migration ledger
@@ -31,3 +31,8 @@ persistence. Historical rows are sanitized again when they are materialized thro
 The deployable unit is one API process and one web process, with package boundaries inside one repository. SQLite is accessed through a small repository layer so a later PostgreSQL implementation can replace it without changing core schemas.
 
 Project plugins may contribute metadata, context, tool permissions, views, and artifact kinds. They may not alter generic core records. Removing `SoccerProject` from the registry leaves all API routes and schemas operational.
+
+P5 uses a plugin-owned SQLite database at `data/projects/p5/p5.db` for issues, candidates,
+reviews, rules, and audit events. This keeps all P5 fields outside the generic database models.
+Its local MCP server is allowlisted only for the P5 project and has no shell, arbitrary path,
+P3, or Codex capability.

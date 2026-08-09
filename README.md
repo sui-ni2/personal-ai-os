@@ -16,7 +16,9 @@ A mobile-first, general-purpose AI workbench built as a modular monolith. Chat, 
 - Restart-safe conversation history with project filtering and restored execution traces.
 - Allowlisted MCP gateway with a stateless JSON-RPC `system.echo` reference server plus
   configurable HTTP and fixed-command-alias stdio connectors.
-- General and Soccer project plugins using the same project contract.
+- General, Soccer, and isolated P5 / 排列5 project plugins using the same project contract.
+- P5 daily review-first workflow with a Beijing 22:22 result gate, immutable 10,000-candidate
+  locks, Top10/Top5 prefixes, candidate lookup, cumulative rule evidence, and audit views.
 - API and boundary tests.
 
 Provider calls require server-side environment variables. The application still starts without keys and reports each provider as unconfigured without exposing secret values.
@@ -87,6 +89,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-mobile-readi
 ## Boundaries
 
 - The core schemas contain no Soccer-specific fields.
+- P5 owns `data/projects/p5/p5.db`; it adds no P5 fields to Chat, Memory, or Repository and
+  exposes no P3 or Codex path.
 - Execution traces contain observable status and tool summaries, never raw private chain-of-thought.
 - Audit payloads are recursively bounded and redact nested credentials, authorization headers,
   cookies, tracebacks, and reasoning fields before new events are persisted or streamed.
@@ -97,3 +101,4 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-mobile-readi
 - V0.1 is a modular monolith, not a microservice system.
 
 See `docs/implementation-decisions.md` for the quick specification consistency check and `docs/architecture.md` for the package boundaries.
+See `docs/p5-project-plugin.md` for the P5 daily contract, API, tools, storage, and views.
