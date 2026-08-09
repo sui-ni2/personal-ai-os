@@ -4,6 +4,10 @@ import os
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
+from urllib.parse import urlsplit, urlunsplit
+
+
+DEFAULT_REALTIME_ENDPOINT = "https://api.openai.com/v1/realtime/calls"
 
 
 def _csv(value: str) -> tuple[str, ...]:
@@ -29,6 +33,23 @@ def _stdio_commands(value: str) -> dict[str, tuple[str, ...]]:
     return commands
 
 
+def _realtime_endpoint(value: str) -> str:
+    parsed = urlsplit(value.strip())
+    if (
+        parsed.scheme != "https"
+        or not parsed.hostname
+        or parsed.username
+        or parsed.password
+        or parsed.query
+        or parsed.fragment
+        or not parsed.path.rstrip("/").endswith("/realtime/calls")
+    ):
+        raise RuntimeError(
+            "PERSONAL_AI_OS_REALTIME_ENDPOINT must be an HTTPS calls endpoint ending in /realtime/calls"
+        )
+    return urlunsplit((parsed.scheme, parsed.netloc, parsed.path.rstrip("/"), "", ""))
+
+
 @dataclass(frozen=True)
 class Settings:
     data_dir: Path
@@ -39,13 +60,15 @@ class Settings:
     default_model: str
     openai_api_key: str | None = field(default=None, repr=False)
     anthropic_api_key: str | None = field(default=None, repr=False)
+    realtime_api_key: str | None = field(default=None, repr=False)
+    realtime_endpoint: str = DEFAULT_REALTIME_ENDPOINT
     mcp_stdio_commands: dict[str, tuple[str, ...]] = field(default_factory=dict, repr=False)
     provider_timeout_seconds: float = 90
     provider_max_retries: int = 2
     provider_retry_base_seconds: float = 0.25
     realtime_model: str = "gpt-realtime-2.1"
     realtime_voice: str = "marin"
-    realtime_transcription_model: str = "gpt-live-transcribe"
+    realtime_transcription_model: str = "gpt-realtime-whisper"
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -61,6 +84,11 @@ class Settings:
             default_model=os.getenv("PERSONAL_AI_OS_DEFAULT_MODEL", "gpt-5.1"),
             openai_api_key=os.getenv("PERSONAL_AI_OS_OPENAI_API_KEY") or None,
             anthropic_api_key=os.getenv("PERSONAL_AI_OS_ANTHROPIC_API_KEY") or None,
+            realtime_api_key=os.getenv("PERSONAL_AI_OS_REALTIME_API_KEY") or None,
+            realtime_endpoint=_realtime_endpoint(
+                os.getenv("PERSONAL_AI_OS_REALTIME_ENDPOINT")
+                or DEFAULT_REALTIME_ENDPOINT
+            ),
             mcp_stdio_commands=_stdio_commands(
                 os.getenv("PERSONAL_AI_OS_MCP_STDIO_COMMANDS", "{}")
             ),
@@ -78,10 +106,20 @@ class Settings:
             ),
             realtime_voice=os.getenv("PERSONAL_AI_OS_REALTIME_VOICE", "marin"),
             realtime_transcription_model=os.getenv(
-                "PERSONAL_AI_OS_REALTIME_TRANSCRIPTION_MODEL", "gpt-live-transcribe"
+                "PERSONAL_AI_OS_REALTIME_TRANSCRIPTION_MODEL", "gpt-realtime-whisper"
             ),
         )
 
     @property
     def database_path(self) -> Path:
         return self.data_dir / "personal_ai_os.db"
+
+    @property
+    def realtime_key(self) -> str | None:
+        if self.realtime_provider == "compatible":
+            return self.realtime_api_key
+        return self.realtime_api_key or self.openai_api_key
+
+    @property
+    def realtime_provider(self) -> str:
+        return "openai" if self.realtime_endpoint == DEFAULT_REALTIME_ENDPOINT else "compatible"

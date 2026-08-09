@@ -36,7 +36,7 @@ type PersistedMessage = { id: string; role: "user" | "assistant" | "system" | "t
 type UiMessage = { id?: string; role: "user" | "assistant" | "system"; content: string };
 type ConversationDetail = { conversation: Conversation; messages: PersistedMessage[]; execution_events: SseEvent[] };
 type MCPConnector = { id: string; name: string; enabled: boolean; allowed_tools: string[]; connection_status: "disabled" | "configured" | "connected" | "error" };
-type RealtimeStatus = { configured: boolean; model: string; transcription_model: string; transport: "webrtc" };
+type RealtimeStatus = { configured: boolean; provider: "openai" | "compatible"; model: string; transcription_model: string; transport: "webrtc" };
 type LiveState = "idle" | "connecting" | "listening" | "error";
 type MemoryKind = "fact" | "preference" | "rule" | "project";
 type MemoryTarget = UiMessage & { index: number };
@@ -257,7 +257,7 @@ export function ChatWorkspace() {
   async function startLive() {
     if (!realtime?.configured) {
       setLiveState("error");
-      setLiveMessage("GPT Live is not configured. Add the server-side OpenAI key in Settings, then try again.");
+      setLiveMessage("GPT Live is not configured. Add a server-side Realtime credential, then try again.");
       return;
     }
     if (!navigator.mediaDevices?.getUserMedia) {

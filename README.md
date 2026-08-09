@@ -21,10 +21,14 @@ A mobile-first, general-purpose AI workbench built as a modular monolith. Chat, 
 
 Provider calls require server-side environment variables. The application still starts without keys and reports each provider as unconfigured without exposing secret values.
 
-GPT Live uses a server-mediated WebRTC session so the standard OpenAI key never reaches
-the browser. It uses `PERSONAL_AI_OS_OPENAI_API_KEY`; optional model overrides are
-`PERSONAL_AI_OS_REALTIME_MODEL`, `PERSONAL_AI_OS_REALTIME_VOICE`, and
-`PERSONAL_AI_OS_REALTIME_TRANSCRIPTION_MODEL`.
+GPT Live uses a server-mediated WebRTC session so provider keys never reach the browser.
+By default it uses `PERSONAL_AI_OS_OPENAI_API_KEY` with OpenAI's calls endpoint. A
+separate `PERSONAL_AI_OS_REALTIME_API_KEY` can be used instead. An alternative provider
+requires both that independent key and an explicit `PERSONAL_AI_OS_REALTIME_ENDPOINT`;
+the standard OpenAI key is never forwarded to a custom endpoint. The endpoint must be an
+HTTPS URL ending in `/realtime/calls` and implement the same multipart SDP/session contract.
+Model overrides are `PERSONAL_AI_OS_REALTIME_MODEL`, `PERSONAL_AI_OS_REALTIME_VOICE`,
+and `PERSONAL_AI_OS_REALTIME_TRANSCRIPTION_MODEL`.
 
 stdio connectors are configured server-side through
 `PERSONAL_AI_OS_MCP_STDIO_COMMANDS`. Each entry maps a display alias to one fixed argv

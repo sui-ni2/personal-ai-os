@@ -40,7 +40,8 @@ def providers(request: Request) -> dict[str, object]:
 def realtime_status(request: Request) -> dict[str, object]:
     settings = runtime_from(request).settings
     return {
-        "configured": bool(settings.openai_api_key),
+        "configured": bool(settings.realtime_key),
+        "provider": settings.realtime_provider,
         "model": settings.realtime_model,
         "transcription_model": settings.realtime_transcription_model,
         "transport": "webrtc",
@@ -54,7 +55,8 @@ async def realtime_session(
     conversation_id: str | None = None,
 ) -> Response:
     runtime = runtime_from(request)
-    if not runtime.settings.openai_api_key:
+    realtime_key = runtime.settings.realtime_key
+    if not realtime_key:
         raise HTTPException(status_code=503, detail="GPT Live is not configured")
     try:
         project = runtime.projects.get(project_id)
@@ -109,9 +111,9 @@ async def realtime_session(
     try:
         async with httpx.AsyncClient(timeout=30) as client:
             upstream = await client.post(
-                "https://api.openai.com/v1/realtime/calls",
+                runtime.settings.realtime_endpoint,
                 headers={
-                    "Authorization": f"Bearer {runtime.settings.openai_api_key}",
+                    "Authorization": f"Bearer {realtime_key}",
                 },
                 files={
                     "sdp": (None, offer, "application/sdp"),

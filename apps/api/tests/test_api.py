@@ -13,6 +13,7 @@ from personal_ai_os_mcp import EchoMCPServer
 from personal_ai_os.main import create_app
 from personal_ai_os.chat import stream_chat
 from personal_ai_os.chat import conversation_title
+from personal_ai_os.config import Settings
 from personal_ai_os.schemas import ChatRequest
 
 
@@ -93,8 +94,9 @@ def test_realtime_status_is_safe_when_unconfigured(client: TestClient) -> None:
     assert status.status_code == 200
     assert status.json() == {
         "configured": False,
+        "provider": "openai",
         "model": "gpt-realtime-2.1",
-        "transcription_model": "gpt-live-transcribe",
+        "transcription_model": "gpt-realtime-whisper",
         "transport": "webrtc",
     }
     assert client.post(
@@ -102,6 +104,53 @@ def test_realtime_status_is_safe_when_unconfigured(client: TestClient) -> None:
         content="v=0",
         headers={"content-type": "application/sdp"},
     ).status_code == 503
+
+
+def test_realtime_status_uses_openai_key_as_safe_fallback(runtime) -> None:
+    object.__setattr__(runtime.settings, "openai_api_key", "openai-server-key")
+    with TestClient(create_app(runtime=runtime)) as client:
+        status = client.get("/api/realtime/status")
+    assert status.status_code == 200
+    assert status.json()["configured"] is True
+    assert status.json()["provider"] == "openai"
+    assert "key" not in status.text.lower()
+
+
+def test_custom_realtime_endpoint_never_reuses_openai_key(runtime) -> None:
+    object.__setattr__(runtime.settings, "openai_api_key", "openai-server-key")
+    object.__setattr__(
+        runtime.settings,
+        "realtime_endpoint",
+        "https://gateway.example.test/v1/realtime/calls",
+    )
+    with TestClient(create_app(runtime=runtime)) as client:
+        status = client.get("/api/realtime/status")
+        session = client.post(
+            "/api/realtime/session",
+            content="v=0",
+            headers={"content-type": "application/sdp"},
+        )
+    assert status.json()["configured"] is False
+    assert status.json()["provider"] == "compatible"
+    assert session.status_code == 503
+
+
+@pytest.mark.parametrize(
+    "endpoint",
+    [
+        "http://gateway.example/v1/realtime/calls",
+        "https://gateway.example/v1/chat/completions",
+        "https://user:secret@gateway.example/v1/realtime/calls",
+        "https://gateway.example/v1/realtime/calls?debug=1",
+    ],
+)
+def test_realtime_endpoint_rejects_unsafe_or_incompatible_urls(
+    endpoint: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("PERSONAL_AI_OS_REALTIME_ENDPOINT", endpoint)
+    with pytest.raises(RuntimeError, match="HTTPS calls endpoint"):
+        Settings.from_env()
 
 
 @pytest.mark.parametrize(
@@ -174,7 +223,13 @@ def test_realtime_session_uses_server_key_context_and_transcription(
                 request=httpx.Request("POST", url),
             )
 
-    object.__setattr__(runtime.settings, "openai_api_key", "test-server-key")
+    object.__setattr__(runtime.settings, "openai_api_key", "text-only-openai-key")
+    object.__setattr__(runtime.settings, "realtime_api_key", "test-realtime-key")
+    object.__setattr__(
+        runtime.settings,
+        "realtime_endpoint",
+        "https://gateway.example.test/v1/realtime/calls",
+    )
     monkeypatch.setattr("personal_ai_os.routes.httpx.AsyncClient", FakeAsyncClient)
 
     with TestClient(create_app(runtime=runtime)) as client:
@@ -199,13 +254,14 @@ def test_realtime_session_uses_server_key_context_and_transcription(
 
     assert response.status_code == 200
     assert response.content == b"v=0\r\na=answer"
-    assert captured["url"] == "https://api.openai.com/v1/realtime/calls"
-    assert captured["headers"] == {"Authorization": "Bearer test-server-key"}
+    assert captured["url"] == "https://gateway.example.test/v1/realtime/calls"
+    assert captured["headers"] == {"Authorization": "Bearer test-realtime-key"}
     session = json.loads(captured["files"]["session"][1])
     assert session["model"] == "gpt-realtime-2.1"
-    assert session["audio"]["input"]["transcription"]["model"] == "gpt-live-transcribe"
+    assert session["audio"]["input"]["transcription"]["model"] == "gpt-realtime-whisper"
     assert "Plan the day." in session["instructions"]
-    assert "test-server-key" not in response.text
+    assert "test-realtime-key" not in response.text
+    assert "text-only-openai-key" not in response.text
 
 
 def test_database_migrations_are_current(client: TestClient, runtime) -> None:
