@@ -42,7 +42,8 @@ def p5_history(
     request: Request,
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
 ) -> dict[str, object]:
-    return {"items": _project(request).store.history(limit)}
+    store = _project(request).store
+    return {"items": store.history(limit), **store.research_boundary()}
 
 
 @router.get("/candidates")

@@ -18,7 +18,8 @@ A mobile-first, general-purpose AI workbench built as a modular monolith. Chat, 
   configurable HTTP and fixed-command-alias stdio connectors.
 - General, Soccer, and isolated P5 / 排列5 project plugins using the same project contract.
 - P5 daily review-first workflow with a Beijing 22:22 result gate, immutable 10,000-candidate
-  locks, Top10/Top5 prefixes, candidate lookup, cumulative rule evidence, and audit views.
+  zero-stake observation locks, diagnostic Top10/Top5 prefixes, candidate lookup, cumulative
+  rule evidence, conflict rejection, and audit views.
 - API and boundary tests.
 
 Provider calls require server-side environment variables. The application still starts without keys and reports each provider as unconfigured without exposing secret values.

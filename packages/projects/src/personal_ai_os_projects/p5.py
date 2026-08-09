@@ -16,6 +16,12 @@ from personal_ai_os_core import ProjectMetadata, ProjectView
 BEIJING = timezone(timedelta(hours=8), "Asia/Shanghai")
 MODEL_VERSION = "p5-gpt-10xthink-v1"
 WORKFLOW_VERSION = "P5_POST_DRAW_2222_NEXT_DAY_V1"
+OBSERVATION_ARM = "UNQUALIFIED_OBSERVATION_ARM"
+MONEY_STAKED_CNY = 0
+LIVE_BETTING_ALLOWED = False
+RULE_WEIGHT_MIN_OBSERVATIONS = 10
+RULE_PAUSE_MIN_OBSERVATIONS = 20
+RULE_PAUSE_POSITIVE_RATE = 0.20
 ISSUE_PATTERN = re.compile(r"^[0-9]{5,12}$")
 NUMBER_PATTERN = re.compile(r"^[0-9]{5}$")
 
@@ -30,6 +36,16 @@ RULES = (
 
 def _utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def _research_boundary() -> dict[str, Any]:
+    return {
+        "observation_arm": OBSERVATION_ARM,
+        "money_staked_cny": MONEY_STAKED_CNY,
+        "live_betting_allowed": LIVE_BETTING_ALLOWED,
+        "top10_role": "diagnostic_verification_prefix",
+        "top5_role": "diagnostic_verification_prefix",
+    }
 
 
 def _validate_issue(value: str, field: str = "issue") -> str:
@@ -218,6 +234,7 @@ class P5Store:
             "retry_at": retry,
             "workflow_version": WORKFLOW_VERSION,
             "result_confirmed": False,
+            **_research_boundary(),
         }
 
     def run_daily(
@@ -258,6 +275,17 @@ class P5Store:
         created_at = now.astimezone(timezone.utc).isoformat()
         with self.connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
+            existing_result = connection.execute(
+                "SELECT official_result FROM p5_issues WHERE issue = ?", (result_issue,)
+            ).fetchone()
+            if (
+                existing_result is not None
+                and existing_result["official_result"] is not None
+                and existing_result["official_result"] != official_result
+            ):
+                raise RuntimeError(
+                    f"Official result conflict for {result_issue}: existing value is immutable"
+                )
             connection.execute(
                 """
                 INSERT INTO p5_issues(
@@ -282,10 +310,43 @@ class P5Store:
             existing_count = connection.execute(
                 "SELECT COUNT(*) AS count FROM p5_candidates WHERE issue = ?", (next_issue,)
             ).fetchone()["count"]
+            next_state = connection.execute(
+                "SELECT * FROM p5_issues WHERE issue = ?", (next_issue,)
+            ).fetchone()
             if existing_count not in (0, 10_000):
                 raise RuntimeError(
                     f"Refusing partial candidate set for {next_issue}: {existing_count} rows"
                 )
+            if existing_count == 0 and next_state is not None:
+                raise RuntimeError(
+                    f"Refusing to repurpose existing issue state for {next_issue}"
+                )
+            if existing_count == 10_000:
+                if (
+                    next_state is None
+                    or next_state["status"] != "locked"
+                    or next_state["draw_date"] != next_draw_date
+                    or next_state["model_version"] != MODEL_VERSION
+                    or next_state["workflow_version"] != WORKFLOW_VERSION
+                ):
+                    raise RuntimeError(
+                        f"Immutable lock metadata conflict for {next_issue}"
+                    )
+                candidate_versions = connection.execute(
+                    """
+                    SELECT COUNT(DISTINCT model_version) AS version_count,
+                        MIN(model_version) AS model_version
+                    FROM p5_candidates WHERE issue = ?
+                    """,
+                    (next_issue,),
+                ).fetchone()
+                if (
+                    candidate_versions["version_count"] != 1
+                    or candidate_versions["model_version"] != MODEL_VERSION
+                ):
+                    raise RuntimeError(
+                        f"Immutable candidate model conflict for {next_issue}"
+                    )
             if existing_count == 0:
                 candidates = self._generate_candidates(connection, next_issue, created_at)
                 connection.execute(
@@ -340,6 +401,7 @@ class P5Store:
                         "top10_count": 10,
                         "top5_count": 5,
                         "paper_only": True,
+                        **_research_boundary(),
                     },
                     created_at,
                 )
@@ -349,7 +411,11 @@ class P5Store:
                     connection,
                     "forecast.reused",
                     next_issue,
-                    {"candidate_count": persisted, "reason": "immutable_existing_lock"},
+                    {
+                        "candidate_count": persisted,
+                        "reason": "immutable_existing_lock",
+                        **_research_boundary(),
+                    },
                     created_at,
                 )
             top = connection.execute(
@@ -372,6 +438,7 @@ class P5Store:
             "execution_path": "gpt/chatgpt",
             "codex_invoked": False,
             "paper_only": True,
+            **_research_boundary(),
         }
 
     def _review(
@@ -382,9 +449,17 @@ class P5Store:
         created_at: str,
     ) -> dict[str, Any]:
         previous = connection.execute(
-            "SELECT metrics_json, rule_updates_json FROM p5_reviews WHERE issue = ?", (issue,)
+            """
+            SELECT official_result, metrics_json, rule_updates_json
+            FROM p5_reviews WHERE issue = ?
+            """,
+            (issue,),
         ).fetchone()
         if previous is not None:
+            if previous["official_result"] != result:
+                raise RuntimeError(
+                    f"Review result conflict for {issue}: existing value is immutable"
+                )
             return {
                 "issue": issue,
                 "official_result": result,
@@ -416,7 +491,21 @@ class P5Store:
         ).fetchall()
         successful = bool(candidate and candidate["final_rank"] <= 100)
         review_has_lock = candidate_count == 10_000
+        active_remaining = sum(bool(row["active"]) for row in rules)
         for row in rules:
+            if not row["active"]:
+                updates.append(
+                    {
+                        "rule_id": row["rule_id"],
+                        "evidence": "paused",
+                        "observations": row["positive_count"] + row["negative_count"],
+                        "weight": round(float(row["weight"]), 6),
+                        "active": False,
+                        "retuned": False,
+                        "paused": False,
+                    }
+                )
+                continue
             positive = (
                 review_has_lock
                 and successful
@@ -425,17 +514,34 @@ class P5Store:
             positive_count = row["positive_count"] + int(positive)
             negative_count = row["negative_count"] + int(review_has_lock and not positive)
             observations = positive_count + negative_count
-            weight = float(row["weight"])
+            previous_weight = float(row["weight"])
+            weight = previous_weight
             # Accumulate evidence immediately, but never retune from a single draw.
-            if observations >= 10:
+            if review_has_lock and observations >= RULE_WEIGHT_MIN_OBSERVATIONS:
                 performance = positive_count / observations
                 weight = min(0.45, max(0.05, weight + (performance - 0.5) * 0.01))
+            should_pause = (
+                review_has_lock
+                and observations >= RULE_PAUSE_MIN_OBSERVATIONS
+                and positive_count / observations < RULE_PAUSE_POSITIVE_RATE
+                and active_remaining > 1
+            )
+            active = not should_pause
+            if should_pause:
+                active_remaining -= 1
             connection.execute(
                 """
                 UPDATE p5_rules SET weight = ?, positive_count = ?, negative_count = ?,
-                    updated_at = ? WHERE rule_id = ?
+                    active = ?, updated_at = ? WHERE rule_id = ?
                 """,
-                (weight, positive_count, negative_count, created_at, row["rule_id"]),
+                (
+                    weight,
+                    positive_count,
+                    negative_count,
+                    int(active),
+                    created_at,
+                    row["rule_id"],
+                ),
             )
             updates.append(
                 {
@@ -447,7 +553,9 @@ class P5Store:
                     ),
                     "observations": observations,
                     "weight": round(weight, 6),
-                    "retuned": observations >= 10,
+                    "active": active,
+                    "retuned": weight != previous_weight,
+                    "paused": should_pause,
                 }
             )
         connection.execute(
@@ -481,14 +589,18 @@ class P5Store:
     def _generate_candidates(
         self, connection: sqlite3.Connection, issue: str, created_at: str
     ) -> list[tuple[Any, ...]]:
+        rule_rows = connection.execute(
+            "SELECT rule_id, weight, active FROM p5_rules"
+        ).fetchall()
+        if {row["rule_id"] for row in rule_rows} != {item[0] for item in RULES}:
+            raise RuntimeError("P5 scoring rules are incomplete")
         rules = {
             row["rule_id"]: float(row["weight"])
-            for row in connection.execute(
-                "SELECT rule_id, weight FROM p5_rules WHERE active = 1"
-            ).fetchall()
+            for row in rule_rows
+            if row["active"]
         }
-        if set(rules) != {item[0] for item in RULES}:
-            raise RuntimeError("P5 scoring rules are incomplete")
+        if not rules:
+            raise RuntimeError("P5 scoring requires at least one active rule")
         seed = f"{issue}|{MODEL_VERSION}"
         selected = sorted(
             range(100_000),
@@ -611,6 +723,7 @@ class P5Store:
             "execution_path": "gpt/chatgpt",
             "codex_invoked": False,
             "paper_only": True,
+            **_research_boundary(),
             "latest_issue": _row_dict(latest) if latest else None,
             "top10": [_row_dict(row) for row in top],
             "review_count": review_count,
@@ -631,6 +744,9 @@ class P5Store:
             ).fetchall()
         return [_row_dict(row) for row in rows]
 
+    def research_boundary(self) -> dict[str, Any]:
+        return _research_boundary()
+
     def candidate(
         self, issue: str, number: str | None = None, limit: int = 100
     ) -> dict[str, Any]:
@@ -648,6 +764,7 @@ class P5Store:
                     "number": number,
                     "generated": row is not None,
                     "candidate": _row_dict(row) if row else None,
+                    **_research_boundary(),
                 }
             rows = connection.execute(
                 """
@@ -663,6 +780,7 @@ class P5Store:
             "issue": issue,
             "candidate_count": count,
             "items": [_row_dict(row) for row in rows],
+            **_research_boundary(),
         }
 
     def audit(self, limit: int = 100) -> dict[str, Any]:
@@ -680,6 +798,7 @@ class P5Store:
             "execution_path": "gpt/chatgpt",
             "codex_invoked": False,
             "paper_only": True,
+            **_research_boundary(),
             "rules": [_row_dict(row) for row in rules],
             "events": [_row_dict(row) for row in events],
         }
@@ -714,12 +833,13 @@ class P5Project:
                 "update cumulative rule evidence",
                 "persist exactly 10000 next-issue candidates",
                 "run 10xthink scoring, filtering, and dehomogenization",
-                "lock Top10 then Top5",
+                "record diagnostic Top10 then Top5 prefixes",
                 "append an audit record",
             ],
             "execution_path": "gpt/chatgpt",
             "forbidden_execution_path": "codex",
             "paper_only": True,
+            **_research_boundary(),
             "isolation": "No P3 access and no P5 fields in core Chat, Memory, or Repository schemas.",
         }
 

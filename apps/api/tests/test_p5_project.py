@@ -4,6 +4,7 @@ from datetime import datetime
 from datetime import timedelta, timezone
 
 from fastapi.testclient import TestClient
+from personal_ai_os_projects import P5Project
 
 
 BEIJING = timezone(timedelta(hours=8), "Asia/Shanghai")
@@ -33,6 +34,9 @@ def test_p5_registry_contract_is_isolated(client: TestClient) -> None:
     assert detail["context"]["execution_path"] == "gpt/chatgpt"
     assert detail["context"]["forbidden_execution_path"] == "codex"
     assert detail["permissions"]["denied_projects"] == ["p3"]
+    assert detail["context"]["observation_arm"] == "UNQUALIFIED_OBSERVATION_ARM"
+    assert detail["context"]["money_staked_cny"] == 0
+    assert detail["context"]["live_betting_allowed"] is False
     assert [item["id"] for item in detail["views"]] == [
         "home",
         "history",
@@ -60,8 +64,15 @@ def test_p5_waits_before_review_when_result_is_not_confirmed(client: TestClient)
     body = response.json()
     assert body["status"] == "waiting_for_result"
     assert body["result_confirmed"] is False
+    assert body["observation_arm"] == "UNQUALIFIED_OBSERVATION_ARM"
+    assert body["money_staked_cny"] == 0
+    assert body["live_betting_allowed"] is False
     assert body["retry_at"].endswith("+08:00")
-    history = client.get("/api/projects/p5/history").json()["items"]
+    history_response = client.get("/api/projects/p5/history").json()
+    assert history_response["observation_arm"] == "UNQUALIFIED_OBSERVATION_ARM"
+    assert history_response["money_staked_cny"] == 0
+    assert history_response["live_betting_allowed"] is False
+    history = history_response["items"]
     assert history[0]["status"] == "waiting_for_result"
     assert history[0]["candidate_count"] == 0
 
@@ -77,6 +88,11 @@ def test_p5_daily_loop_persists_exactly_10000_and_supports_candidate_audit(
     assert body["top5"] == body["top10"][:5]
     assert body["execution_path"] == "gpt/chatgpt"
     assert body["codex_invoked"] is False
+    assert body["observation_arm"] == "UNQUALIFIED_OBSERVATION_ARM"
+    assert body["money_staked_cny"] == 0
+    assert body["live_betting_allowed"] is False
+    assert body["top10_role"] == "diagnostic_verification_prefix"
+    assert body["top5_role"] == "diagnostic_verification_prefix"
     assert body["review"]["metrics"]["candidate_count"] == 0
     assert len(body["review"]["rule_updates"]) == 5
     assert all(
@@ -86,6 +102,9 @@ def test_p5_daily_loop_persists_exactly_10000_and_supports_candidate_audit(
     assert not any(item["retuned"] for item in body["review"]["rule_updates"])
 
     listing = client.get("/api/projects/p5/candidates?issue=26211&limit=100").json()
+    assert listing["observation_arm"] == "UNQUALIFIED_OBSERVATION_ARM"
+    assert listing["money_staked_cny"] == 0
+    assert listing["live_betting_allowed"] is False
     assert listing["candidate_count"] == 10_000
     assert len(listing["items"]) == 100
     required = {
@@ -127,6 +146,9 @@ def test_p5_daily_loop_persists_exactly_10000_and_supports_candidate_audit(
 
     audit = client.get("/api/projects/p5/audit").json()
     assert audit["codex_invoked"] is False
+    assert audit["observation_arm"] == "UNQUALIFIED_OBSERVATION_ARM"
+    assert audit["money_staked_cny"] == 0
+    assert audit["live_betting_allowed"] is False
     assert {event["action"] for event in audit["events"]} >= {
         "review.completed",
         "forecast.locked",
@@ -185,3 +207,85 @@ def test_p5_before_2222_waits_for_gate(client: TestClient) -> None:
     )
     assert response.status_code == 200
     assert response.json()["status"] == "waiting_for_2222"
+
+
+def test_p5_rejects_result_and_lock_metadata_conflicts(client: TestClient) -> None:
+    _run_lock(client)
+    result_conflict = client.post(
+        "/api/projects/p5/daily-run",
+        json={
+            "result_issue": "26210",
+            "official_result": "99999",
+            "result_confirmed": True,
+            "next_issue": "26212",
+            "next_draw_date": "2026-08-11",
+            "now_beijing": "2026-08-10T22:23:00+08:00",
+        },
+    )
+    assert result_conflict.status_code == 409
+    assert "Official result conflict" in result_conflict.json()["detail"]
+
+    lock_conflict = client.post(
+        "/api/projects/p5/daily-run",
+        json={
+            "result_issue": "26210",
+            "official_result": "09431",
+            "result_confirmed": True,
+            "next_issue": "26211",
+            "next_draw_date": "2026-08-12",
+            "now_beijing": "2026-08-10T22:23:00+08:00",
+        },
+    )
+    assert lock_conflict.status_code == 409
+    assert "Immutable lock metadata conflict" in lock_conflict.json()["detail"]
+
+
+def test_p5_long_term_negative_rule_can_pause_without_disabling_all_scoring(
+    client: TestClient,
+) -> None:
+    _run_lock(client)
+    project = client.app.state.runtime.projects.get("p5")
+    assert isinstance(project, P5Project)
+    with project.store.connect() as connection:
+        generated = {
+            row["number"]
+            for row in connection.execute(
+                "SELECT number FROM p5_candidates WHERE issue = '26211'"
+            ).fetchall()
+        }
+        connection.execute(
+            """
+            UPDATE p5_rules SET positive_count = 0, negative_count = 19
+            WHERE rule_id = 'digit_balance'
+            """
+        )
+    missing = next(
+        f"{value:05d}"
+        for value in range(100_000)
+        if f"{value:05d}" not in generated
+    )
+
+    response = client.post(
+        "/api/projects/p5/daily-run",
+        json={
+            "result_issue": "26211",
+            "official_result": missing,
+            "result_confirmed": True,
+            "next_issue": "26212",
+            "next_draw_date": "2026-08-11",
+            "now_beijing": "2026-08-10T22:23:00+08:00",
+        },
+    )
+    assert response.status_code == 200, response.text
+    updates = {
+        item["rule_id"]: item for item in response.json()["review"]["rule_updates"]
+    }
+    assert updates["digit_balance"]["observations"] == 20
+    assert updates["digit_balance"]["paused"] is True
+    assert updates["digit_balance"]["active"] is False
+    rules = {
+        item["rule_id"]: item
+        for item in client.get("/api/projects/p5/audit").json()["rules"]
+    }
+    assert rules["digit_balance"]["active"] is False
+    assert any(item["active"] for item in rules.values())

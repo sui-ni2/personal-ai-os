@@ -26,6 +26,9 @@ type Home = {
   schedule: string;
   execution_path: string;
   paper_only: boolean;
+  observation_arm: string;
+  money_staked_cny: number;
+  live_betting_allowed: boolean;
   latest_issue?: { issue: string; status: string; candidate_count: number; retry_at?: string };
   top10: Candidate[];
   review_count: number;
@@ -43,6 +46,9 @@ type Audit = {
   workflow_version: string;
   execution_path: string;
   paper_only: boolean;
+  observation_arm: string;
+  money_staked_cny: number;
+  live_betting_allowed: boolean;
   rules: Array<{ rule_id: string; label: string; weight: number; positive_count: number; negative_count: number; active: boolean }>;
   events: Array<{ id: number; issue?: string; action: string; payload: Record<string, unknown>; created_at: string }>;
 };
@@ -61,9 +67,9 @@ function P5Header({ view }: { view: View }) {
         <div>
           <p className="eyebrow">Projects / P5</p>
           <h1 className="page-title mt-1">排列5 · 10xthink</h1>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-text-secondary">复盘先行、恰好 10,000 组全量留痕、Top10 与 Top5 锁定。独立于 P3 和通用核心。</p>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-text-secondary">复盘先行、恰好 10,000 组全量留痕、Top10 与 Top5 仅作诊断前缀。独立于 P3 和通用核心。</p>
         </div>
-        <span className="chip w-fit"><span className="status-dot bg-success" />GPT / ChatGPT · 纸面研究</span>
+        <span className="chip w-fit"><span className="status-dot bg-success" />GPT / ChatGPT · 纸面研究 · ¥0</span>
       </div>
       <nav className="scrollbar-subtle mt-6 flex gap-2 overflow-x-auto pb-1" aria-label="P5 sections">
         {navigation.map(([id, label, href]) => (
@@ -92,7 +98,7 @@ function HomeView() {
       <article className="panel p-5 sm:p-6">
         <div className="flex items-center justify-between gap-4"><div><p className="eyebrow">Latest lock</p><h2 className="section-title mt-1">Top10 / Top5</h2></div><span className="chip">22:22 Asia/Shanghai</span></div>
         {data.top10.length ? <div className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">{data.top10.map((candidate) => <div key={candidate.number} className={`rounded-control border p-3 ${candidate.is_top5 ? "border-accent bg-accent-soft/45" : "border-line bg-surface-subtle/45"}`}><span className="text-xs text-text-tertiary">#{candidate.final_rank}</span><p className="mt-1 font-mono text-lg tracking-[0.12em]">{candidate.number}</p><span className="text-xs text-text-secondary">{candidate.adjusted_score.toFixed(4)}</span></div>)}</div> : <div className="mt-5"><EmptyState title="No locked issue" description="After 22:22, the workflow waits for a confirmed official result before generating the next issue." /></div>}
-        <p className="mt-5 text-xs leading-5 text-text-tertiary">{data.schedule}. Locked prefixes are research artifacts, not betting authorization.</p>
+        <p className="mt-5 text-xs leading-5 text-text-tertiary">{data.schedule}. {data.observation_arm}; Top10/Top5 are diagnostic prefixes only. Money staked: ¥{data.money_staked_cny}; live betting: {data.live_betting_allowed ? "allowed" : "disabled"}.</p>
       </article>
     </div>
   );
@@ -131,7 +137,7 @@ function AuditView() {
   useEffect(() => { void apiJson<Audit>("/api/projects/p5/audit").then(setData).catch(() => setError(true)); }, []);
   if (error) return <ErrorState title="Audit is unavailable" detail="The P5 audit endpoint could not be reached." />;
   if (!data) return <LoadingState label="Loading model audit" />;
-  return <div className="mt-6 space-y-4"><div className="grid gap-4 sm:grid-cols-2"><article className="panel p-5"><Activity className="text-accent" size={19} /><p className="mt-4 text-xs text-text-tertiary">Model version</p><p className="mt-1 font-mono text-sm">{data.model_version}</p><p className="mt-3 text-xs text-text-secondary">{data.workflow_version}</p></article><article className="panel p-5"><ShieldCheck className="text-accent" size={19} /><p className="mt-4 text-xs text-text-tertiary">Execution boundary</p><p className="mt-1 text-lg font-medium">{data.execution_path}</p><p className="mt-1 text-xs text-text-secondary">P5-only · paper-only · no Codex</p></article></div><section className="panel p-5 sm:p-6"><p className="eyebrow">Cumulative rule evidence</p><h2 className="section-title mt-1">Active scoring rules</h2><div className="mt-5 space-y-3">{data.rules.map((rule) => <div key={rule.rule_id} className="rounded-control bg-surface-subtle/55 p-4"><div className="flex items-center justify-between gap-4"><span className="font-medium">{rule.label}</span><span className="font-mono text-sm">{rule.weight.toFixed(4)}</span></div><p className="mt-2 text-xs text-text-secondary">Positive {rule.positive_count} · Negative {rule.negative_count} · {rule.active ? "Active" : "Paused"}</p></div>)}</div></section><section className="panel p-5 sm:p-6"><p className="eyebrow">Append-only audit</p><h2 className="section-title mt-1">Recent workflow events</h2>{data.events.length ? <div className="mt-5 space-y-3">{data.events.map((event) => <div key={event.id} className="flex gap-3 border-b border-line pb-3 last:border-0"><span className="status-dot mt-2 bg-accent" /><div><p className="text-sm font-medium">{event.action}</p><p className="mt-1 text-xs text-text-tertiary">Issue {event.issue || "—"} · {new Date(event.created_at).toLocaleString()}</p></div></div>)}</div> : <div className="mt-5"><EmptyState title="No audit events yet" description="Wait, review, and lock events will be appended here." /></div>}</section></div>;
+  return <div className="mt-6 space-y-4"><div className="grid gap-4 sm:grid-cols-2"><article className="panel p-5"><Activity className="text-accent" size={19} /><p className="mt-4 text-xs text-text-tertiary">Model version</p><p className="mt-1 font-mono text-sm">{data.model_version}</p><p className="mt-3 text-xs text-text-secondary">{data.workflow_version}</p></article><article className="panel p-5"><ShieldCheck className="text-accent" size={19} /><p className="mt-4 text-xs text-text-tertiary">Execution boundary</p><p className="mt-1 text-lg font-medium">{data.execution_path}</p><p className="mt-1 text-xs text-text-secondary">P5-only · {data.observation_arm} · ¥{data.money_staked_cny} · live betting {data.live_betting_allowed ? "allowed" : "disabled"} · no Codex</p></article></div><section className="panel p-5 sm:p-6"><p className="eyebrow">Cumulative rule evidence</p><h2 className="section-title mt-1">Active scoring rules</h2><div className="mt-5 space-y-3">{data.rules.map((rule) => <div key={rule.rule_id} className="rounded-control bg-surface-subtle/55 p-4"><div className="flex items-center justify-between gap-4"><span className="font-medium">{rule.label}</span><span className="font-mono text-sm">{rule.weight.toFixed(4)}</span></div><p className="mt-2 text-xs text-text-secondary">Positive {rule.positive_count} · Negative {rule.negative_count} · {rule.active ? "Active" : "Paused"}</p></div>)}</div></section><section className="panel p-5 sm:p-6"><p className="eyebrow">Append-only audit</p><h2 className="section-title mt-1">Recent workflow events</h2>{data.events.length ? <div className="mt-5 space-y-3">{data.events.map((event) => <div key={event.id} className="flex gap-3 border-b border-line pb-3 last:border-0"><span className="status-dot mt-2 bg-accent" /><div><p className="text-sm font-medium">{event.action}</p><p className="mt-1 text-xs text-text-tertiary">Issue {event.issue || "—"} · {new Date(event.created_at).toLocaleString()}</p></div></div>)}</div> : <div className="mt-5"><EmptyState title="No audit events yet" description="Wait, review, and lock events will be appended here." /></div>}</section></div>;
 }
 
 export function P5Workspace({ view }: { view: View }) {

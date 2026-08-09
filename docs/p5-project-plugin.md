@@ -13,15 +13,22 @@ The workflow contract is `P5_POST_DRAW_2222_NEXT_DAY_V1`:
 2. If the official result is not confirmed, persist a waiting state and retry after ten minutes.
 3. Review the settled issue and append its rule evidence.
 4. Do not retune a rule from one draw; weight changes begin only after ten observations.
+   A rule with at least twenty observations and a positive rate below 20% is paused, while
+   at least one scoring rule always remains active.
 5. Generate and atomically persist exactly 10,000 unique candidates for the next issue.
 6. Run deterministic, replayable 10xthink feature scoring, filters, and Top10 dehomogenization.
-7. Lock Top10 and its Top5 prefix, then append the audit event.
+7. Record diagnostic Top10 and Top5 prefixes, then append the audit event.
 
 An existing 10,000-row lock is immutable and reused on a repeated daily call. A partial lock is
 treated as an error instead of being overwritten.
 
 The execution path is identified as GPT/ChatGPT and the plugin denies Codex and P3. The current
-lock remains paper-only research and does not authorize betting.
+lock remains paper-only research and does not authorize betting. Top10000 is always labeled
+`UNQUALIFIED_OBSERVATION_ARM`; Top10 and Top5 are diagnostic verification prefixes only;
+`money_staked_cny=0` and `live_betting_allowed=false`.
+
+Confirmed results and 10,000-row lock metadata are immutable. A repeated call with a conflicting
+official result, draw date, workflow version, or model version fails closed.
 
 ## API and tools
 

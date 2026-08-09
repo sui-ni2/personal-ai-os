@@ -51,7 +51,8 @@ class P5MCPServer:
                 name="p5.daily.run",
                 description=(
                     "After the Beijing 22:22 gate, review a confirmed result and atomically "
-                    "lock exactly 10000 candidates for the next P5 issue."
+                    "lock exactly 10000 zero-stake, unqualified observation candidates for "
+                    "the next P5 issue. Top10 and Top5 are diagnostic prefixes only."
                 ),
                 input_schema={
                     "type": "object",
@@ -96,7 +97,10 @@ class P5MCPServer:
         elif name == "p5.history":
             if set(arguments) - {"limit"}:
                 raise MCPInvocationError("p5.history accepts only limit")
-            result = {"items": self.project.store.history(int(arguments.get("limit", 50)))}
+            result = {
+                "items": self.project.store.history(int(arguments.get("limit", 50))),
+                **self.project.store.research_boundary(),
+            }
         elif name == "p5.candidate.lookup":
             if set(arguments) != {"issue", "number"}:
                 raise MCPInvocationError("p5.candidate.lookup requires issue and number")
