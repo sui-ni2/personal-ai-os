@@ -80,31 +80,31 @@ export function HomeWorkspace() {
 
         <section className="mx-auto -mt-2 max-w-[720px] sm:-mt-3" aria-labelledby="start-heading">
           <h2 id="start-heading" className="sr-only">Start a conversation</h2>
-          <div className="grid grid-cols-2 rounded-full bg-surface-subtle p-1" role="group" aria-label="Conversation mode">
-            <button type="button" onClick={() => setMode("text")} aria-pressed={mode === "text"} className={`flex min-h-11 items-center justify-center gap-2 rounded-full text-sm font-medium transition ${mode === "text" ? "bg-surface-elevated text-text-primary shadow-soft" : "text-text-secondary"}`}><MessageCircle aria-hidden size={16} /> Text</button>
-            <button type="button" onClick={() => setMode("live")} aria-pressed={mode === "live"} className={`flex min-h-11 items-center justify-center gap-2 rounded-full text-sm font-medium transition ${mode === "live" ? "bg-surface-elevated text-text-primary shadow-soft" : "text-text-secondary"}`}><Mic2 aria-hidden size={16} /> GPT Live</button>
-          </div>
-          <Link href={startHref} className="mt-3 flex min-h-14 w-full items-center justify-center gap-2 rounded-[18px] bg-text-primary px-5 text-[15px] font-medium text-surface-elevated transition hover:bg-accent-hover">
+          <Link href={startHref} className="flex min-h-14 w-full items-center justify-center gap-2 rounded-[18px] bg-text-primary px-5 text-[15px] font-medium text-surface-elevated transition hover:bg-accent-hover">
             {mode === "text" ? <MessageCircle aria-hidden size={18} /> : <Mic2 aria-hidden size={18} />}
             Start a conversation
           </Link>
-          <p className="mt-2 text-center text-xs leading-5 text-text-tertiary">{mode === "text" ? "Write first. The title becomes a short summary after your first message." : "Voice starts only after you confirm microphone access."}</p>
+          <div className="mt-3 grid grid-cols-2 rounded-full bg-surface-subtle p-1" role="group" aria-label="Conversation mode">
+            <button type="button" onClick={() => setMode("text")} aria-pressed={mode === "text"} className={`flex min-h-11 items-center justify-center gap-2 rounded-full text-sm font-medium transition ${mode === "text" ? "bg-surface-elevated text-text-primary shadow-soft" : "text-text-secondary"}`}><MessageCircle aria-hidden size={16} /> Text</button>
+            <button type="button" onClick={() => setMode("live")} aria-pressed={mode === "live"} className={`flex min-h-11 items-center justify-center gap-2 rounded-full text-sm font-medium transition ${mode === "live" ? "bg-surface-elevated text-text-primary shadow-soft" : "text-text-secondary"}`}><Mic2 aria-hidden size={16} /> GPT Live</button>
+          </div>
+          <p className="mt-2 hidden text-center text-xs leading-5 text-text-tertiary sm:block">{mode === "text" ? "Write first. The title becomes a short summary after your first message." : "Voice starts only after you confirm microphone access."}</p>
         </section>
 
         {!connected && <p className="mt-8 rounded-control border border-warning/25 bg-surface px-4 py-3 text-sm text-warning">The local service is offline. Your navigation still works, but saved context is temporarily unavailable.</p>}
 
-        <div className="mt-10 divide-y divide-line border-y border-line sm:mt-12">
-          <Link href="/chat" className="group flex min-h-[78px] items-center gap-4 py-3">
+        <div className="mt-7 divide-y divide-line border-y border-line sm:mt-12">
+          <Link href="/chat" className="group flex min-h-[72px] items-center gap-4 py-3 sm:min-h-[78px]">
             <span className="grid size-10 shrink-0 place-items-center rounded-full bg-accent-soft text-accent-hover"><CalendarDays aria-hidden size={18} /></span>
             <span className="min-w-0 flex-1"><span className="block text-sm font-medium">Today</span><span className="mt-1 block truncate text-sm text-text-secondary">{conversations[0] ? `Continue “${conversations[0].title}”` : "No conversation planned yet"}</span></span>
             <ArrowRight aria-hidden className="text-text-tertiary transition-transform group-hover:translate-x-1" size={18} />
           </Link>
-          <Link href="/memory" className="group flex min-h-[78px] items-center gap-4 py-3">
+          <Link href="/memory" className="group flex min-h-[72px] items-center gap-4 py-3 sm:min-h-[78px]">
             <span className="grid size-10 shrink-0 place-items-center rounded-full bg-surface-subtle text-text-secondary"><NotebookTabs aria-hidden size={18} /></span>
             <span className="min-w-0 flex-1"><span className="block text-sm font-medium">Memory</span><span className="mt-1 block truncate text-sm text-text-secondary">{memoryCount ? `${memoryCount} active memories ready for context` : "No saved memory yet"}</span></span>
             <ArrowRight aria-hidden className="text-text-tertiary transition-transform group-hover:translate-x-1" size={18} />
           </Link>
-          <Link href="/repository" className="group flex min-h-[78px] items-center gap-4 py-3">
+          <Link href="/repository" className="group flex min-h-[72px] items-center gap-4 py-3 sm:min-h-[78px]">
             <span className="grid size-10 shrink-0 place-items-center rounded-full bg-surface-subtle text-text-secondary"><Clock3 aria-hidden size={18} /></span>
             <span className="min-w-0 flex-1"><span className="block text-sm font-medium">Recent activity</span><span className="mt-1 block truncate text-sm text-text-secondary">{recentEvent ? `${recentEvent.summary} · ${timeAgo(recentEvent.created_at)}` : "Nothing recorded yet"}</span></span>
             <ArrowRight aria-hidden className="text-text-tertiary transition-transform group-hover:translate-x-1" size={18} />

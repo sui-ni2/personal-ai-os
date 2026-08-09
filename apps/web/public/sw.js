@@ -1,6 +1,11 @@
-const CACHE_NAME = "personal-ai-os-v1";
+const CACHE_NAME = "personal-ai-os-v2";
 const CORE_ASSETS = [
   "/",
+  "/chat",
+  "/memory",
+  "/repository",
+  "/projects",
+  "/settings",
   "/manifest.webmanifest",
   "/assets/personal-ai-flow.png",
   "/icons/app-icon-192.png",

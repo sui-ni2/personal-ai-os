@@ -162,6 +162,7 @@ export function SettingsPanel() {
               </label>
             </div>
             <button className="button-primary mt-4 w-full">{saved ? <><Check aria-hidden size={17} />Saved</> : "Save default"}</button>
+            <p className="sr-only" role="status" aria-live="polite">{saved ? "Default model saved." : ""}</p>
           </form>
         </div>
       </section>

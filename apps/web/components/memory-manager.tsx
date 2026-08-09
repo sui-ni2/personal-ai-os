@@ -120,6 +120,7 @@ export function MemoryManager() {
               <textarea className="textarea-field mt-1.5 min-h-32 w-full resize-y" value={text} onChange={(event) => setText(event.target.value)} placeholder="A preference, rule, or verified fact…" />
             </label>
             <button className="button-primary mt-3 w-full" disabled={!text.trim() || saving}>{saved ? <><Check aria-hidden size={17} />Saved</> : saving ? "Saving…" : "Save memory"}</button>
+            <p className="sr-only" role="status" aria-live="polite">{saved ? "Memory saved." : saving ? "Saving memory." : ""}</p>
           </form>
         </details>
       </div>

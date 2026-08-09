@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -7,7 +8,10 @@ import {
   BookmarkPlus,
   Check,
   ChevronDown,
+  ClipboardList,
+  Lightbulb,
   History,
+  ListChecks,
   MessageCircle,
   Mic2,
   MoreHorizontal,
@@ -38,6 +42,11 @@ type MemoryKind = "fact" | "preference" | "rule" | "project";
 type MemoryTarget = UiMessage & { index: number };
 
 const ACTIVE_CONVERSATION_KEY = "personal-ai-os.active-conversation";
+const starterPrompts = [
+  { label: "Help me plan today", prompt: "Help me plan today", Icon: ClipboardList },
+  { label: "Think through a decision", prompt: "Help me think through a decision", Icon: Lightbulb },
+  { label: "Turn an idea into next steps", prompt: "Turn my idea into clear next steps", Icon: ListChecks },
+];
 
 export function ChatWorkspace() {
   const [providers, setProviders] = useState<ProviderOption[]>([]);
@@ -412,7 +421,7 @@ export function ChatWorkspace() {
         </header>
 
         <div className="scrollbar-subtle flex min-h-[52px] items-center gap-1 overflow-x-auto border-b border-line px-3 py-1.5">
-          <label className="shrink-0"><span className="sr-only">Project context</span><select className="h-10 max-w-28 rounded-full bg-surface-subtle px-3 text-xs font-medium outline-none" value={project} disabled={Boolean(conversationId)} onChange={(event) => setProject(event.target.value)}>{projects.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+          <label className="shrink-0"><span className="sr-only">Project context</span><select className="h-10 max-w-28 rounded-full bg-surface-subtle px-3 text-xs font-medium outline-none" value={project} disabled={Boolean(conversationId)} onChange={(event) => setProject(event.target.value)}>{projects.length === 0 ? <option value="general">General</option> : projects.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
           <div className="shrink-0 scale-[0.92] origin-left"><ModelSelector providers={providers} provider={provider} model={model} onChange={(nextProvider, nextModel) => { setProvider(nextProvider); setModel(nextModel); }} /></div>
           <div className="ml-auto flex shrink-0 rounded-full bg-surface-subtle p-1" role="group" aria-label="Conversation mode">
             <button onClick={() => changeMode("text")} className={`flex h-10 items-center gap-1.5 rounded-full px-3 text-xs font-medium ${mode === "text" ? "bg-surface-elevated shadow-soft" : "text-text-secondary"}`} aria-pressed={mode === "text"}><MessageCircle aria-hidden size={14} />Text</button>
@@ -426,12 +435,14 @@ export function ChatWorkspace() {
               <div className="mx-auto w-full max-w-[780px] px-5 py-8 sm:px-6 sm:py-10">
                 {loadingConversation && <div className="space-y-3" role="status"><div className="skeleton h-4 w-24" /><div className="skeleton h-20 w-4/5" /></div>}
                 {!loadingConversation && messages.length === 0 && (
-                  <div className="mx-auto flex min-h-[380px] max-w-lg flex-col justify-center">
-                    <span className="grid size-12 place-items-center rounded-full bg-accent-soft text-accent-hover"><Sparkles aria-hidden size={20} /></span>
-                    <h2 className="mt-6 text-[28px] font-medium leading-tight tracking-[-0.035em]">What should we work on?</h2>
-                    <p className="mt-3 text-sm leading-6 text-text-secondary">Start with a question, a plan, or something you want to understand.</p>
+                  <div className="mx-auto flex min-h-[520px] max-w-lg flex-col justify-start pt-32 sm:min-h-[560px] sm:justify-center sm:pt-0">
+                    <div className="relative mx-auto h-28 w-40 overflow-hidden rounded-[28px]">
+                      <Image src="/assets/personal-ai-flow.png" alt="" fill sizes="160px" className="scale-[1.18] object-cover" />
+                    </div>
+                    <h2 className="mt-7 text-center text-[28px] font-medium leading-tight tracking-[-0.035em]">What should we work on?</h2>
+                    <p className="mt-3 hidden text-center text-sm leading-6 text-text-secondary sm:block">Start with a question, a plan, or something you want to understand.</p>
                     <div className="mt-7 divide-y divide-line border-y border-line">
-                      {["Help me plan today", "Think through a decision", "Turn an idea into next steps"].map((prompt) => <button key={prompt} type="button" className="group flex min-h-14 w-full items-center text-left text-sm" onClick={() => setInput(prompt)}><span className="flex-1">{prompt}</span><ArrowLeft aria-hidden className="rotate-180 text-text-tertiary transition-transform group-hover:translate-x-1" size={16} /></button>)}
+                      {starterPrompts.map(({ label, prompt, Icon }) => <button key={label} type="button" className="group flex min-h-14 w-full items-center gap-3 text-left text-sm" onClick={() => setInput(prompt)}><Icon aria-hidden className="shrink-0 text-accent-hover" size={18} strokeWidth={1.7} /><span className="flex-1">{label}</span><ArrowLeft aria-hidden className="rotate-180 text-text-tertiary transition-transform group-hover:translate-x-1" size={16} /></button>)}
                     </div>
                   </div>
                 )}
@@ -496,6 +507,7 @@ export function ChatWorkspace() {
             <label className="mt-4 block text-xs font-medium text-text-secondary">Memory note<textarea className="textarea-field mt-2 min-h-36 w-full resize-y text-[15px] leading-6" value={memoryText} onChange={(event) => { setMemoryText(event.target.value); if (memoryState !== "idle") setMemoryState("idle"); }} /></label>
             <p className="mt-2 text-xs text-text-tertiary">Project: {projects.find((item) => item.id === project)?.name || project} · Source: this conversation</p>
             {memoryState === "error" && <p className="mt-3 text-sm text-danger" role="alert">This note could not be saved. Check the local API and try again.</p>}
+            <p className="sr-only" role="status" aria-live="polite">{memoryState === "saved" ? "Memory saved." : memoryState === "saving" ? "Saving memory." : ""}</p>
             <div className="mt-5 flex gap-3">
               <button type="button" className="button-secondary flex-1" onClick={closeMemoryDialog}>Cancel</button>
               <button type="button" className="button-primary flex-1" onClick={() => void saveMemory()} disabled={!memoryText.trim() || memoryState === "saving" || memoryState === "saved"}>{memoryState === "saved" ? <><Check aria-hidden size={17} />Saved</> : memoryState === "saving" ? "Saving…" : "Save memory"}</button>
