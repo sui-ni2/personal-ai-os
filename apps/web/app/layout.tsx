@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { AppShell } from "@/components/app-shell";
+import { AccessGate } from "@/components/access-gate";
 import { PwaRegister } from "@/components/pwa-register";
 import "./globals.css";
 
@@ -29,7 +30,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html lang="en">
       <body>
         <PwaRegister />
-        <AppShell>{children}</AppShell>
+        <AccessGate><AppShell>{children}</AppShell></AccessGate>
       </body>
     </html>
   );

@@ -10,6 +10,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+$webSession = New-Object Microsoft.PowerShell.Commands.WebRequestSession
 
 try {
     $baseUri = [Uri]($BaseUrl.TrimEnd("/") + "/")
@@ -29,7 +30,7 @@ if ($baseUri.Scheme -ne "https" -and -not ($AllowInsecureLocalhost -and $isLocal
 function Get-AppResponse {
     param([Parameter(Mandatory)][string]$Path)
     $uri = [Uri]::new($baseUri, $Path.TrimStart("/"))
-    $response = Invoke-WebRequest -UseBasicParsing -Uri $uri -TimeoutSec 15
+    $response = Invoke-WebRequest -UseBasicParsing -Uri $uri -TimeoutSec 15 -WebSession $webSession
     if ($response.StatusCode -ne 200) {
         throw "$Path returned HTTP $($response.StatusCode)."
     }
@@ -42,6 +43,18 @@ function Get-ResponseText {
         return [Text.Encoding]::UTF8.GetString($Response.Content)
     }
     return [string]$Response.Content
+}
+
+$authResponse = Get-AppResponse -Path "/api/auth/status"
+$auth = (Get-ResponseText -Response $authResponse) | ConvertFrom-Json
+if ($auth.required -and -not $auth.authenticated) {
+    $accessPassword = $env:PERSONAL_AI_OS_VERIFIER_ACCESS_PASSWORD
+    if (-not $accessPassword) {
+        throw "Access protection is enabled. Set PERSONAL_AI_OS_VERIFIER_ACCESS_PASSWORD only for this verifier process."
+    }
+    $loginUri = [Uri]::new($baseUri, "api/auth/login")
+    $loginBody = @{ password = $accessPassword } | ConvertTo-Json
+    Invoke-WebRequest -UseBasicParsing -Uri $loginUri -Method Post -ContentType "application/json" -Body $loginBody -TimeoutSec 15 -WebSession $webSession | Out-Null
 }
 
 $homeResponse = Get-AppResponse -Path "/"
@@ -78,6 +91,7 @@ if ($RequireRealtimeConfigured -and -not $realtime.configured) {
     LiveRoute = $chat.StatusCode
     Manifest = "standalone"
     ServiceWorker = "api-excluded"
+    Access = if ($auth.required) { "protected" } else { "open-local-mode" }
     Realtime = if ($realtime.configured) { "configured" } else { "not-configured" }
     RealtimeProvider = $realtime.provider
     RealtimeModel = $realtime.model

@@ -1,0 +1,5 @@
+-e ./packages/core
+-e ./packages/providers
+-e ./packages/mcp
+-e ./packages/projects
+-e ./apps/api

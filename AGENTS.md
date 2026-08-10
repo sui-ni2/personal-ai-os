@@ -10,6 +10,8 @@ Build the independent Personal AI OS modular monolith. V0.2 focuses on a mobile-
 - Install Python dependencies: `python -m pip install -r requirements-dev.txt`
 - Start API: `.\scripts\dev-api.ps1`
 - Start web: `pnpm --filter @personal-ai-os/web dev`
+- Build the single-origin static frontend: `pnpm build:static`
+- Create a consistent data backup: `.\.venv\Scripts\python.exe .\scripts\backup-data.py --data-dir .\data --output-dir .\backups`
 - Backend tests: `python -m pytest apps/api/tests`
 - Frontend checks: `pnpm --filter @personal-ai-os/web lint && pnpm --filter @personal-ai-os/web typecheck`
 
@@ -41,4 +43,5 @@ Build the independent Personal AI OS modular monolith. V0.2 focuses on a mobile-
 - MCP and internal tools must be allowlisted, permission-checked, and auditable. Never execute model-supplied shell commands.
 - Project plugins register metadata, context, tools, views, artifacts, and permissions through the project contract.
 - General must remain a working project when the Soccer example plugin is absent.
+- Public deployments must enable access protection or use an owner-only identity proxy; never expose the API anonymously.
 - V0.1 remains a modular monolith; do not introduce microservices, HealthKit, full calendar sync, or multi-user collaboration.

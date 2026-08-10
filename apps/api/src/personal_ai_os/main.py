@@ -1,10 +1,14 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+import os
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
+from .auth import AccessProtectionMiddleware, create_auth_router
 from .config import Settings
 from .p5_routes import router as p5_router
 from .routes import router
@@ -24,6 +28,9 @@ def create_app(settings: Settings | None = None, runtime: Runtime | None = None)
         version="0.1.0",
         description="Provider-neutral modular-monolith API with auditable execution traces.",
         lifespan=lifespan,
+        docs_url="/api/docs",
+        redoc_url=None,
+        openapi_url="/api/openapi.json",
     )
     app.state.runtime = app_runtime
     app.add_middleware(
@@ -33,6 +40,7 @@ def create_app(settings: Settings | None = None, runtime: Runtime | None = None)
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    app.add_middleware(AccessProtectionMiddleware, settings=app_runtime.settings)
 
     @app.get("/health")
     def health() -> dict[str, str]:
@@ -40,6 +48,13 @@ def create_app(settings: Settings | None = None, runtime: Runtime | None = None)
 
     app.include_router(router)
     app.include_router(p5_router)
+    app.include_router(create_auth_router(app_runtime.settings))
+    web_dir = os.getenv("PERSONAL_AI_OS_WEB_DIR")
+    if web_dir:
+        static_root = Path(web_dir).resolve()
+        if not static_root.is_dir():
+            raise RuntimeError(f"PERSONAL_AI_OS_WEB_DIR does not exist: {static_root}")
+        app.mount("/", StaticFiles(directory=static_root, html=True), name="web")
     return app
 
 

@@ -16,6 +16,8 @@ node_modules/
 .next/
 out/
 output/playwright/
+backups/
+transfer-packages/
 .npm-playwright-cache/
 coverage/
 *.tsbuildinfo

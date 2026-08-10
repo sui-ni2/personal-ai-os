@@ -14,6 +14,15 @@ def _csv(value: str) -> tuple[str, ...]:
     return tuple(item.strip() for item in value.split(",") if item.strip())
 
 
+def _bool(value: str) -> bool:
+    normalized = value.strip().lower()
+    if normalized in {"1", "true", "yes", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "off"}:
+        return False
+    raise RuntimeError(f"Expected a boolean value, received {value!r}")
+
+
 def _stdio_commands(value: str) -> dict[str, tuple[str, ...]]:
     try:
         parsed = json.loads(value)
@@ -69,10 +78,29 @@ class Settings:
     realtime_model: str = "gpt-realtime-2.1"
     realtime_voice: str = "marin"
     realtime_transcription_model: str = "gpt-realtime-whisper"
+    auth_required: bool = False
+    access_password: str | None = field(default=None, repr=False)
+    session_secret: str | None = field(default=None, repr=False)
+    access_session_hours: int = 168
 
     @classmethod
     def from_env(cls) -> "Settings":
         data_dir = Path(os.getenv("PERSONAL_AI_OS_DATA_DIR", "./data")).resolve()
+        auth_required = _bool(os.getenv("PERSONAL_AI_OS_REQUIRE_AUTH", "false"))
+        access_password = os.getenv("PERSONAL_AI_OS_ACCESS_PASSWORD") or None
+        session_secret = os.getenv("PERSONAL_AI_OS_SESSION_SECRET") or None
+        if auth_required and not access_password:
+            raise RuntimeError(
+                "PERSONAL_AI_OS_ACCESS_PASSWORD is required when access protection is enabled"
+            )
+        if auth_required and len(access_password) < 10:
+            raise RuntimeError(
+                "PERSONAL_AI_OS_ACCESS_PASSWORD must contain at least 10 characters"
+            )
+        if auth_required and (not session_secret or len(session_secret) < 32):
+            raise RuntimeError(
+                "PERSONAL_AI_OS_SESSION_SECRET must contain at least 32 characters when access protection is enabled"
+            )
         return cls(
             data_dir=data_dir,
             cors_origins=_csv(os.getenv("PERSONAL_AI_OS_CORS_ORIGINS", "http://localhost:3000")),
@@ -107,6 +135,12 @@ class Settings:
             realtime_voice=os.getenv("PERSONAL_AI_OS_REALTIME_VOICE", "marin"),
             realtime_transcription_model=os.getenv(
                 "PERSONAL_AI_OS_REALTIME_TRANSCRIPTION_MODEL", "gpt-realtime-whisper"
+            ),
+            auth_required=auth_required,
+            access_password=access_password,
+            session_secret=session_secret,
+            access_session_hours=max(
+                1, min(24 * 30, int(os.getenv("PERSONAL_AI_OS_ACCESS_SESSION_HOURS", "168")))
             ),
         )
 

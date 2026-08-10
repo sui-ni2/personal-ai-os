@@ -5,6 +5,7 @@
   "scripts": {
     "dev:web": "pnpm --filter @personal-ai-os/web dev",
     "build:web": "pnpm --filter @personal-ai-os/web build",
+    "build:static": "node scripts/build-static.mjs",
     "check:web": "pnpm --filter @personal-ai-os/web typecheck"
   }
 }

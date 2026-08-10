@@ -24,6 +24,10 @@ A mobile-first, general-purpose AI workbench built as a modular monolith. Chat, 
 
 Provider calls require server-side environment variables. The application still starts without keys and reports each provider as unconfigured without exposing secret values.
 
+Public deployments can enable the built-in single-user access gate with
+`PERSONAL_AI_OS_REQUIRE_AUTH=true`. The access password and 32+ character session secret remain
+server-side, while the phone receives only an HTTP-only signed session cookie.
+
 GPT Live uses a server-mediated WebRTC session so provider keys never reach the browser.
 By default it uses `PERSONAL_AI_OS_OPENAI_API_KEY` with OpenAI's calls endpoint. A
 separate `PERSONAL_AI_OS_REALTIME_API_KEY` can be used instead. An alternative provider
@@ -103,3 +107,4 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-mobile-readi
 
 See `docs/implementation-decisions.md` for the quick specification consistency check and `docs/architecture.md` for the package boundaries.
 See `docs/p5-project-plugin.md` for the P5 daily contract, API, tools, storage, and views.
+See `docs/transfer-and-backup.md` for verified backups, safe restore, and moving the app to another computer.

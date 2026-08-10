@@ -29,6 +29,10 @@ trusted reverse proxy
 - Persist `PERSONAL_AI_OS_DATA_DIR` on durable storage and back it up before moving hosts.
 - Never place provider keys in `NEXT_PUBLIC_*`, client bundles, the manifest, or the service
   worker.
+- Any Internet deployment must either enable the built-in access gate or sit behind an
+  owner-only identity proxy. Set `PERSONAL_AI_OS_REQUIRE_AUTH=true`, an access password, and a
+  password of at least 10 characters, and a random session secret of at least 32 characters in
+  the host's secret store.
 
 The current Next.js server can also proxy `/api/*` through `NEXT_PUBLIC_API_URL`. When a
 front proxy routes `/api/*` directly to FastAPI, that build-time rewrite is bypassed.
@@ -40,6 +44,10 @@ After deployment, run the repository verifier from a trusted workstation:
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-mobile-readiness.ps1 -BaseUrl "https://ai.example.com"
 ```
+
+For an access-protected deployment, set `PERSONAL_AI_OS_VERIFIER_ACCESS_PASSWORD` only in the
+verifier process before running the command; the verifier uses it to obtain a temporary HTTP-only
+session and never prints it.
 
 Once a Realtime credential is configured, use the stricter gate:
 
