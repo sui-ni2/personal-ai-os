@@ -6,6 +6,19 @@ import { apiJson } from "@/lib/api";
 
 type AuthStatus = { required: boolean; authenticated: boolean };
 
+const mobilePreview = process.env.NEXT_PUBLIC_PERSONAL_AI_OS_MOBILE_PREVIEW === "true";
+
+function MobilePreview({ children }: { children: React.ReactNode }) {
+  return (
+    <>
+      <div className="fixed inset-x-0 top-0 z-[100] bg-text-primary px-4 py-2 text-center text-[11px] font-medium tracking-[0.01em] text-surface-elevated">
+        Mobile UI preview · saved data and AI are not connected in this build
+      </div>
+      <div className="pt-8">{children}</div>
+    </>
+  );
+}
+
 export function AccessGate({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<AuthStatus | null>(null);
   const [password, setPassword] = useState("");
@@ -40,6 +53,8 @@ export function AccessGate({ children }: { children: React.ReactNode }) {
   }
 
   if (status?.authenticated) return children;
+
+  if (connectionError && mobilePreview) return <MobilePreview>{children}</MobilePreview>;
 
   if (!status && !connectionError) {
     return (

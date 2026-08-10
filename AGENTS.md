@@ -44,4 +44,5 @@ Build the independent Personal AI OS modular monolith. V0.2 focuses on a mobile-
 - Project plugins register metadata, context, tools, views, artifacts, and permissions through the project contract.
 - General must remain a working project when the Soccer example plugin is absent.
 - Public deployments must enable access protection or use an owner-only identity proxy; never expose the API anonymously.
+- `NEXT_PUBLIC_PERSONAL_AI_OS_MOBILE_PREVIEW=true` is allowed only for an access-controlled, visibly labelled UI-only preview; never enable it for the functional deployment.
 - V0.1 remains a modular monolith; do not introduce microservices, HealthKit, full calendar sync, or multi-user collaboration.

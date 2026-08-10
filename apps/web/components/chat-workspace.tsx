@@ -42,6 +42,7 @@ type MemoryKind = "fact" | "preference" | "rule" | "project";
 type MemoryTarget = UiMessage & { index: number };
 
 const ACTIVE_CONVERSATION_KEY = "personal-ai-os.active-conversation";
+const mobilePreview = process.env.NEXT_PUBLIC_PERSONAL_AI_OS_MOBILE_PREVIEW === "true";
 const starterPrompts = [
   { label: "Help me plan today", prompt: "Help me plan today", Icon: ClipboardList },
   { label: "Think through a decision", prompt: "Help me think through a decision", Icon: Lightbulb },
@@ -125,7 +126,28 @@ export function ChatWorkspace() {
           try { await openConversation(savedId); } catch { window.localStorage.removeItem(ACTIVE_CONVERSATION_KEY); }
         }
       })
-      .catch(() => setApiError(true));
+      .catch(() => {
+        if (!mobilePreview) {
+          setApiError(true);
+          return;
+        }
+        setProviders([
+          { id: "openai", configured: false, models: ["gpt-5.1", "gpt-4.1-mini"] },
+          { id: "anthropic", configured: false, models: ["claude-sonnet-4-5"] },
+        ]);
+        setProjects([
+          { id: "general", name: "General", description: "Everyday thinking and planning" },
+          { id: "p5", name: "P5 Lab", description: "Paper-only research workspace" },
+        ]);
+        setModel("gpt-5.1");
+        setRealtime({
+          configured: false,
+          provider: "openai",
+          model: "gpt-realtime-2.1",
+          transcription_model: "gpt-realtime-whisper",
+          transport: "webrtc",
+        });
+      });
     return () => { cancelled = true; stopLive(false); };
   }, []);
 

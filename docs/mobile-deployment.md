@@ -37,6 +37,13 @@ trusted reverse proxy
 The current Next.js server can also proxy `/api/*` through `NEXT_PUBLIC_API_URL`. When a
 front proxy routes `/api/*` directly to FastAPI, that build-time rewrite is bypassed.
 
+### UI-only phone preview
+
+An access-controlled design preview may be built with
+`NEXT_PUBLIC_PERSONAL_AI_OS_MOBILE_PREVIEW=true`. The preview is visibly labelled,
+does not pretend that API calls succeeded, and must not be used as the functional
+deployment. Normal builds remain fail-closed when the API cannot be reached.
+
 ## Acceptance
 
 After deployment, run the repository verifier from a trusted workstation:
