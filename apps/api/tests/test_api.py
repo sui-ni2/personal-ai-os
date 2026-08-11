@@ -89,6 +89,19 @@ def test_health_and_secret_redaction(client: TestClient) -> None:
     assert client.patch("/api/settings", json={"default_model": "not-allowlisted"}).status_code == 400
 
 
+def test_provider_connection_check_is_live_and_safe(client: TestClient) -> None:
+    checked = client.post("/api/providers/openai/check")
+    assert checked.status_code == 200
+    assert checked.json() == {
+        "provider": "openai",
+        "status": "connected",
+        "model": "openai-test",
+        "message": "Connection verified with a live model response.",
+    }
+    assert "key" not in json.dumps(checked.json()).lower()
+    assert client.post("/api/providers/unknown/check").status_code == 404
+
+
 def test_realtime_status_is_safe_when_unconfigured(client: TestClient) -> None:
     status = client.get("/api/realtime/status")
     assert status.status_code == 200

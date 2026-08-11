@@ -6,6 +6,12 @@ import { apiJson } from "@/lib/api";
 import { ErrorState, LoadingState } from "@/components/ui-states";
 
 type Provider = { id: string; configured: boolean; models: string[] };
+type ProviderCheck = {
+  provider: string;
+  status: "unconfigured" | "connected" | "limited" | "error";
+  message: string;
+  model?: string;
+};
 type MCPConnector = {
   id: string;
   name: string;
@@ -51,6 +57,7 @@ export function SettingsPanel() {
   const [discovered, setDiscovered] = useState<Record<string, DiscoveredTool[]>>({});
   const [mobileReadiness, setMobileReadiness] = useState<MobileReadiness>();
   const [realtime, setRealtime] = useState<RealtimeStatus>();
+  const [providerChecks, setProviderChecks] = useState<Record<string, ProviderCheck | "checking">>({});
 
   async function load() {
     try {
@@ -90,6 +97,24 @@ export function SettingsPanel() {
     setSettings(item);
     setSaved(true);
     window.setTimeout(() => setSaved(false), 1800);
+  }
+
+  async function checkProvider(providerId: string) {
+    setProviderChecks((current) => ({ ...current, [providerId]: "checking" }));
+    try {
+      const result = await apiJson<ProviderCheck>(`/api/providers/${providerId}/check`, { method: "POST" });
+      setProviderChecks((current) => ({ ...current, [providerId]: result }));
+      await load();
+    } catch {
+      setProviderChecks((current) => ({
+        ...current,
+        [providerId]: {
+          provider: providerId,
+          status: "error",
+          message: "The local API could not run the connection check.",
+        },
+      }));
+    }
   }
 
   async function createConnector(event: FormEvent) {
@@ -152,17 +177,39 @@ export function SettingsPanel() {
       </nav>
       <section className="scroll-mt-6" aria-labelledby="models-settings">
         <div className="mb-4 flex items-center gap-2"><Server aria-hidden size={18} className="text-text-tertiary" /><h2 id="models-settings" className="section-title">Models</h2></div>
+        {!settings.providers.some((item) => item.configured) && (
+          <div className="panel mb-4 border-accent/30 bg-accent-soft/45 p-4 sm:p-5">
+            <p className="eyebrow">First run</p>
+            <h3 className="mt-1 text-lg font-medium tracking-[-0.02em]">Connect a model provider</h3>
+            <ol className="mt-4 grid gap-3 text-sm leading-6 text-text-secondary sm:grid-cols-3">
+              <li><strong className="block text-text-primary">1. Add one credential</strong>Set <code className="break-all">PERSONAL_AI_OS_OPENAI_API_KEY</code> or <code className="break-all">PERSONAL_AI_OS_ANTHROPIC_API_KEY</code> on the API server.</li>
+              <li><strong className="block text-text-primary">2. Restart the API</strong>Credentials remain server-side and are never returned to this page.</li>
+              <li><strong className="block text-text-primary">3. Verify the connection</strong>Return here and run the provider check before starting a chat.</li>
+            </ol>
+          </div>
+        )}
         <div className="grid gap-4 lg:grid-cols-[1fr_380px]">
           <div className="grid gap-3 sm:grid-cols-2">
-            {settings.providers.map((item) => (
-              <article key={item.id} className="panel p-4 sm:p-5">
-                <div className="flex items-center justify-between gap-4">
-                  <h3 className="text-[15px] font-medium">{providerName(item.id)}</h3>
-                  <span className={`chip ${item.configured ? "bg-success/10 text-success" : ""}`}><span className={`status-dot ${item.configured ? "bg-success" : "bg-warning"}`} />{item.configured ? "Configured" : "Not configured"}</span>
-                </div>
-                <p className="mt-3 text-sm leading-6 text-text-secondary">{item.models.length} {item.models.length === 1 ? "model" : "models"} available from provider configuration.</p>
-              </article>
-            ))}
+            {settings.providers.map((item) => {
+              const check = providerChecks[item.id];
+              return (
+                <article key={item.id} className="panel p-4 sm:p-5">
+                  <div className="flex items-center justify-between gap-4">
+                    <h3 className="text-[15px] font-medium">{providerName(item.id)}</h3>
+                    <span className={`chip ${item.configured ? "bg-success/10 text-success" : ""}`}><span className={`status-dot ${item.configured ? "bg-success" : "bg-warning"}`} />{item.configured ? "Configured" : "Not configured"}</span>
+                  </div>
+                  <p className="mt-3 text-sm leading-6 text-text-secondary">{item.models.length} {item.models.length === 1 ? "model" : "models"} available from provider configuration.</p>
+                  <button type="button" className="button-secondary mt-4 w-full" onClick={() => void checkProvider(item.id)} disabled={check === "checking"}>
+                    <RefreshCw aria-hidden size={16} className={check === "checking" ? "animate-spin" : ""} />{check === "checking" ? "Checking..." : "Test connection"}
+                  </button>
+                  {check && check !== "checking" && (
+                    <p className={`mt-3 text-xs leading-5 ${check.status === "connected" ? "text-success" : check.status === "limited" ? "text-warning" : "text-text-secondary"}`} role="status">
+                      {check.message}{check.model ? ` Model: ${check.model}.` : ""}
+                    </p>
+                  )}
+                </article>
+              );
+            })}
           </div>
           <form onSubmit={submitDefaults} className="panel p-4 sm:p-5">
             <h3 className="text-[15px] font-medium">Default model</h3>

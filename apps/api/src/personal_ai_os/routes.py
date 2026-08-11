@@ -1,12 +1,15 @@
 from __future__ import annotations
 
+import asyncio
+from contextlib import aclosing
 import json
 from typing import Annotated
 
 import httpx
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import Response, StreamingResponse
-from personal_ai_os_core import MessageRole
+from personal_ai_os_core import Message, MessageRole
+from personal_ai_os_providers import ProviderError, ProviderRateLimited
 
 from .chat import conversation_title, stream_chat
 from .runtime import Runtime
@@ -34,6 +37,61 @@ def runtime_from(request: Request) -> Runtime:
 def providers(request: Request) -> dict[str, object]:
     runtime = runtime_from(request)
     return {"items": runtime.providers.describe()}
+
+
+@router.post("/providers/{provider_id}/check")
+async def check_provider(provider_id: str, request: Request) -> dict[str, object]:
+    runtime = runtime_from(request)
+    try:
+        provider = runtime.providers.get(provider_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    if not provider.configured:
+        return {
+            "provider": provider_id,
+            "status": "unconfigured",
+            "message": "Add a server-side credential, restart the API, and try again.",
+        }
+    if not provider.models:
+        return {
+            "provider": provider_id,
+            "status": "error",
+            "message": "No allowlisted model is available for this provider.",
+        }
+
+    probe = Message(
+        id="provider-connection-check",
+        conversation_id="provider-connection-check",
+        role=MessageRole.USER,
+        content="Reply with exactly OK.",
+    )
+    try:
+        async with aclosing(provider.stream([probe], provider.models[0])) as stream:
+            await asyncio.wait_for(anext(stream), timeout=15)
+    except ProviderRateLimited:
+        return {
+            "provider": provider_id,
+            "status": "limited",
+            "message": "The provider responded, but its rate or quota limit was reached.",
+        }
+    except (ProviderError, asyncio.TimeoutError):
+        return {
+            "provider": provider_id,
+            "status": "error",
+            "message": "The provider could not complete a safe connection check.",
+        }
+    except StopAsyncIteration:
+        return {
+            "provider": provider_id,
+            "status": "error",
+            "message": "The provider connected but returned no usable response.",
+        }
+    return {
+        "provider": provider_id,
+        "status": "connected",
+        "model": provider.models[0],
+        "message": "Connection verified with a live model response.",
+    }
 
 
 @router.get("/realtime/status")
