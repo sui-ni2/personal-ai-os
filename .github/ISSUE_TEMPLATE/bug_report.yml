@@ -1,0 +1,50 @@
+name: Bug report
+description: Report a reproducible problem without private data or credentials.
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: Do not include `.env` contents, credentials, conversations, logs, or private project data.
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      placeholder: v0.2.0 or commit SHA
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Web UI
+        - API
+        - Providers or GPT Live
+        - MCP or tools
+        - Memory or repository
+        - Project plugin
+        - Deployment
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Describe the expected and actual behavior with sensitive information removed.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps
+      placeholder: "1. Start...\n2. Open...\n3. Observe..."
+    validations:
+      required: true
+  - type: textarea
+    id: checks
+    attributes:
+      label: Relevant checks
+      description: List tests, type checks, or builds already run.

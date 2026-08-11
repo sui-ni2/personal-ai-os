@@ -1,6 +1,7 @@
 {
   "name": "personal-ai-os",
   "private": true,
+  "license": "Apache-2.0",
   "packageManager": "pnpm@11.16.0",
   "scripts": {
     "dev:web": "pnpm --filter @personal-ai-os/web dev",

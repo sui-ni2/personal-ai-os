@@ -2,6 +2,8 @@
 
 A mobile-first, general-purpose AI workbench built as a modular monolith. Chat, structured memory, repository events, providers, auditable execution traces, MCP tools, and project plugins share one core without making Soccer a system-level concern.
 
+![Personal AI OS flow](apps/web/public/assets/personal-ai-flow.png)
+
 ## What is runnable now
 
 - Next.js App Shell with Chat, Memory, Repository, Projects, and Settings views.
@@ -104,6 +106,23 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-mobile-readi
 - HTTP connector endpoints and stdio aliases are operator configuration; discovered tools
   must still be explicitly added to each connector's `allowed_tools` list.
 - V0.1 is a modular monolith, not a microservice system.
+
+## Open source and privacy
+
+Personal AI OS is licensed under Apache-2.0. The repository contains application code,
+tests, documentation, and non-secret configuration examples. It does not include or
+license a user's runtime databases, conversations, credentials, logs, uploads, backups,
+or private project artifacts.
+
+The root package remains marked `private` to prevent accidental publication to the npm
+registry; this does not restrict use of the source code under Apache-2.0. See
+`CONTRIBUTING.md` before submitting a change and `SECURITY.md` before reporting a
+security issue.
+
+## License
+
+Copyright 2026 Personal AI OS contributors. Licensed under the Apache License, Version
+2.0. See `LICENSE`.
 
 See `docs/implementation-decisions.md` for the quick specification consistency check and `docs/architecture.md` for the package boundaries.
 See `docs/p5-project-plugin.md` for the P5 daily contract, API, tools, storage, and views.

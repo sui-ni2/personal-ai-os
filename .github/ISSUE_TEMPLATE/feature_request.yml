@@ -1,0 +1,39 @@
+name: Feature request
+description: Propose a focused improvement to the general-purpose core or a project plugin.
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What user problem should this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed outcome
+      description: Describe the desired behavior without including private data.
+    validations:
+      required: true
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Scope
+      options:
+        - General core
+        - Web UI
+        - API
+        - Provider
+        - MCP or tool
+        - Project plugin
+        - Documentation
+    validations:
+      required: true
+  - type: textarea
+    id: boundaries
+    attributes:
+      label: Safety and compatibility considerations
+      description: Note data, permission, migration, or plugin-isolation effects.

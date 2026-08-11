@@ -2,8 +2,8 @@
 
 ## Comparison target
 
-- Home source visual truth: `C:\Users\RighthereWaiting\.codex\generated_images\019fe1a2-7b5a-7293-8cae-436d304b629b\exec-90a679d9-3f8a-4ccc-937f-45d1ede5eee0.png`
-- Text conversation source visual truth: `C:\Users\RighthereWaiting\.codex\generated_images\019fe1a2-7b5a-7293-8cae-436d304b629b\exec-5aa441f4-c349-4ae5-a07f-1d17192e9d52.png`
+- Home source visual truth: private design reference retained outside the repository.
+- Text conversation source visual truth: private design reference retained outside the repository.
 - Implementation URL: `http://127.0.0.1:3001`
 - Home implementation screenshot: `output/playwright/.playwright-cli/page-2026-08-09T00-01-30-332Z.png`
 - Text implementation screenshot: `output/playwright/.playwright-cli/page-2026-08-09T00-09-14-571Z.png`
