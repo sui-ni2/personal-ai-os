@@ -94,10 +94,8 @@ runtime artifacts have been removed. Each issue should describe:
 Issues created by the maintainer will be labelled as first-party dogfooding. They must not
 be presented as external feedback, community adoption, or a third-party testimonial.
 
-## Current next question
+## Current priority
 
-The next useful proof is not another broad architectural layer. It is a small, repeatable
-maintainer workflow that can inspect an explicitly selected repository and summarize its
-test, documentation, security, and release readiness without reading secrets or changing
-the repository. That workflow should produce a reviewable report and remain optional to
-the general Personal AI OS experience.
+The next useful proof is not another broad feature area. It is closing the first-run and
+text-chat loop so a new user can configure a provider and complete a natural conversation
+within a few minutes. The ordered improvement plan is maintained in `../ROADMAP.md`.

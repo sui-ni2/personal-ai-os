@@ -120,6 +120,9 @@ registry; this does not restrict use of the source code under Apache-2.0. See
 security issue. The initial problem statement and honest first-party usage case are
 documented in `docs/dogfooding.md`.
 
+The focused path from the current prototype to a usable public product is in
+`ROADMAP.md`.
+
 ## License
 
 Copyright 2026 Personal AI OS contributors. Licensed under the Apache License, Version
