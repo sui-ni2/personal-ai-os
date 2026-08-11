@@ -4,7 +4,7 @@
   "packageManager": "pnpm@11.16.0",
   "scripts": {
     "dev:web": "pnpm --filter @personal-ai-os/web dev",
-    "build": "node scripts/build-static.mjs --dist --mobile-preview",
+    "build": "node scripts/build-hosted.mjs",
     "build:web": "pnpm --filter @personal-ai-os/web build",
     "build:static": "node scripts/build-static.mjs",
     "check:web": "pnpm --filter @personal-ai-os/web typecheck"
