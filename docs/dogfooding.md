@@ -33,6 +33,40 @@ I want one personal workspace that:
   anonymous service;
 - shows observable execution status without storing or presenting private chain-of-thought.
 
+## Where the current product falls short
+
+The current implementation is an early foundation, not a finished product. My present
+experience exposes several important gaps:
+
+- useful AI conversations still depend on configuring an external model API before the
+  product can do meaningful model-backed work;
+- the available provider and model choices are limited, so I cannot yet freely use the
+  model I prefer through one consistent interface;
+- the main panels contain too much information and feel more complicated than necessary;
+- the voice path exists in the implementation, but a real end-to-end voice conversation
+  has not yet been successfully connected and accepted;
+- Settings is not integrated into the experience in the place and form I expect, which
+  makes configuration feel separate from the work it controls;
+- as a whole, the product is not yet polished or complete enough to call broadly useful.
+
+These are not cosmetic omissions to hide before publishing. They are the maintainer's
+real first-party problems and should become a prioritized, verifiable improvement backlog.
+External API dependence, provider choice, interface density, voice acceptance, and
+settings integration must each be addressed without weakening the project's privacy and
+permission boundaries.
+
+## Long-term intent
+
+Despite the unfinished experience, I want to keep building Personal AI OS rather than
+treating it as a short-lived prototype. The long-term goal is to make it useful beyond my
+own private workflow: software that ordinary people can understand, configure, trust, and
+use with the model provider they choose.
+
+Reaching that goal requires honest iteration. The project should not claim broad adoption
+or product maturity before those exist. Progress should instead be demonstrated through
+working releases, successful end-to-end checks, resolved dogfooding issues, clearer user
+experience, and preserved safety boundaries.
+
 ## What the project is testing
 
 Personal AI OS tests whether a modular monolith can provide that experience without
