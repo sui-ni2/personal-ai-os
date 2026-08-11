@@ -2,7 +2,9 @@ packages:
   - "apps/web"
 
 allowBuilds:
+  esbuild: true
   sharp: true
+  workerd: true
 confirmModulesPurge: false
 nodeLinker: hoisted
 verifyDepsBeforeRun: false

@@ -98,6 +98,25 @@ export function ChatWorkspace() {
     const params = new URLSearchParams(window.location.search);
     const requestedMode = params.get("mode") === "live" ? "live" : "text";
     setMode(requestedMode);
+    if (mobilePreview) {
+      setProviders([
+        { id: "openai", configured: false, models: ["gpt-5.1", "gpt-4.1-mini"] },
+        { id: "anthropic", configured: false, models: ["claude-sonnet-4-5"] },
+      ]);
+      setProjects([
+        { id: "general", name: "General", description: "Everyday thinking and planning" },
+        { id: "p5", name: "P5 Lab", description: "Paper-only research workspace" },
+      ]);
+      setModel("gpt-5.1");
+      setRealtime({
+        configured: false,
+        provider: "openai",
+        model: "gpt-realtime-2.1",
+        transcription_model: "gpt-realtime-whisper",
+        transport: "webrtc",
+      });
+      return () => { cancelled = true; stopLive(false); };
+    }
     void Promise.all([
       apiJson<{ items: ProviderOption[] }>("/api/providers"),
       apiJson<{ items: Project[] }>("/api/projects"),

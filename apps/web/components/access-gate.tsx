@@ -23,10 +23,11 @@ export function AccessGate({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<AuthStatus | null>(null);
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [connectionError, setConnectionError] = useState(false);
+  const [connectionError, setConnectionError] = useState(mobilePreview);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
+    if (mobilePreview) return;
     let active = true;
     apiJson<AuthStatus>("/api/auth/status", { cache: "no-store" })
       .then((result) => { if (active) setStatus(result); })

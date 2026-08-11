@@ -44,9 +44,10 @@ An access-controlled design preview may be built with
 does not pretend that API calls succeeded, and must not be used as the functional
 deployment. Normal builds remain fail-closed when the API cannot be reached.
 
-The owner-only Sites preview uses the `vinext` hosted build because Sites requires
-the Worker entrypoint at `dist/server/index.js`. The regular `build:static` and
-Docker paths remain separate and do not enable preview mode.
+The owner-only Sites preview uses the `vinext` hosted build with Cloudflare's Vite
+plugin because Sites requires a real Worker entrypoint at `dist/server/index.js`.
+The regular `build:static` and Docker paths remain separate and do not enable
+preview mode.
 
 ## Acceptance
 

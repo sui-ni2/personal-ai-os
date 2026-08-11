@@ -18,6 +18,8 @@ type Conversation = { id: string; title: string; project_id?: string; updated_at
 type Memory = { id: string };
 type RepositoryEvent = { id: string; summary: string; created_at: string };
 
+const mobilePreview = process.env.NEXT_PUBLIC_PERSONAL_AI_OS_MOBILE_PREVIEW === "true";
+
 function greetingFor(hour: number) {
   if (hour < 12) return "Good morning.";
   if (hour < 18) return "Good afternoon.";
@@ -42,6 +44,10 @@ export function HomeWorkspace() {
   const now = useMemo(() => new Date(), []);
 
   useEffect(() => {
+    if (mobilePreview) {
+      setConnected(false);
+      return;
+    }
     void Promise.all([
       apiJson<{ items: Conversation[] }>("/api/conversations"),
       apiJson<{ items: Memory[] }>("/api/memory?status=active"),
