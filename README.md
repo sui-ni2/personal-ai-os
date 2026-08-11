@@ -117,7 +117,8 @@ or private project artifacts.
 The root package remains marked `private` to prevent accidental publication to the npm
 registry; this does not restrict use of the source code under Apache-2.0. See
 `CONTRIBUTING.md` before submitting a change and `SECURITY.md` before reporting a
-security issue.
+security issue. The initial problem statement and honest first-party usage case are
+documented in `docs/dogfooding.md`.
 
 ## License
 
