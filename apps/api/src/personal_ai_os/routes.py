@@ -65,22 +65,41 @@ async def check_provider(provider_id: str, request: Request) -> dict[str, object
         role=MessageRole.USER,
         content="Reply with exactly OK.",
     )
-    try:
+
+    async def consume_probe() -> bool:
+        has_content = False
         async with aclosing(provider.stream([probe], provider.models[0])) as stream:
-            await asyncio.wait_for(anext(stream), timeout=15)
+            async for chunk in stream:
+                has_content = has_content or bool(chunk.strip())
+        return has_content
+
+    try:
+        has_content = await asyncio.wait_for(consume_probe(), timeout=15)
     except ProviderRateLimited:
         return {
             "provider": provider_id,
             "status": "limited",
             "message": "The provider responded, but its rate or quota limit was reached.",
         }
-    except (ProviderError, asyncio.TimeoutError):
+    except ProviderError as exc:
+        if exc.status_code in {401, 403}:
+            message = "The provider rejected its server-side credential."
+        elif exc.code in {"network_error", "timeout"}:
+            message = "The provider is unreachable. Check its endpoint and network connection."
+        else:
+            message = "The provider could not complete a safe connection check."
         return {
             "provider": provider_id,
             "status": "error",
-            "message": "The provider could not complete a safe connection check.",
+            "message": message,
         }
-    except StopAsyncIteration:
+    except asyncio.TimeoutError:
+        return {
+            "provider": provider_id,
+            "status": "error",
+            "message": "The provider connection check timed out.",
+        }
+    if not has_content:
         return {
             "provider": provider_id,
             "status": "error",

@@ -9,6 +9,7 @@ import pytest
 import httpx
 from fastapi.testclient import TestClient
 from personal_ai_os_mcp import EchoMCPServer
+from personal_ai_os_providers import ProviderError, ProviderStreamInterrupted
 
 from personal_ai_os.main import create_app
 from personal_ai_os.chat import stream_chat
@@ -100,6 +101,58 @@ def test_provider_connection_check_is_live_and_safe(client: TestClient) -> None:
     }
     assert "key" not in json.dumps(checked.json()).lower()
     assert client.post("/api/providers/unknown/check").status_code == 404
+
+
+def test_provider_connection_check_rejects_interrupted_stream(
+    client: TestClient,
+    runtime,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def interrupted_stream(messages, model):
+        yield "partial"
+        raise ProviderStreamInterrupted("stream failed", code="stream_interrupted")
+
+    monkeypatch.setattr(runtime.providers.get("openai"), "stream", interrupted_stream)
+
+    checked = client.post("/api/providers/openai/check")
+
+    assert checked.status_code == 200
+    assert checked.json()["status"] == "error"
+    assert checked.json()["message"] == "The provider could not complete a safe connection check."
+
+
+@pytest.mark.parametrize(
+    ("error", "message"),
+    [
+        (
+            ProviderError("rejected", code="upstream_http_error", status_code=401),
+            "The provider rejected its server-side credential.",
+        ),
+        (
+            ProviderError("offline", code="network_error", retryable=True),
+            "The provider is unreachable. Check its endpoint and network connection.",
+        ),
+    ],
+)
+def test_provider_connection_check_explains_common_failures(
+    client: TestClient,
+    runtime,
+    monkeypatch: pytest.MonkeyPatch,
+    error: ProviderError,
+    message: str,
+) -> None:
+    async def failed_stream(messages, model):
+        if False:
+            yield ""
+        raise error
+
+    monkeypatch.setattr(runtime.providers.get("openai"), "stream", failed_stream)
+
+    checked = client.post("/api/providers/openai/check")
+
+    assert checked.status_code == 200
+    assert checked.json()["status"] == "error"
+    assert checked.json()["message"] == message
 
 
 def test_realtime_status_is_safe_when_unconfigured(client: TestClient) -> None:
