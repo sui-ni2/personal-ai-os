@@ -90,6 +90,21 @@ def test_health_and_secret_redaction(client: TestClient) -> None:
     assert client.patch("/api/settings", json={"default_model": "not-allowlisted"}).status_code == 400
 
 
+def test_default_provider_rejects_an_empty_model_list(
+    client: TestClient,
+    runtime,
+) -> None:
+    runtime.providers.get("anthropic").models = ()
+
+    switched = client.patch("/api/settings", json={"default_provider": "anthropic"})
+
+    assert switched.status_code == 400
+    assert switched.json()["detail"] == "No allowlisted model is available for provider"
+    settings = client.get("/api/settings").json()
+    assert settings["default_provider"] == "openai"
+    assert settings["default_model"] == "openai-test"
+
+
 def test_provider_connection_check_is_live_and_safe(client: TestClient) -> None:
     checked = client.post("/api/providers/openai/check")
     assert checked.status_code == 200

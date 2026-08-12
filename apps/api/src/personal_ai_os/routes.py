@@ -515,6 +515,11 @@ def update_settings(payload: SettingsUpdate, request: Request) -> dict[str, obje
         provider = runtime.providers.get(provider_id)
     except KeyError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if not provider.models:
+        raise HTTPException(
+            status_code=400,
+            detail="No allowlisted model is available for provider",
+        )
     if payload.default_model:
         model_id = payload.default_model
     elif payload.default_provider and current_model not in provider.models:
