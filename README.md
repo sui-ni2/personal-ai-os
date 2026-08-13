@@ -1,6 +1,9 @@
-# Personal AI OS V0.2
+# Personal AI OS
 
-A mobile-first, general-purpose AI workbench built as a modular monolith. Chat, structured memory, repository events, providers, auditable execution traces, MCP tools, and project plugins share one core without making Soccer a system-level concern.
+A user-controlled AI workspace for long-running projects. It preserves context, helps complete
+work, and turns useful results into reusable outcomes while keeping memory decisions visible to
+the user. One modular core supports a community/self-hosted delivery mode today and a fail-closed
+managed cloud boundary for future account-based delivery.
 
 ![Personal AI OS flow](apps/web/public/assets/personal-ai-flow.png)
 
@@ -23,6 +26,9 @@ A mobile-first, general-purpose AI workbench built as a modular monolith. Chat, 
   zero-stake observation locks, diagnostic Top10/Top5 prefixes, candidate lookup, cumulative
   rule evidence, conflict rejection, and audit views.
 - API and boundary tests.
+- Explicit community/cloud product contracts, tenant-scoped core persistence, and
+  capability-based access to advanced features. The runnable distribution remains the
+  community edition; cloud accounts, billing, managed routing, and device sync are not yet live.
 
 Provider calls require server-side environment variables. The application still starts without keys and reports each provider as unconfigured without exposing secret values.
 
@@ -106,6 +112,10 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-mobile-readi
 - HTTP connector endpoints and stdio aliases are operator configuration; discovered tools
   must still be explicitly added to each connector's `allowed_tools` list.
 - V0.1 is a modular monolith, not a microservice system.
+- Community and cloud are delivery modes of one product core, not separate applications.
+- Core storage is tenant-scoped. Cloud mode refuses to start until real account identity is ready.
+- Ordinary UI language uses AI service, Tools, Outcomes, and Activity; Provider, MCP, Repository,
+  and execution internals belong to Advanced Settings.
 
 ## Open source and privacy
 
@@ -122,6 +132,8 @@ documented in `docs/dogfooding.md`.
 
 The focused path from the current prototype to a usable public product is in
 `ROADMAP.md`.
+The positioning, delivery-mode, terminology, capability, and tenant contracts are in
+`docs/product-contract.md`.
 
 ## License
 

@@ -2,7 +2,11 @@
 
 ## Purpose
 
-Build the independent Personal AI OS modular monolith. V0.2 focuses on a mobile-first product UI and unified visual system for the existing Next.js workbench backed by FastAPI, SQLite, provider adapters, auditable SSE activity, MCP/tool integration, structured memory, repository events, and project plugins.
+Build the independent Personal AI OS modular monolith as one user-controlled AI workspace with
+community/self-hosted and managed-cloud delivery contracts. The runnable product remains the
+community edition until account identity, tenant resolution, and billing are complete. The core
+includes the Next.js experience, FastAPI, tenant-scoped SQLite, provider adapters, auditable SSE
+activity, MCP/tool integration, structured memory, outcomes, and project plugins.
 
 ## Important commands
 
