@@ -24,7 +24,7 @@ const navigation = [
   { href: "/", label: "Home", icon: Home, exact: true },
   { href: "/chat", label: "Chat", icon: MessageCircle },
   { href: "/memory", label: "Memory", icon: NotebookTabs },
-  { href: "/repository", label: "Repository", icon: Archive },
+  { href: "/repository", label: "Outcomes", icon: Archive },
   { href: "/projects", label: "Projects", icon: FolderKanban },
   { href: "/settings", label: "Settings", icon: Settings },
 ];

@@ -6,7 +6,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Personal AI OS",
-  description: "A provider-neutral personal AI workbench",
+  description: "A user-controlled AI workspace for lasting projects and reusable outcomes",
   applicationName: "Personal AI OS",
   manifest: "/manifest.webmanifest",
   icons: {

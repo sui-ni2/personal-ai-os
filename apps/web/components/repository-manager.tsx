@@ -26,7 +26,7 @@ function dayLabel(value: string) {
 function eventDetails(item: TimelineEvent, artifact?: Artifact) {
   const details: { label: string; value: string; mono?: boolean }[] = [];
   if (artifact) {
-    details.push({ label: "Artifact", value: artifact.title });
+    details.push({ label: "Outcome", value: artifact.title });
     details.push({ label: "Location", value: artifact.locator, mono: true });
   }
   for (const [key, value] of Object.entries(item.details)) {
@@ -89,22 +89,22 @@ export function RepositoryManager() {
 
   return (
     <div className="space-y-6">
-      <div className="inline-flex rounded-control bg-surface-subtle p-1" role="tablist" aria-label="Repository view">
-        <button type="button" role="tab" aria-selected={view === "timeline"} className={`min-h-10 rounded-small px-4 text-sm font-medium ${view === "timeline" ? "bg-surface-elevated shadow-soft" : "text-text-secondary"}`} onClick={() => setView("timeline")}>Timeline</button>
-        <button type="button" role="tab" aria-selected={view === "files"} className={`min-h-10 rounded-small px-4 text-sm font-medium ${view === "files" ? "bg-surface-elevated shadow-soft" : "text-text-secondary"}`} onClick={() => setView("files")}>Files</button>
+      <div className="inline-flex rounded-control bg-surface-subtle p-1" role="tablist" aria-label="Outcomes view">
+        <button type="button" role="tab" aria-selected={view === "timeline"} className={`min-h-10 rounded-small px-4 text-sm font-medium ${view === "timeline" ? "bg-surface-elevated shadow-soft" : "text-text-secondary"}`} onClick={() => setView("timeline")}>Activity</button>
+        <button type="button" role="tab" aria-selected={view === "files"} className={`min-h-10 rounded-small px-4 text-sm font-medium ${view === "files" ? "bg-surface-elevated shadow-soft" : "text-text-secondary"}`} onClick={() => setView("files")}>Outcomes</button>
       </div>
 
-      {loading && <LoadingState label="Reading repository activity" />}
-      {!loading && error && <ErrorState title="Repository is unavailable" detail="Artifacts and timeline events could not be loaded. Refresh after the API is running." />}
+      {loading && <LoadingState label="Reading saved outcomes" />}
+      {!loading && error && <ErrorState title="Outcomes are unavailable" detail="Saved outcomes and activity could not be loaded. Refresh after the service is running." />}
 
       {!loading && !error && view === "timeline" && (
-        <section aria-label="Repository timeline" className="max-w-3xl">
+        <section aria-label="Outcome activity" className="max-w-3xl">
           <div className="mb-4 flex items-center gap-2">
             <Clock3 aria-hidden size={17} className="text-text-tertiary" strokeWidth={1.7} />
             <h2 className="text-sm font-medium text-text-secondary">What your AI has done</h2>
           </div>
           {events.length === 0 ? (
-            <EmptyState title="No activity yet" description="Memory, tool, and artifact changes will appear here as they happen." />
+            <EmptyState title="No activity yet" description="Memory, tool, and outcome changes will appear here as they happen." />
           ) : (
             <div className="space-y-8">
               {groupedEvents.map((group) => (
@@ -158,20 +158,20 @@ export function RepositoryManager() {
         <section aria-label="Repository files" className="space-y-4">
           <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
             <div>
-              <h2 className="section-title">Files and records</h2>
+              <h2 className="section-title">Saved outcomes</h2>
               <p className="mt-1 text-sm text-text-secondary">{artifacts.length} saved {artifacts.length === 1 ? "item" : "items"}</p>
             </div>
             <details className="group relative">
-              <summary className="button-primary cursor-pointer list-none"><Plus aria-hidden size={17} />Add note artifact</summary>
+              <summary className="button-primary cursor-pointer list-none"><Plus aria-hidden size={17} />Add outcome</summary>
               <form onSubmit={create} className="panel-elevated mt-2 grid gap-3 p-4 sm:absolute sm:right-0 sm:z-20 sm:w-[420px]">
-                <input className="field" aria-label="Artifact title" placeholder="Artifact title" value={title} onChange={(event) => setTitle(event.target.value)} />
+                <input className="field" aria-label="Outcome title" placeholder="Outcome title" value={title} onChange={(event) => setTitle(event.target.value)} />
                 <input className="field font-mono text-xs" aria-label="Safe locator or note reference" placeholder="Safe locator or note reference" value={locator} onChange={(event) => setLocator(event.target.value)} />
-                <button className="button-primary" disabled={!title || !locator}>Save artifact</button>
+                <button className="button-primary" disabled={!title || !locator}>Save outcome</button>
               </form>
             </details>
           </div>
           {artifacts.length === 0 ? (
-            <EmptyState title="No files or records" description="Add a safe note reference when you want it tracked here." />
+            <EmptyState title="No saved outcomes" description="Save a useful result or add a note reference when you want to keep it." />
           ) : (
             <div className="overflow-hidden rounded-card border border-line bg-surface">
               {artifacts.map((item) => (

@@ -4,7 +4,7 @@ import { RepositoryManager } from "@/components/repository-manager";
 export default function RepositoryPage() {
   return (
     <div className="page-frame">
-      <PageHeading title="Repository" description="A timeline of what your AI has changed, saved, and connected." />
+      <PageHeading title="Outcomes" description="Keep useful results and review the activity that produced them." />
       <RepositoryManager />
     </div>
   );

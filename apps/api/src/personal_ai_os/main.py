@@ -7,6 +7,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from personal_ai_os_core import Capability
 
 from .auth import AccessProtectionMiddleware, create_auth_router
 from .config import Settings
@@ -21,6 +22,12 @@ def create_app(settings: Settings | None = None, runtime: Runtime | None = None)
     @asynccontextmanager
     async def lifespan(_: FastAPI):
         app_runtime.database.migrate()
+        app_runtime.database.sync_entitlements(
+            {
+                capability.value: app_runtime.product.allows(capability)
+                for capability in Capability
+            }
+        )
         yield
 
     app = FastAPI(

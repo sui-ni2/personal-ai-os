@@ -251,7 +251,7 @@ export function ChatWorkspace() {
           const delta = String(item.payload.delta || "");
           setMessages((current) => current.map((message, index) => index === current.length - 1 ? { ...message, content: message.content + delta } : message));
         }
-        if (item.type === "error") setMessages((current) => current.map((message, index) => index === current.length - 1 ? { role: "system", content: "The request could not be completed. Check your provider or tool settings, then try again." } : message));
+        if (item.type === "error") setMessages((current) => current.map((message, index) => index === current.length - 1 ? { role: "system", content: "The request could not be completed. Check your AI service or tool settings, then try again." } : message));
         if (item.type === "done" && typeof item.payload.conversation_id === "string") {
           setConversationId(item.payload.conversation_id);
           window.localStorage.setItem(ACTIVE_CONVERSATION_KEY, item.payload.conversation_id);
@@ -304,315 +304,8 @@ export function ChatWorkspace() {
       );
       setMessages((current) => [...current, { id: saved.message.id, role, content: normalized }]);
       setConversations((current) => {
-        const exists = current.some((item) => item.id === saved.conversation.id);
-        return exists
-          ? current.map((item) => item.id === saved.conversation.id ? saved.conversation : item)
-          : [saved.conversation, ...current];
-      });
-    } catch {
-      savedLiveItemsRef.current.delete(eventKey);
-      setLiveSaveWarning("Live is still connected, but this completed transcript could not be saved.");
-    }
-  }
-
-  async function startLive() {
-    if (!realtime?.configured) {
-      setLiveState("error");
-      setLiveMessage("GPT Live is not configured. Add a server-side Realtime credential, then try again.");
-      return;
-    }
-    if (!window.isSecureContext) {
-      setLiveState("error");
-      setLiveMessage("GPT Live needs a secure HTTPS connection on a phone. Reopen this app from its HTTPS address, then try again.");
-      return;
-    }
-    if (!navigator.mediaDevices?.getUserMedia) {
-      setLiveState("error");
-      setLiveMessage("This browser does not provide microphone access for GPT Live.");
-      return;
-    }
-    setLiveState("connecting");
-    setLiveMessage("Requesting microphone accessâ€¦");
-    setLiveCaption("");
-    setLiveSaveWarning("");
-    setLivePlaybackBlocked(false);
-    inputTranscriptRef.current = "";
-    outputTranscriptRef.current = "";
-    savedLiveItemsRef.current.clear();
-    try {
-      const activeId = conversationId || await createConversation();
-      const pc = new RTCPeerConnection();
-      peerRef.current = pc;
-      const audio = document.createElement("audio");
-      audio.autoplay = true;
-      audioRef.current = audio;
-      pc.ontrack = (event) => {
-        audio.srcObject = event.streams[0];
-        void audio.play().catch(() => {
-          setLivePlaybackBlocked(true);
-          setLiveMessage("Connected, but the browser paused audio output. Tap Resume audio to hear the response.");
-        });
-      };
-      pc.onconnectionstatechange = () => {
-        if (peerRef.current !== pc) return;
-        if (pc.connectionState === "connected") {
-          if (liveDisconnectTimerRef.current !== null) {
-            window.clearTimeout(liveDisconnectTimerRef.current);
-            liveDisconnectTimerRef.current = null;
-          }
-          setLiveState("listening");
-          if (!livePlaybackBlocked) setLiveMessage("Listening â€” speak naturally. You can interrupt at any time.");
-        }
-        if (pc.connectionState === "disconnected") {
-          setLiveMessage("Connection interrupted. Trying to recoverâ€¦");
-          if (liveDisconnectTimerRef.current !== null) window.clearTimeout(liveDisconnectTimerRef.current);
-          liveDisconnectTimerRef.current = window.setTimeout(() => {
-            if (peerRef.current === pc && pc.connectionState === "disconnected") {
-              stopLive(false);
-              setLiveState("error");
-              setLiveMessage("The Live connection ended. You can start again.");
-            }
-          }, 5_000);
-        }
-        if (pc.connectionState === "failed") {
-          stopLive(false);
-          setLiveState("error");
-          setLiveMessage("The Live connection ended. You can start again.");
-        }
-      };
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
-      streamRef.current = stream;
-      stream.getAudioTracks().forEach((track) => pc.addTrack(track, stream));
-      const channel = pc.createDataChannel("oai-events");
-      channel.onmessage = (event) => {
-        try {
-          const item = JSON.parse(event.data) as { type?: string; delta?: string; transcript?: string; item_id?: string };
-          if (item.type === "conversation.item.input_audio_transcription.delta" && item.delta) {
-            inputTranscriptRef.current += item.delta;
-            setLiveCaption(`You: ${inputTranscriptRef.current}`);
-          }
-          if (item.type === "conversation.item.input_audio_transcription.completed" && item.transcript && activeId) {
-            inputTranscriptRef.current = item.transcript;
-            setLiveCaption(`You: ${item.transcript}`);
-            void persistLiveTranscript(activeId, "user", item.transcript, `input:${item.item_id || item.transcript}`);
-          }
-          if (item.type === "response.output_audio_transcript.delta" && item.delta) {
-            outputTranscriptRef.current += item.delta;
-            setLiveCaption(`GPT: ${outputTranscriptRef.current}`);
-          }
-          if (item.type === "response.output_audio_transcript.done" && item.transcript && activeId) {
-            outputTranscriptRef.current = item.transcript;
-            setLiveCaption(`GPT: ${item.transcript}`);
-            void persistLiveTranscript(activeId, "assistant", item.transcript, `output:${item.item_id || item.transcript}`);
-            inputTranscriptRef.current = "";
-            outputTranscriptRef.current = "";
-          }
-        } catch { /* Realtime events are best-effort UI updates. */ }
-      };
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-      const params = new URLSearchParams({ project_id: project });
-      if (activeId) params.set("conversation_id", activeId);
-      const response = await fetch(`/api/realtime/session?${params}`, { method: "POST", body: offer.sdp, headers: { "Content-Type": "application/sdp" } });
-      if (!response.ok) throw new Error(`Live session failed (${response.status})`);
-      await pc.setRemoteDescription({ type: "answer", sdp: await response.text() });
-    } catch (error) {
-      stopLive(false);
-      setLiveState("error");
-      setLiveMessage(error instanceof DOMException && error.name === "NotAllowedError" ? "Microphone access was not allowed. You can enable it in the browser and try again." : "GPT Live could not connect. Check the server configuration and try again.");
-    }
-  }
-
-  function changeMode(next: "text" | "live") {
-    if (next === mode) return;
-    if (mode === "live") stopLive();
-    setMode(next);
-  }
-
-  function openMemoryDialog(message: UiMessage, index: number, trigger: HTMLElement) {
-    memoryReturnFocusRef.current = trigger;
-    setMemoryTarget({ ...message, index });
-    setMemoryText(message.content.trim());
-    setMemoryKind(message.role === "user" ? "preference" : "fact");
-    setMemoryState("idle");
-  }
-
-  function closeMemoryDialog() {
-    setMemoryTarget(undefined);
-    setMemoryText("");
-    setMemoryState("idle");
-    window.requestAnimationFrame(() => memoryReturnFocusRef.current?.focus());
-  }
-
-  function closeHistory() {
-    setHistoryOpen(false);
-    window.requestAnimationFrame(() => historyTriggerRef.current?.focus());
-  }
-
-  async function saveMemory() {
-    const normalized = memoryText.trim();
-    if (!memoryTarget || !conversationId || !normalized || memoryState === "saving") return;
-    setMemoryState("saving");
-    const messageRef = memoryTarget.id ? `message:${memoryTarget.id}` : `turn:${memoryTarget.index + 1}`;
-    try {
-      await apiJson("/api/memory", {
-        method: "POST",
-        body: JSON.stringify({
-          type: memoryKind,
-          text: normalized,
-          source: `conversation:${conversationId}:${messageRef}`,
-          confidence: 1,
-          project_id: project,
-        }),
-      });
-      setMemoryState("saved");
-    } catch {
-      setMemoryState("error");
-    }
-  }
-
-  function handleMemoryDialogKeyDown(event: React.KeyboardEvent<HTMLElement>) {
-    if (event.key === "Escape") {
-      closeMemoryDialog();
-      return;
-    }
-    trapFocus(event);
-  }
-
-  function handleHistoryKeys(event: React.KeyboardEvent<HTMLElement>) {
-    if (event.key === "Escape") {
-      event.preventDefault();
-      closeHistory();
-      return;
-    }
-    trapFocus(event);
-  }
-
-  const history = (
-    <div className="space-y-4">
-      <div className="flex gap-2">
-        <select className="field min-w-0 flex-1" value={projectFilter} onChange={(event) => { setProjectFilter(event.target.value); void loadConversations(event.target.value); }} aria-label="Filter conversations by project">
-          <option value="all">All projects</option>{projects.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-        </select>
-        <button className="icon-button border border-line" onClick={() => void createConversation().then(() => { if (historyOpen) closeHistory(); })} disabled={!model || running} aria-label="New conversation"><Plus aria-hidden size={18} /></button>
-      </div>
-      <div className="scrollbar-subtle max-h-[calc(100vh-180px)] space-y-1.5 overflow-y-auto pr-1">
-        {conversations.length === 0 && <p className="rounded-control bg-surface-subtle/55 px-3 py-4 text-sm leading-6 text-text-secondary">No conversations yet.</p>}
-        {conversations.map((item) => <button key={item.id} className={`w-full rounded-control px-3 py-3 text-left ${item.id === conversationId ? "bg-accent-soft" : "hover:bg-surface-subtle"}`} onClick={() => void openConversation(item.id)} disabled={running || loadingConversation} aria-current={item.id === conversationId ? "true" : undefined}><span className="block truncate text-sm font-medium">{item.title}</span><span className="mt-1 block truncate text-xs text-text-tertiary">{item.project_id || "general"} Â· {new Date(item.updated_at).toLocaleDateString()}</span></button>)}
-      </div>
-    </div>
-  );
-
-  if (apiError) return <ErrorState title="Chat is not connected" detail="The local API is unavailable. Start the service, then refresh to restore providers, projects, and conversation history." />;
-
-  return (
-    <div className="h-[100dvh] md:h-auto md:space-y-3 lg:grid lg:grid-cols-[232px_minmax(0,1fr)] lg:gap-4 lg:space-y-0">
-      <aside className="hidden rounded-card border border-line bg-surface/55 p-3 lg:block" aria-label="Conversation history"><div className="mb-4 flex items-center gap-2 px-2 pt-1"><History aria-hidden size={16} className="text-text-tertiary" /><h2 className="text-sm font-medium">Conversations</h2></div>{history}</aside>
-
-      <section className="flex h-[100dvh] min-h-0 w-full min-w-0 flex-col overflow-hidden bg-background md:panel-elevated md:h-[calc(100vh-48px)] md:min-h-[680px]" aria-label="Chat workspace">
-        <header className="flex min-h-[58px] items-center gap-2 border-b border-line px-2 pt-[env(safe-area-inset-top)] sm:px-4 md:pt-0">
-          <Link href="/" className="icon-button" aria-label="Back to home"><ArrowLeft aria-hidden size={21} /></Link>
-          <div className="min-w-0 flex-1 text-center"><h1 className="truncate text-[15px] font-medium">{title}</h1><p className="text-[11px] text-text-tertiary">{mode === "live" ? "GPT Live" : "Text conversation"}</p></div>
-          <button ref={historyTriggerRef} className="icon-button" onClick={() => setHistoryOpen(true)} aria-label="Open conversation history"><MoreHorizontal aria-hidden size={21} /></button>
-        </header>
-
-        <div className="grid min-h-[104px] grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] items-center gap-2 border-b border-line px-3 py-2 sm:flex sm:min-h-[52px] sm:gap-1 sm:py-1.5">
-          <label className="min-w-0 sm:shrink-0"><span className="sr-only">Project context</span><select className="h-10 w-full rounded-full bg-surface-subtle px-3 text-xs font-medium outline-none sm:max-w-28" value={project} disabled={Boolean(conversationId)} onChange={(event) => setProject(event.target.value)}>{projects.length === 0 ? <option value="general">General</option> : projects.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
-          <div className="min-w-0 [&>div>button]:w-full sm:shrink-0 sm:scale-[0.92] sm:origin-left"><ModelSelector providers={providers} provider={provider} model={model} onChange={(nextProvider, nextModel) => { setProvider(nextProvider); setModel(nextModel); }} /></div>
-          <div className="col-span-2 grid grid-cols-2 rounded-full bg-surface-subtle p-1 sm:ml-auto sm:flex sm:shrink-0" role="group" aria-label="Conversation mode">
-            <button onClick={() => changeMode("text")} className={`flex h-10 items-center justify-center gap-1.5 rounded-full px-3 text-xs font-medium ${mode === "text" ? "bg-surface-elevated shadow-soft" : "text-text-secondary"}`} aria-pressed={mode === "text"}><MessageCircle aria-hidden size={14} />Text</button>
-            <button onClick={() => changeMode("live")} className={`flex h-10 items-center justify-center gap-1.5 rounded-full px-3 text-xs font-medium ${mode === "live" ? "bg-surface-elevated shadow-soft" : "text-text-secondary"}`} aria-pressed={mode === "live"}><Mic2 aria-hidden size={14} />Live</button>
-          </div>
-        </div>
-
-        {mode === "text" ? (
-          <>
-            <div ref={conversationRef} className="scrollbar-subtle min-h-0 flex-1 overflow-y-auto" aria-live="polite" aria-busy={running || loadingConversation}>
-              <div className="mx-auto w-full max-w-[780px] px-5 py-8 sm:px-6 sm:py-10">
-                {loadingConversation && <div className="space-y-3" role="status"><div className="skeleton h-4 w-24" /><div className="skeleton h-20 w-4/5" /></div>}
-                {!loadingConversation && messages.length === 0 && (
-                  <div className="mx-auto flex min-h-[520px] max-w-lg flex-col justify-start pt-32 sm:min-h-[560px] sm:justify-center sm:pt-0">
-                    <div className="relative mx-auto h-28 w-40 overflow-hidden rounded-[28px]">
-                      <Image src="/assets/personal-ai-flow.png" alt="" fill sizes="160px" className="scale-[1.18] object-cover" />
-                    </div>
-                    <h2 className="mt-7 text-center text-[28px] font-medium leading-tight tracking-[-0.035em]">What should we work on?</h2>
-                    <p className="mt-3 hidden text-center text-sm leading-6 text-text-secondary sm:block">Start with a question, a plan, or something you want to understand.</p>
-                    <div className="mt-7 divide-y divide-line border-y border-line">
-                      {starterPrompts.map(({ label, prompt, Icon }) => <button key={label} type="button" className="group flex min-h-14 w-full items-center gap-3 text-left text-sm" onClick={() => setInput(prompt)}><Icon aria-hidden className="shrink-0 text-accent-hover" size={18} strokeWidth={1.7} /><span className="flex-1">{label}</span><ArrowLeft aria-hidden className="rotate-180 text-text-tertiary transition-transform group-hover:translate-x-1" size={16} /></button>)}
-                    </div>
-                  </div>
-                )}
-                <div className="space-y-8">
-                  {messages.map((message, index) => message.role === "user" ? (
-                    <div key={message.id || index} className="ml-auto max-w-[88%] sm:max-w-[78%]">
-                      <article className="rounded-card bg-accent-soft px-4 py-3 text-sm leading-7"><RichMessage content={message.content} /></article>
-                      {message.content && conversationId && !running && <button type="button" className="mt-1 inline-flex min-h-11 items-center gap-1.5 rounded-control px-2 text-xs font-medium text-text-tertiary hover:bg-surface-subtle hover:text-text-primary" onClick={(event) => openMemoryDialog(message, index, event.currentTarget)}><BookmarkPlus aria-hidden size={14} />Save to Memory</button>}
-                    </div>
-                  ) : message.role === "system" ? (
-                    <article key={message.id || index} className="rounded-control border border-danger/25 bg-surface px-4 py-3 text-sm leading-6 text-danger">{message.content}</article>
-                  ) : (
-                    <article key={message.id || index} className="grid grid-cols-[24px_minmax(0,1fr)] gap-3 text-[15px]">
-                      <Sparkles aria-hidden className="mt-2 text-accent" size={17} />
-                      <div className="min-w-0">
-                        {message.content ? <RichMessage content={message.content} /> : <span className="mt-2 text-sm text-text-tertiary">Respondingâ€¦</span>}
-                        {message.content && conversationId && !running && <button type="button" className="mt-1 inline-flex min-h-11 items-center gap-1.5 rounded-control px-2 text-xs font-medium text-text-tertiary hover:bg-surface-subtle hover:text-text-primary" onClick={(event) => openMemoryDialog(message, index, event.currentTarget)}><BookmarkPlus aria-hidden size={14} />Save to Memory</button>}
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              </div>
-            </div>
-            <ActivityPanel trace={trace} />
-            <form onSubmit={submit} className="bg-surface px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-3 sm:px-5 sm:pb-5">
-              {useMcp && <div className="mx-auto mb-2 grid max-w-[780px] gap-2 rounded-control bg-surface-subtle p-2 sm:grid-cols-2"><label className="text-xs font-medium text-text-secondary">Connector<select className="field mt-1 w-full" value={connectorId} onChange={(event) => selectConnector(event.target.value)}><option value="local-reference">Built-in reference</option>{connectors.filter((item) => item.enabled).map((item) => <option key={item.id} value={item.id}>{item.name} Â· {item.connection_status}</option>)}</select></label><label className="text-xs font-medium text-text-secondary">Tool<select className="field mt-1 w-full" value={toolName} onChange={(event) => setToolName(event.target.value)}>{(connectorId === "local-reference" ? ["system.echo"] : selectedConnector?.allowed_tools || []).map((item) => <option key={item} value={item}>{item}</option>)}</select></label></div>}
-              {providers.length > 0 && !providerReady && <div className="mx-auto mb-2 flex max-w-[780px] items-center justify-between gap-3 rounded-control bg-warning/10 px-3 py-2 text-xs text-warning"><span>{selectedProvider?.id === "anthropic" ? "Anthropic" : "OpenAI"} needs a server-side credential before messages can be sent.</span><Link href="/settings#models-settings" className="shrink-0 font-medium underline underline-offset-2">Open Settings</Link></div>}
-              <div className="mx-auto max-w-[780px] rounded-[22px] border border-line-strong bg-surface-elevated p-2 shadow-composer focus-within:border-accent">
-                <textarea className="scrollbar-subtle max-h-40 min-h-[48px] w-full resize-none bg-transparent px-2 py-2 text-[15px] leading-6 outline-none placeholder:text-text-tertiary" placeholder="Ask anythingâ€¦" aria-label="Message" value={input} rows={1} onChange={(event) => setInput(event.target.value)} />
-                <div className="flex items-center gap-1"><button type="button" className="icon-button" disabled title="Attachments are planned" aria-label="Attach a file (planned)"><Paperclip aria-hidden size={18} /></button><button type="button" className={`icon-button ${useMcp ? "bg-accent-soft text-accent" : ""}`} onClick={() => setUseMcp((current) => !current)} aria-pressed={useMcp} aria-label="Use an MCP tool"><Wrench aria-hidden size={18} /></button><button className="button-primary ml-auto size-10 min-h-10 px-0" aria-label={running ? "Sending message" : "Send message"} disabled={!input.trim() || !model || !providerReady || running || (useMcp && !toolName)}><Send aria-hidden size={17} /></button></div>
-              </div>
-            </form>
-          </>
-        ) : (
-          <div className="relative flex min-h-0 flex-1 flex-col items-center justify-center overflow-hidden px-6 pb-[max(28px,env(safe-area-inset-bottom))] text-center">
-            <div className={`relative grid size-52 place-items-center overflow-hidden rounded-full transition duration-500 ${liveState === "listening" ? "scale-105 shadow-composer" : ""}`}><img src="/assets/personal-ai-flow.png" alt="" className="absolute inset-0 h-full w-full scale-[1.8] object-cover" /><span className={`relative grid size-20 place-items-center rounded-full bg-surface-elevated/90 text-accent-hover shadow-soft ${liveState === "listening" ? "animate-pulse" : ""}`}><Mic2 aria-hidden size={30} strokeWidth={1.6} /></span></div>
-            <h2 className="mt-8 text-[28px] font-medium tracking-[-0.035em]">{liveState === "listening" ? "Iâ€™m listening" : liveState === "connecting" ? "Connectingâ€¦" : "Talk it through"}</h2>
-            <p className={`mt-3 max-w-md text-sm leading-6 ${liveState === "error" ? "text-danger" : "text-text-secondary"}`}>{realtime && !realtime.configured && liveState === "idle" ? "GPT Live needs a server-side Realtime credential before this phone can start a voice conversation." : liveMessage}</p>
-            {liveCaption && <p className="mt-5 max-w-lg rounded-card bg-surface/75 px-4 py-3 text-sm leading-6 text-text-primary">{liveCaption}</p>}
-            {liveSaveWarning && <p className="mt-3 max-w-md text-xs leading-5 text-warning">{liveSaveWarning}</p>}
-            {livePlaybackBlocked && <button type="button" className="button-secondary mt-4" onClick={() => void resumeLiveAudio()}>Resume audio</button>}
-            <p className="mt-4 text-xs text-text-tertiary">{realtime?.model || "Realtime model"} Â· WebRTC Â· {project}</p>
-            <p className="mt-2 max-w-md text-[11px] leading-5 text-text-tertiary">Completed Live transcripts stay in this conversation and can create its short title. They are not added to Memory automatically.</p>
-            {liveState === "listening" || liveState === "connecting" ? <button onClick={() => stopLive()} className="mt-8 inline-flex size-16 items-center justify-center rounded-full bg-text-primary text-surface-elevated shadow-composer" aria-label="End live conversation"><Square aria-hidden size={21} fill="currentColor" /></button> : realtime && !realtime.configured ? <Link href="/settings#mobile-settings" className="mt-8 inline-flex min-h-14 items-center justify-center gap-2 rounded-full bg-text-primary px-7 text-sm font-medium text-surface-elevated shadow-composer"><Wrench aria-hidden size={18} />Configure GPT Live</Link> : <button onClick={() => void startLive()} className="mt-8 inline-flex min-h-14 items-center justify-center gap-2 rounded-full bg-text-primary px-7 text-sm font-medium text-surface-elevated shadow-composer" disabled={!realtime}><Mic2 aria-hidden size={18} />{realtime ? "Start GPT Live" : "Checking GPT Liveâ€¦"}</button>}
-          </div>
-        )}
-      </section>
-
-      {historyOpen && <div className="fixed inset-0 z-50"><button className="absolute inset-0 bg-text-primary/20" onClick={closeHistory} aria-label="Close conversation history" /><aside ref={historyDialogRef} role="dialog" aria-modal="true" aria-label="Conversation history" className="absolute inset-y-0 right-0 w-[min(340px,90vw)] border-l border-line bg-surface-elevated p-4 shadow-composer" onKeyDown={handleHistoryKeys}><div className="mb-4 flex items-center justify-between"><h2 className="text-lg font-medium">Conversations</h2><button className="icon-button" onClick={closeHistory} aria-label="Close conversation history"><X aria-hidden size={20} /></button></div>{history}</aside></div>}
-
-      {memoryTarget && (
-        <div className="fixed inset-0 z-[60] flex items-end justify-center md:items-center md:p-6">
-          <button className="absolute inset-0 bg-text-primary/25" onClick={closeMemoryDialog} aria-label="Close save to memory" />
-          <section ref={memoryDialogRef} role="dialog" aria-modal="true" aria-labelledby="save-memory-title" className="relative w-full rounded-t-[28px] border border-line bg-surface-elevated px-5 pb-[max(24px,env(safe-area-inset-bottom))] pt-4 shadow-composer md:max-w-lg md:rounded-card md:p-6" onKeyDown={handleMemoryDialogKeyDown}>
-            <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-line-strong md:hidden" aria-hidden />
-            <div className="flex items-start justify-between gap-4">
-              <div><p className="eyebrow">Long-term memory</p><h2 id="save-memory-title" className="mt-1 text-xl font-medium tracking-[-0.02em]">Save what matters</h2></div>
-              <button type="button" className="icon-button -mr-2 -mt-2" onClick={closeMemoryDialog} aria-label="Close save to memory"><X aria-hidden size={20} /></button>
-            </div>
-            <p className="mt-3 text-sm leading-6 text-text-secondary">Only this reviewed note will be saved. The rest of the conversation stays out of long-term Memory.</p>
-            <div className="scrollbar-subtle mt-5 flex gap-2 overflow-x-auto pb-1" role="group" aria-label="Memory type">
-              {(["fact", "preference", "rule", "project"] as MemoryKind[]).map((item) => <button key={item} type="button" className={`chip min-h-11 shrink-0 capitalize ${memoryKind === item ? "bg-accent-soft text-accent-hover" : ""}`} aria-pressed={memoryKind === item} onClick={() => setMemoryKind(item)}>{item}</button>)}
-            </div>
-            <label className="mt-4 block text-xs font-medium text-text-secondary">Memory note<textarea className="textarea-field mt-2 min-h-36 w-full resize-y text-[15px] leading-6" value={memoryText} onChange={(event) => { setMemoryText(event.target.value); if (memoryState !== "idle") setMemoryState("idle"); }} /></label>
-            <p className="mt-2 text-xs text-text-tertiary">Project: {projects.find((item) => item.id === project)?.name || project} Â· Source: this conversation</p>
-            {memoryState === "error" && <p className="mt-3 text-sm text-danger" role="alert">This note could not be saved. Check the local API and try again.</p>}
-            <p className="sr-only" role="status" aria-live="polite">{memoryState === "saved" ? "Memory saved." : memoryState === "saving" ? "Saving memory." : ""}</p>
-            <div className="mt-5 flex gap-3">
-              <button type="button" className="button-secondary flex-1" onClick={closeMemoryDialog}>Cancel</button>
-              <button type="button" className="button-primary flex-1" onClick={() => void saveMemory()} disabled={!memoryText.trim() || memoryState === "saving" || memoryState === "saved"}>{memoryState === "saved" ? <><Check aria-hidden size={17} />Saved</> : memoryState === "saving" ? "Savingâ€¦" : "Save memory"}</button>
-            </div>
-          </section>
-        </div>
-      )}
-    </div>
-  );
-}
+        constßÍ·¶‰žËkºwµçiµ…àµÜ´ÈàˆÙ…±Õ”õíÁÉ½©•Ñô‘¥Í…‰±•õí	½½±•…¸¡½¹Ù•ÉÍ…Ñ¥½¹%¥ô½¹¡…¹”õì¡•Ù•¹Ð¤€ôøÍ•ÑAÉ½©•Ð¡•Ù•¹Ð¹Ñ…É•Ð¹Ù…±Õ”¥ôùíÁÉ½©•ÑÌ¹±•¹Ñ €ôôô€À€ü€ñ½ÁÑ¥½¸Ù…±Õ”ô‰•¹•É…°ˆù•¹•É…°ð½½ÁÑ¥½¸ø€èÁÉ½©•ÑÌ¹µ…À ¡¥Ñ•´¤€ôø€ñ½ÁÑ¥½¸­•äõí¥Ñ•´¹¥‘ôÙ…±Õ”õí¥Ñ•´¹¥‘ôùí¥Ñ•´¹¹…µ•ôð½½ÁÑ¥½¸ø¥ôð½Í•±•Ðøð½±…‰•°ø4(€€€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰µ¥¸µÜ´Àl˜ù‘¥Øù‰ÕÑÑ½¹téÜµ™Õ±°Í´éÍ¡É¥¹¬´ÀÍ´éÍ…±”µlÀ¸äÉtÍ´é½É¥¥¸µ±•™Ðˆøñ5½‘•±M•±•Ñ½ÈÁÉ½Ù¥‘•ÉÌõíÁÉ½Ù¥‘•ÉÍôÁÉ½Ù¥‘•ÈõíÁÉ½Ù¥‘•Éôµ½‘•°õíµ½‘•±ô½¹¡…¹”õì¡¹•áÑAÉ½Ù¥‘•È°¹•áÑ5½‘•°¤€ôøìÍ•ÑAÉ½Ù¥‘•È¡¹•áÑAÉ½Ù¥‘•È¤ìÍ•Ñ5½‘•°¡¹•áÑ5½‘•°¤ìõô€¼øð½‘¥Øø4(€€€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰½°µÍÁ…¸´ÈÉ¥É¥µ½±Ì´ÈÉ½Õ¹‘•µ™Õ±°‰œµÍÕÉ™…”µÍÕ‰Ñ±”À´ÄÍ´éµ°µ…ÕÑ¼Í´é™±•àÍ´éÍ¡É¥¹¬´ÀˆÉ½±”ô‰É½ÕÀˆ…É¥„µ±…‰•°ô‰½¹Ù•ÉÍ…Ñ¥½¸µ½‘”ˆø4(€€€€€€€€€€€€ñ‰ÕÑÑ½¸½¹±¥¬õì ¤€ôø¡…¹•5½‘” ‰Ñ•áÐˆ¥ô±…ÍÍ9…µ”õí™±•à ´ÄÀ¥Ñ•µÌµ•¹Ñ•È©ÕÍÑ¥™äµ•¹Ñ•È…À´Ä¸ÔÉ½Õ¹‘•µ™Õ±°Áà´ÌÑ•áÐµáÌ™½¹Ðµµ•‘¥Õ´€‘íµ½‘”€ôôô€‰Ñ•áÐˆ€ü€‰‰œµÍÕÉ™…”µ•±•Ù…Ñ•Í¡…‘½ÜµÍ½™Ðˆ€è€‰Ñ•áÐµÑ•áÐµÍ•½¹‘…Éä‰õô…É¥„µÁÉ•ÍÍ•õíµ½‘”€ôôô€‰Ñ•áÐ‰ôøñ5•ÍÍ…•¥É±”…É¥„µ¡¥‘‘•¸Í¥é”õìÄÑô€¼ùQ•áÐð½‰ÕÑÑ½¸ø4(€€€€€€€€€€€€ñ‰ÕÑÑ½¸½¹±¥¬õì ¤€ôø¡…¹•5½‘” ‰±¥Ù”ˆ¥ô±…ÍÍ9…µ”õí™±•à ´ÄÀ¥Ñ•µÌµ•¹Ñ•È©ÕÍÑ¥™äµ•¹Ñ•È…À´Ä¸ÔÉ½Õ¹‘•µ™Õ±°Áà´ÌÑ•áÐµáÌ™½¹Ðµµ•‘¥Õ´€‘íµ½‘”€ôôô€‰±¥Ù”ˆ€ü€‰‰œµÍÕÉ™…”µ•±•Ù…Ñ•Í¡…‘½ÜµÍ½™Ðˆ€è€‰Ñ•áÐµÑ•áÐµÍ•½¹‘…Éä‰õô…É¥„µÁÉ•ÍÍ•õíµ½‘”€ôôô€‰±¥Ù”‰ôøñ5¥ŒÈ…É¥„µ¡¥‘‘•¸Í¥é”õìÄÑô€¼ù1¥Ù”ð½‰ÕÑÑ½¸ø4(€€€€€€€€€€ð½‘¥Øø4(€€€€€€€€ð½‘¥Øø4(4(€€€€€€€íµ½‘”€ôôô€‰Ñ•áÐˆ€ü€ 4(€€€€€€€€€€ðø4(€€€€€€€€€€€€ñ‘¥ØÉ•˜õí½¹Ù•ÉÍ…Ñ¥½¹I•™ô±…ÍÍ9…µ”ô‰ÍÉ½±±‰…ÈµÍÕ‰Ñ±”µ¥¸µ ´À™±•à´Ä½Ù•É™±½Üµäµ…ÕÑ¼ˆ…É¥„µ±¥Ù”ô‰Á½±¥Ñ”ˆ…É¥„µ‰ÕÍäõíÉÕ¹¹¥¹œñð±½…‘¥¹½¹Ù•ÉÍ…Ñ¥½¹ôø4(€€€€€€€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰µàµ…ÕÑ¼Üµ™Õ±°µ…àµÜµlÜàÁÁátÁà´ÔÁä´àÍ´éÁà´ØÍ´éÁä´ÄÀˆø4(€€€€€€€€€€€€€€€í±½…‘¥¹½¹Ù•ÉÍ…Ñ¥½¸€˜˜€ñ‘¥Ø±…ÍÍ9…µ”ô‰ÍÁ…”µä´ÌˆÉ½±”ô‰ÍÑ…ÑÕÌˆøñ‘¥Ø±…ÍÍ9…µ”ô‰Í­•±•Ñ½¸ ´ÐÜ´ÈÐˆ€¼øñ‘¥Ø±…ÍÍ9…µ”ô‰Í­•±•Ñ½¸ ´ÈÀÜ´Ð¼Ôˆ€¼øð½‘¥Øùô4(€€€€€€€€€€€€€€€ì…±½…‘¥¹½¹Ù•ÉÍ…Ñ¥½¸€˜˜µ•ÍÍ…•Ì¹±•¹Ñ €ôôô€À€˜˜€ 4(€€€€€€€€€€€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰µàµ…ÕÑ¼™±•àµ¥¸µ µlÔÈÁÁátµ…àµÜµ±œ™±•àµ½°©ÕÍÑ¥™äµÍÑ…ÉÐÁÐ´ÌÈÍ´éµ¥¸µ µlÔØÁÁátÍ´é©ÕÍÑ¥™äµ•¹Ñ•ÈÍ´éÁÐ´Àˆø4(€€€€€€€€€€€€€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰É•±…Ñ¥Ù”µàµ…ÕÑ¼ ´ÈàÜ´ÐÀ½Ù•É™±½Üµ¡¥‘‘•¸É½Õ¹‘•µlÈáÁátˆø4(€€€€€€€€€€€€€€€€€€€€€€ñ%µ…”ÍÉŒôˆ½…ÍÍ•ÑÌ½Á•ÉÍ½¹…°µ…¤µ™±½Ü¹Á¹œˆ…±Ðôˆˆ™¥±°Í¥é•ÌôˆÄØÁÁàˆ±…ÍÍ9…µ”ô‰Í…±”µlÄ¸Äát½‰©•Ðµ½Ù•Èˆ€¼ø4(€€€€€€€€€€€€€€€€€€€€ð½‘¥Øø4(€€€€€€€€€€€€€€€€€€€€ñ È±…ÍÍ9…µ”ô‰µÐ´ÜÑ•áÐµ•¹Ñ•ÈÑ•áÐµlÈáÁát™½¹Ðµµ•‘¥Õ´±•…‘¥¹œµÑ¥¡ÐÑÉ…­¥¹œµl´À¸ÀÌÕ•µtˆù]¡…ÐÍ¡½Õ±Ý”Ý½É¬½¸üð½ Èø4(€€€€€€€€€€€€€€€€€€€€ñÀ±…ÍÍ9…µ”ô‰µÐ´Ì¡¥‘‘•¸Ñ•áÐµ•¹Ñ•ÈÑ•áÐµÍ´±•…‘¥¹œ´ØÑ•áÐµÑ•áÐµÍ•½¹‘…ÉäÍ´é‰±½¬ˆùMÑ…ÉÐÝ¥Ñ „ÅÕ•ÍÑ¥½¸°„Á±…¸°½ÈÍ½µ•Ñ¡¥¹œå½ÔÝ…¹ÐÑ¼Õ¹‘•ÉÍÑ…¹¸ð½Àø4(€€€€€€€€€€€€€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰µÐ´Ü‘¥Ù¥‘”µä‘¥Ù¥‘”µ±¥¹”‰½É‘•Èµä‰½É‘•Èµ±¥¹”ˆø4(€€€€€€€€€€€€€€€€€€€€€íÍÑ…ÉÑ•ÉAÉ½µÁÑÌ¹µ…À ¡ì±…‰•°°ÁÉ½µÁÐ°%½¸ô¤€ôø€ñ‰ÕÑÑ½¸­•äõí±…‰•±ôÑåÁ”ô‰‰ÕÑÑ½¸ˆ±…ÍÍ9…µ”ô‰É½ÕÀ™±•àµ¥¸µ ´ÄÐÜµ™Õ±°¥Ñ•µÌµ•¹Ñ•È…À´ÌÑ•áÐµ±•™ÐÑ•áÐµÍ´ˆ½¹±¥¬õì ¤€ôøÍ•Ñ%¹ÁÕÐ¡ÁÉ½µÁÐ¥ôøñ%½¸…É¥„µ¡¥‘‘•¸±…ÍÍ9…µ”ô‰Í¡É¥¹¬´ÀÑ•áÐµ…•¹Ðµ¡½Ù•ÈˆÍ¥é”õìÄáôÍÑÉ½­•]¥‘Ñ õìÄ¸Ýô€¼øñÍÁ…¸±…ÍÍ9…µ”ô‰™±•à´Äˆùí±…‰•±ôð½ÍÁ…¸øñÉÉ½Ý1•™Ð…É¥„µ¡¥‘‘•¸±…ÍÍ9…µ”ô‰É½Ñ…Ñ”´ÄàÀÑ•áÐµÑ•áÐµÑ•ÉÑ¥…ÉäÑÉ…¹Í¥Ñ¥½¸µÑÉ…¹Í™½É´É½ÕÀµ¡½Ù•ÈéÑÉ…¹Í±…Ñ”µà´ÄˆÍ¥é”õìÄÙô€¼øð½‰ÕÑÑ½¸ø¥ô4(€€€€€€€€€€€€€€€€€€€€ð½‘¥Øø4(€€€€€€€€€€€€€€€€€€ð½‘¥Øø4(€€€€€€€€€€€€€€€€¥ô4(€€€€€€€€€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰ÍÁ…”µä´àˆø4(€€€€€€€€€€€€€€€€€íµ•ÍÍ…•Ì¹µ…À ¡µ•ÍÍ…”°¥¹‘•à¤€ôøµ•ÍÍ…”¹É½±”€ôôô€‰ÕÍ•Èˆ€ü€ 4(€€€€€€€€€€€€€€€€€€€€ñ‘¥Ø­•äõíµ•ÍÍ…”¹¥ñð¥¹‘•áô±…ÍÍ9…µ”ô‰µ°µ…ÕÑ¼µ…àµÜµlàà•tÍ´éµ…àµÜµlÜà•tˆø4(€€€€€€€€€€€€€€€€€€€€€€ñ…ÉÑ¥±”±…ÍÍ9…µ”ô‰É½Õ¹‘•µ…É‰œµ…•¹ÐµÍ½™ÐÁà´ÐÁä´ÌÑ•áÐµÍ´±•…‘¥¹œ´ÜˆøñI¥¡5•ÍÍ…”½¹Ñ•¹Ðõíµ•ÍÍ…”¹½¹Ñ•¹Ñô€¼øð½…ÉÑ¥±”ø4(€€€€€€€€€€€€€€€€€€€€€íµ•ÍÍ…”¹½¹Ñ•¹Ð€˜˜½¹Ù•ÉÍ…Ñ¥½¹%€˜˜€…ÉÕ¹¹¥¹œ€˜˜€ñ‰ÕÑÑ½¸ÑåÁ”ô‰‰ÕÑÑ½¸ˆ±…ÍÍ9…µ”ô‰µÐ´Ä¥¹±¥¹”µ™±•àµ¥¸µ ´ÄÄ¥Ñ•µÌµ•¹Ñ•È…À´Ä¸ÔÉ½Õ¹‘•µ½¹ÑÉ½°Áà´ÈÑ•áÐµáÌ™½¹Ðµµ•‘¥Õ´Ñ•áÐµÑ•áÐµÑ•ÉÑ¥…Éä¡½Ù•Èé‰œµÍÕÉ™…”µÍÕ‰Ñ±”¡½Ù•ÈéÑ•áÐµÑ•áÐµÁÉ¥µ…Éäˆ½¹±¥¬õì¡•Ù•¹Ð¤€ôø½Á•¹5•µ½Éå¥…±½œ¡µ•ÍÍ…”°¥¹‘•à°•Ù•¹Ð¹ÕÉÉ•¹ÑQ…É•Ð¥ôøñ	½½­µ…É­A±ÕÌ…É¥„µ¡¥‘‘•¸Í¥é”õìÄÑô€¼ùM…Ù”Ñ¼5•µ½Éäð½‰ÕÑÑ½¸ùô4(€€€€€€€€€€€€€€€€€€€€ð½‘¥Øø4(€€€€€€€€€€€€€€€€€€¤€èµ•ÍÍ…”¹É½±”€ôôô€‰ÍåÍÑ•´ˆ€ü€ 4(€€€€€€€€€€€€€€€€€€€€ñ…ÉÑ¥±”­•äõíµ•ÍÍ…”¹¥ñð¥¹‘•áô±…ÍÍ9…µ”ô‰É½Õ¹‘•µ½¹ÑÉ½°‰½É‘•È‰½É‘•Èµ‘…¹•È¼ÈÔ‰œµÍÕÉ™…”Áà´ÐÁä´ÌÑ•áÐµÍ´±•…‘¥¹œ´ØÑ•áÐµ‘…¹•Èˆùíµ•ÍÍ…”¹½¹Ñ•¹Ñôð½…ÉÑ¥±”ø4(€€€€€€€€€€€€€€€€€€¤€è€ 4(€€€€€€€€€€€€€€€€€€€€ñ…ÉÑ¥±”­•äõíµ•ÍÍ…”¹¥ñð¥¹‘•áô±…ÍÍ9…µ”ô‰É¥É¥µ½±ÌµlÈÑÁá}µ¥¹µ…à À°Å™È¥t…À´ÌÑ•áÐµlÄÕÁátˆø4(€€€€€€€€€€€€€€€€€€€€€€ñMÁ…É­±•Ì…É¥„µ¡¥‘‘•¸±…ÍÍ9…µ”ô‰µÐ´ÈÑ•áÐµ…•¹ÐˆÍ¥é”õìÄÝô€¼ø4(€€€€€€€€€€€€€€€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰µ¥¸µÜ´Àˆø4(€€€€€€€€€€€€€€€€€€€€€€€íµ•ÍÍ…”¹½¹Ñ•¹Ð€ü€ñI¥¡5•ÍÍ…”½¹Ñ•¹Ðõíµ•ÍÍ…”¹½¹Ñ•¹Ñô€¼ø€è€ñÍÁ…¸±…ÍÍ9…µ”ô‰µÐ´ÈÑ•áÐµÍ´Ñ•áÐµÑ•áÐµÑ•ÉÑ¥…ÉäˆùI•ÍÁ½¹‘¥¹ŸŠ˜ð½ÍÁ…¸ùô4(€€€€€€€€€€€€€€€€€€€€€€€íµ•ÍÍ…”¹½¹Ñ•¹Ð€˜˜½¹Ù•ÉÍ…Ñ¥½¹%€˜˜€…ÉÕ¹¹¥¹œ€˜˜€ñ‰ÕÑÑ½¸ÑåÁ”ô‰‰ÕÑÑ½¸ˆ±…ÍÍ9…µ”ô‰µÐ´Ä¥¹±¥¹”µ™±•àµ¥¸µ ´ÄÄ¥Ñ•µÌµ•¹Ñ•È…À´Ä¸ÔÉ½Õ¹‘•µ½¹ÑÉ½°Áà´ÈÑ•áÐµáÌ™½¹Ðµµ•‘¥Õ´Ñ•áÐµÑ•áÐµÑ•ÉÑ¥…Éä¡½Ù•Èé‰œµÍÕÉ™…”µÍÕ‰Ñ±”¡½Ù•ÈéÑ•áÐµÑ•áÐµÁÉ¥µ…Éäˆ½¹±¥¬õì¡•Ù•¹Ð¤€ôø½Á•¹5•µ½Éå¥…±½œ¡µ•ÍÍ…”°¥¹‘•à°•Ù•¹Ð¹ÕÉÉ•¹ÑQ…É•Ð¥ôøñ	½½­µ…É­A±ÕÌ…É¥„µ¡¥‘‘•¸Í¥é”õìÄÑô€¼ùM…Ù”Ñ¼5•µ½Éäð½‰ÕÑÑ½¸ùô4(€€€€€€€€€€€€€€€€€€€€€€ð½‘¥Øø4(€€€€€€€€€€€€€€€€€€€€ð½…ÉÑ¥±”ø4(€€€€€€€€€€€€€€€€€€¤¥ô4(€€€€€€€€€€€€€€€€ð½‘¥Øø4(€€€€€€€€€€€€€€ð½‘¥Øø4(€€€€€€€€€€€€ð½‘¥Øø4(€€€€€€€€€€€€ñÑ¥Ù¥ÑåA…¹•°ÑÉ…”õíÑÉ…•ô€¼ø4(€€€€€€€€€€€€ñ™½É´½¹MÕ‰µ¥ÐõíÍÕ‰µ¥Ñô±…ÍÍ9…µ”ô‰‰œµÍÕÉ™…”Áà´ÌÁˆµmµ…à ÄÉÁà±•¹Ø¡Í…™”µ…É•„µ¥¹Í•Ðµ‰½ÑÑ½´¤¥tÁÐ´ÌÍ´éÁà´ÔÍ´éÁˆ´Ôˆø4(€€€€€€€€€€€€€íÕÍ•5À€˜˜€ñ‘¥Ø±…ÍÍ9…µ”ô‰µàµ…ÕÑ¼µˆ´ÈÉ¥µ…àµÜµlÜàÁÁát…À´ÈÉ½Õ¹‘•µ½¹ÑÉ½°‰œµÍÕÉ™…”µÍÕ‰Ñ±”À´ÈÍ´éÉ¥µ½±Ì´Èˆøñ±…‰•°±…ÍÍ9…µ”ô‰Ñ•áÐµáÌ™½¹Ðµµ•‘¥Õ´Ñ•áÐµÑ•áÐµÍ•½¹‘…Éäˆù½¹¹•Ñ½ÈñÍ•±•Ð±…ÍÍ9…µ”ô‰™¥•±µÐ´ÄÜµ™Õ±°ˆÙ…±Õ”õí½¹¹•Ñ½É%‘ô½¹¡…¹”õì¡•Ù•¹Ð¤€ôøÍ•±•Ñ½¹¹•Ñ½È¡•Ù•¹Ð¹Ñ…É•Ð¹Ù…±Õ”¥ôøñ½ÁÑ¥½¸Ù…±Õ”ô‰±½…°µÉ•™•É•¹”ˆù	Õ¥±Ðµ¥¸É•™•É•¹”ð½½ÁÑ¥½¸ùí½¹¹•Ñ½ÉÌ¹™¥±Ñ•È ¡¥Ñ•´¤€ôø¥Ñ•´¹•¹…‰±•¤¹µ…À ¡¥Ñ•´¤€ôø€ñ½ÁÑ¥½¸­•äõí¥Ñ•´¹¥‘ôÙ…±Õ”õí¥Ñ•´¹¥‘ôùí¥Ñ•´¹¹…µ•ôƒ
+Üí¥Ñ•´¹½¹¹•Ñ¥½¹}ÍÑ…ÑÕÍôð½½ÁÑ¥½¸ø¥ôð½Í•±•Ðøð½±…‰•°øñ±…‰•°±…ÍÍ9…µ”ô‰Ñ•áÐµáÌ™½¹Ðµµ•‘¥Õ´Ñ•áÐµÑ•áÐµÍ•½¹‘…ÉäˆùQ½½°ñÍ•±•Ð±…ÍÍ9…µ”ô‰™¥•±µÐ´ÄÜµ™Õ±°ˆÙ…±Õ”õíÑ½½±9…µ•ô½¹¡…¹”õì¡•Ù•¹Ð¤€ôøÍ•ÑQ½½±9…µ”¡•Ù•¹Ð¹Ñ…É•Ð¹Ù…±Õ”¥ôùì¡½¹¹•Ñ½É%€ôôô€‰±½…°µÉ•™•É•¹”ˆ€ül‰ÍåÍÑ•´¹•¡¼‰t€èÍ•±•Ñ•‘½¹¹•Ñ½Èü¹…±±½Ý•‘}Ñ½½±Ìñðmt¤¹µ…À ¡¥Ñ•´¤€ôø€ñ½ÁÑ¥½¸­•äõí¥Ñ•µôÙ…±Õ”õí¥Ñ•µôùí¥Ñ•µôð½½ÁÑ¥½¸ø¥ôð½Í•±•Ðøð½±…‰•°øð½‘¥Øùô4(€€€€€€€€€€€€€íÁÉ½Ù¥‘•ÉÌ¹±•¹Ñ €ø€À€˜˜€…ÁÉ½Ù¥‘•ÉI•…‘ä€˜˜€ñ‘¥Ø±…ÍÍ9…µ”ô‰µàµ…ÕÑ¼µˆ´È™±•àµ…àµÜµlÜàÁÁát¥Ñ•µÌµ•¹Ñ•È©ÕÍÑ¥™äµ‰•ÑÝ••¸…À´ÌÉ½Õ¹‘•µ½¹ÑÉ½°‰œµÝ…É¹¥¹œ¼ÄÀÁà´ÌÁä´ÈÑ•áÐµáÌÑ•áÐµÝ…É¹¥¹œˆøñÍÁ…¸ùíÍ•±•Ñ•‘AÉ½Ù¥‘•Èü¹¥€ôôô€‰…¹Ñ¡É½Á¥Œˆ€ü€‰¹Ñ¡É½Á¥Œˆ€è€‰=Á•¹$‰ô¹••‘Ì„Í•ÉÙ•ÈµÍ¥‘”É•‘•¹Ñ¥…°‰•™½É”µ•ÍÍ…•Ì…¸‰”Í•¹Ð¸ð½ÍÁ…¸øñ1¥¹¬¡É•˜ôˆ½Í•ÑÑ¥¹Ìµ½‘•±ÌµÍ•ÑÑ¥¹Ìˆ±…ÍÍ9…µ”ô‰Í¡É¥¹¬´À™½¹Ðµµ•‘¥Õ´Õ¹‘•É±¥¹”Õ¹‘•É±¥¹”µ½™™Í•Ð´Èˆù=Á•¸M•ÑÑ¥¹Ìð½1¥¹¬øð½‘¥Øùô4(€€€€€€€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰µàµ…ÕÑ¼µ…àµÜµlÜàÁÁátÉ½Õ¹‘•µlÈÉÁát‰½É‘•È‰½É‘•Èµ±¥¹”µÍÑÉ½¹œ‰œµÍÕÉ™…”µ•±•Ù…Ñ•À´ÈÍ¡…‘½Üµ½µÁ½Í•È™½ÕÌµÝ¥Ñ¡¥¸é‰½É‘•Èµ…•¹Ðˆø4(€€€€€€€€€€€€€€€€ñÑ•áÑ…É•„±…ÍÍ9…µ”ô‰ÍÉ½±±‰…ÈµÍÕ‰Ñ±”µ…àµ ´ÐÀµ¥¸µ µlÐáÁátÜµ™Õ±°É•Í¥é”µ¹½¹”‰œµÑÉ…¹ÍÁ…É•¹ÐÁà´ÈÁä´ÈÑ•áÐµlÄÕÁát±•…‘¥¹œ´Ø½ÕÑ±¥¹”µ¹½¹”Á±…•¡½±‘•ÈéÑ•áÐµÑ•áÐµÑ•ÉÑ¥…ÉäˆÁ±…•¡½±‘•Èô‰Í¬…¹åÑ¡¥¹ŸŠ˜ˆ…É¥„µ±…‰•°ô‰5•ÍÍ…”ˆÙ…±Õ”õí¥¹ÁÕÑôÉ½ÝÌõìÅô½¹¡…¹”õì¡•Ù•¹Ð¤€ôøÍ•Ñ%¹ÁÕÐ¡•Ù•¹Ð¹Ñ…É•Ð¹Ù…±Õ”¥ô€¼ø4(€€€€€€€€€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰™±•à¥Ñ•µÌµ•¹Ñ•È…À´Äˆøñ‰ÕÑÑ½¸ÑåÁ”ô‰‰ÕÑÑ½¸ˆ±…ÍÍ9…µ”ô‰¥½¸µ‰ÕÑÑ½¸ˆ‘¥Í…‰±•Ñ¥Ñ±”ô‰ÑÑ…¡µ•¹ÑÌ…É”Á±…¹¹•ˆ…É¥„µ±…‰•°ô‰ÑÑ… „™¥±”€¡Á±…¹¹•¤ˆøñA…Á•É±¥À…É¥„µ¡¥‘‘•¸Í¥é”õìÄáô€¼øð½‰ÕÑÑ½¸øñ‰ÕÑÑ½¸ÑåÁ”ô‰‰ÕÑÑ½¸ˆ±…ÍÍ9…µ”õí¥½¸µ‰ÕÑÑ½¸€‘íÕÍ•5À€ü€‰‰œµ…•¹ÐµÍ½™ÐÑ•áÐµ…•¹Ðˆ€è€ˆ‰õô½¹±¥¬õì ¤€ôøÍ•ÑUÍ•5À ¡ÕÉÉ•¹Ð¤€ôø€…ÕÉÉ•¹Ð¥ô…É¥„µÁÉ•ÍÍ•õíÕÍ•5Áô…É¥„µ±…‰•°ô‰UÍ”„Ñ½½°ˆøñ]É•¹ …É¥„µ¡¥‘‘•¸Í¥é”õìÄáô€¼øð½‰ÕÑÑ½¸øñ‰ÕÑÑ½¸±…ÍÍ9…µ”ô‰‰ÕÑÑ½¸µÁÉ¥µ…Éäµ°µ…ÕÑ¼Í¥é”´ÄÀµ¥¸µ ´ÄÀÁà´Àˆ…É¥„µ±…‰•°õíÉÕ¹¹¥¹œ€ü€‰M•¹‘¥¹œµ•ÍÍ…”ˆ€è€‰M•¹µ•ÍÍ…”‰ô‘¥Í…‰±•õì…¥¹ÁÕÐ¹ÑÉ¥´ ¤ñð€…µ½‘•°ñð€…ÁÉ½Ù¥‘•ÉI•…‘äñðÉÕ¹¹¥¹œñð€¡ÕÍ•5À€˜˜€…Ñ½½±9…µ”¥ôøñM•¹…É¥„µ¡¥‘‘•¸Í¥é”õìÄÝô€¼øð½‰ÕÑÑ½¸øð½‘¥Øø(€€€€€€€€€€€€€€ð½‘¥Øø4(€€€€€€€€€€€€ð½™½É´ø4(€€€€€€€€€€ð¼ø4(€€€€€€€€¤€è€ 4(€€€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰É•±…Ñ¥Ù”™±•àµ¥¸µ ´À™±•à´Ä™±•àµ½°¥Ñ•µÌµ•¹Ñ•È©ÕÍÑ¥™äµ•¹Ñ•È½Ù•É™±½Üµ¡¥‘‘•¸Áà´ØÁˆµmµ…à ÈáÁà±•¹Ø¡Í…™”µ…É•„µ¥¹Í•Ðµ‰½ÑÑ½´¤¥tÑ•áÐµ•¹Ñ•Èˆø4(€€€€€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”õíÉ•±…Ñ¥Ù”É¥Í¥é”´ÔÈÁ±…”µ¥Ñ•µÌµ•¹Ñ•È½Ù•É™±½Üµ¡¥‘‘•¸É½Õ¹‘•µ™Õ±°ÑÉ…¹Í¥Ñ¥½¸‘ÕÉ…Ñ¥½¸´ÔÀÀ€‘í±¥Ù•MÑ…Ñ”€ôôô€‰±¥ÍÑ•¹¥¹œˆ€ü€‰Í…±”´ÄÀÔÍ¡…‘½Üµ½µÁ½Í•Èˆ€è€ˆ‰õôøñ¥µœÍÉŒôˆ½…ÍÍ•ÑÌ½Á•ÉÍ½¹…°µ…¤µ™±½Ü¹Á¹œˆ…±Ðôˆˆ±…ÍÍ9…µ”ô‰…‰Í½±ÕÑ”¥¹Í•Ð´À µ™Õ±°Üµ™Õ±°Í…±”µlÄ¸át½‰©•Ðµ½Ù•Èˆ€¼øñÍÁ…¸±…ÍÍ9…µ”õíÉ•±…Ñ¥Ù”É¥Í¥é”´ÈÀÁ±…”µ¥Ñ•µÌµ•¹Ñ•ÈÉ½Õ¹‘•µ™Õ±°‰œµÍÕÉ™…”µ•±•Ù…Ñ•¼äÀÑ•áÐµ…•¹Ðµ¡½Ù•ÈÍ¡…‘½ÜµÍ½™Ð€‘í±¥Ù•MÑ…Ñ”€ôôô€‰±¥ÍÑ•¹¥¹œˆ€ü€‰…¹¥µ…Ñ”µÁÕ±Í”ˆ€è€ˆ‰õôøñ5¥ŒÈ…É¥„µ¡¥‘‘•¸Í¥é”õìÌÁôÍÑÉ½­•]¥‘Ñ õìÄ¸Ùô€¼øð½ÍÁ…¸øð½‘¥Øø4(€€€€€€€€€€€€ñ È±…ÍÍ9…µ”ô‰µÐ´àÑ•áÐµlÈáÁát™½¹Ðµµ•‘¥Õ´ÑÉ…­¥¹œµl´À¸ÀÌÕ•µtˆùí±¥Ù•MÑ…Ñ”€ôôô€‰±¥ÍÑ•¹¥¹œˆ€ü€‰'Še´±¥ÍÑ•¹¥¹œˆ€è±¥Ù•MÑ…Ñ”€ôôô€‰½¹¹•Ñ¥¹œˆ€ü€‰½¹¹•Ñ¥¹ŸŠ˜ˆ€è€‰Q…±¬¥ÐÑ¡É½Õ ‰ôð½ Èø4(€€€€€€€€€€€€ñÀ±…ÍÍ9…µ”õíµÐ´Ìµ…àµÜµµÑ•áÐµÍ´±•…‘¥¹œ´Ø€‘í±¥Ù•MÑ…Ñ”€ôôô€‰•ÉÉ½Èˆ€ü€‰Ñ•áÐµ‘…¹•Èˆ€è€‰Ñ•áÐµÑ•áÐµÍ•½¹‘…Éä‰õôùíÉ•…±Ñ¥µ”€˜˜€…É•…±Ñ¥µ”¹½¹™¥ÕÉ•€˜˜±¥Ù•MÑ…Ñ”€ôôô€‰¥‘±”ˆ€ü€‰AP1¥Ù”¹••‘Ì„Í•ÉÙ•ÈµÍ¥‘”I•…±Ñ¥µ”É•‘•¹Ñ¥…°‰•™½É”Ñ¡¥ÌÁ¡½¹”…¸ÍÑ…ÉÐ„Ù½¥”½¹Ù•ÉÍ…Ñ¥½¸¸ˆ€è±¥Ù•5•ÍÍ…•ôð½Àø4(€€€€€€€€€€€í±¥Ù•…ÁÑ¥½¸€˜˜€ñÀ±…ÍÍ9…µ”ô‰µÐ´Ôµ…àµÜµ±œÉ½Õ¹‘•µ…É‰œµÍÕÉ™…”¼ÜÔÁà´ÐÁä´ÌÑ•áÐµÍ´±•…‘¥¹œ´ØÑ•áÐµÑ•áÐµÁÉ¥µ…Éäˆùí±¥Ù•…ÁÑ¥½¹ôð½Àùô4(€€€€€€€€€€€í±¥Ù•M…Ù•]…É¹¥¹œ€˜˜€ñÀ±…ÍÍ9…µ”ô‰µÐ´Ìµ…àµÜµµÑ•áÐµáÌ±•…‘¥¹œ´ÔÑ•áÐµÝ…É¹¥¹œˆùí±¥Ù•M…Ù•]…É¹¥¹ôð½Àùô4(€€€€€€€€€€€í±¥Ù•A±…å‰…­	±½­•€˜˜€ñ‰ÕÑÑ½¸ÑåÁ”ô‰‰ÕÑÑ½¸ˆ±…ÍÍ9…µ”ô‰‰ÕÑÑ½¸µÍ•½¹‘…ÉäµÐ´Ðˆ½¹±¥¬õì ¤€ôøÙ½¥É•ÍÕµ•1¥Ù•Õ‘¥¼ ¥ôùI•ÍÕµ”…Õ‘¥¼ð½‰ÕÑÑ½¸ùô4(€€€€€€€€€€€€ñÀ±…ÍÍ9…µ”ô‰µÐ´ÐÑ•áÐµáÌÑ•áÐµÑ•áÐµÑ•ÉÑ¥…ÉäˆùíÉ•…±Ñ¥µ”ü¹µ½‘•°ñð€‰I•…±Ñ¥µ”µ½‘•°‰ôƒ
+Ü]•‰IQƒ
+ÜíÁÉ½©•Ñôð½Àø4(€€€€€€€€€€€€ñÀ±…ÍÍ9…µ”ô‰µÐ´Èµ…àµÜµµÑ•áÐµlÄÅÁát±•…‘¥¹œ´ÔÑ•áÐµÑ•áÐµÑ•ÉÑ¥…Éäˆù½µÁ±•Ñ•1¥Ù”ÑÉ…¹ÍÉ¥ÁÑÌÍÑ…ä¥¸Ñ¡¥Ì½¹Ù•ÉÍ…Ñ¥½¸…¹…¸É•…Ñ”¥ÑÌÍ¡½ÉÐÑ¥Ñ±”¸Q¡•ä…É”¹½Ð…‘‘•Ñ¼5•µ½Éä…ÕÑ½µ…Ñ¥…±±ä¸ð½Àø4(€€€€€€€€€€€í±¥Ù•MÑ…Ñ”€ôôô€‰±¥ÍÑ•¹¥¹œˆñð±¥Ù•MÑ…Ñ”€ôôô€‰½¹¹•Ñ¥¹œˆ€ü€ñ‰ÕÑÑ½¸½¹±¥¬õì ¤€ôøÍÑ½Á1¥Ù” ¥ô±…ÍÍ9…µ”ô‰µÐ´à¥¹±¥¹”µ™±•àÍ¥é”´ÄØ¥Ñ•µÌµ•¹Ñ•È©ÕÍÑ¥™äµ•¹Ñ•ÈÉ½Õ¹‘•µ™Õ±°‰œµÑ•áÐµÁÉ¥µ…ÉäÑ•áÐµÍÕÉ™…”µ•±•Ù…Ñ•Í¡…‘½Üµ½µÁ½Í•Èˆ…É¥„µ±…‰•°ô‰¹±¥Ù”½¹Ù•ÉÍ…Ñ¥½¸ˆøñMÅÕ…É”…É¥„µ¡¥‘‘•¸Í¥é”õìÈÅô™¥±°ô‰ÕÉÉ•¹Ñ½±½Èˆ€¼øð½‰ÕÑÑ½¸ø€èÉ•…±Ñ¥µ”€˜˜€…É•…±Ñ¥µ”¹½¹™¥ÕÉ•€ü€ñ1¥¹¬¡É•˜ôˆ½Í•ÑÑ¥¹Ìµ½‰¥±”µÍ•ÑÑ¥¹Ìˆ±…ÍÍ9…µ”ô‰µÐ´à¥¹±¥¹”µ™±•àµ¥¸µ ´ÄÐ¥Ñ•µÌµ•¹Ñ•È©ÕÍÑ¥™äµ•¹Ñ•È…À´ÈÉ½Õ¹‘•µ™Õ±°‰œµÑ•áÐµÁÉ¥µ…ÉäÁà´ÜÑ•áÐµÍ´™½¹Ðµµ•‘¥Õ´Ñ•áÐµÍÕÉ™…”µ•±•Ù…Ñ•Í¡…‘½Üµ½µÁ½Í•Èˆøñ]É•¹ …É¥„µ¡¥‘‘•¸Í¥é”õìÄáô€¼ù½¹™¥ÕÉ”AP1¥Ù”ð½1¥¹¬ø€è€ñ‰ÕÑÑ½¸½¹±¥¬õì ¤€ôøÙ½¥ÍÑ…ÉÑ1¥Ù” ¥ô±…ÍÍ9…µ”ô‰µÐ´à¥¹±¥¹”µ™±•àµ¥¸µ ´ÄÐ¥Ñ•µÌµ•¹Ñ•È©ÕÍÑ¥™äµ•¹Ñ•È…À´ÈÉ½Õ¹‘•µ™Õ±°‰œµÑ•áÐµÁÉ¥µ…ÉäÁà´ÜÑ•áÐµÍ´™½¹Ðµµ•‘¥Õ´Ñ•áÐµÍÕÉ™…”µ•±•Ù…Ñ•Í¡…‘½Üµ½µÁ½Í•Èˆ‘¥Í…‰±•õì…É•…±Ñ¥µ•ôøñ5¥ŒÈ…É¥„µ¡¥‘‘•¸Í¥é”õìÄáô€¼ùíÉ•…±Ñ¥µ”€ü€‰MÑ…ÉÐAP1¥Ù”ˆ€è€‰¡•­¥¹œAP1¥Ù—Š˜‰ôð½‰ÕÑÑ½¸ùô4(€€€€€€€€€€ð½‘¥Øø4(€€€€€€€€¥ô4(€€€€€€ð½Í•Ñ¥½¸ø4(4(€€€€€í¡¥ÍÑ½Éå=Á•¸€˜˜€ñ‘¥Ø±…ÍÍ9…µ”ô‰™¥á•¥¹Í•Ð´Àè´ÔÀˆøñ‰ÕÑÑ½¸±…ÍÍ9…µ”ô‰…‰Í½±ÕÑ”¥¹Í•Ð´À‰œµÑ•áÐµÁÉ¥µ…Éä¼ÈÀˆ½¹±¥¬õí±½Í•!¥ÍÑ½Éåô…É¥„µ±…‰•°ô‰±½Í”½¹Ù•ÉÍ…Ñ¥½¸¡¥ÍÑ½Éäˆ€¼øñ…Í¥‘”É•˜õí¡¥ÍÑ½Éå¥…±½I•™ôÉ½±”ô‰‘¥…±½œˆ…É¥„µµ½‘…°ô‰ÑÉÕ”ˆ…É¥„µ±…‰•°ô‰½¹Ù•ÉÍ…Ñ¥½¸¡¥ÍÑ½Éäˆ±…ÍÍ9…µ”ô‰…‰Í½±ÕÑ”¥¹Í•Ðµä´ÀÉ¥¡Ð´ÀÜµmµ¥¸ ÌÐÁÁà°äÁÙÜ¥t‰½É‘•Èµ°‰½É‘•Èµ±¥¹”‰œµÍÕÉ™…”µ•±•Ù…Ñ•À´ÐÍ¡…‘½Üµ½µÁ½Í•Èˆ½¹-•å½Ý¸õí¡…¹‘±•!¥ÍÑ½Éå-•åÍôøñ‘¥Ø±…ÍÍ9…µ”ô‰µˆ´Ð™±•à¥Ñ•µÌµ•¹Ñ•È©ÕÍÑ¥™äµ‰•ÑÝ••¸ˆøñ È±…ÍÍ9…µ”ô‰Ñ•áÐµ±œ™½¹Ðµµ•‘¥Õ´ˆù½¹Ù•ÉÍ…Ñ¥½¹Ìð½ Èøñ‰ÕÑÑ½¸±…ÍÍ9…µ”ô‰¥½¸µ‰ÕÑÑ½¸ˆ½¹±¥¬õí±½Í•!¥ÍÑ½Éåô…É¥„µ±…‰•°ô‰±½Í”½¹Ù•ÉÍ…Ñ¥½¸¡¥ÍÑ½Éäˆøñ`…É¥„µ¡¥‘‘•¸Í¥é”õìÈÁô€¼øð½‰ÕÑÑ½¸øð½‘¥Øùí¡¥ÍÑ½Éåôð½…Í¥‘”øð½‘¥Øùô4(4(€€€€€íµ•µ½ÉåQ…É•Ð€˜˜€ 4(€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰™¥á•¥¹Í•Ð´ÀèµlØÁt™±•à¥Ñ•µÌµ•¹©ÕÍÑ¥™äµ•¹Ñ•Èµé¥Ñ•µÌµ•¹Ñ•ÈµéÀ´Øˆø4(€€€€€€€€€€ñ‰ÕÑÑ½¸±…ÍÍ9…µ”ô‰…‰Í½±ÕÑ”¥¹Í•Ð´À‰œµÑ•áÐµÁÉ¥µ…Éä¼ÈÔˆ½¹±¥¬õí±½Í•5•µ½Éå¥…±½ô…É¥„µ±…‰•°ô‰±½Í”Í…Ù”Ñ¼µ•µ½Éäˆ€¼ø4(€€€€€€€€€€ñÍ•Ñ¥½¸É•˜õíµ•µ½Éå¥…±½I•™ôÉ½±”ô‰‘¥…±½œˆ…É¥„µµ½‘…°ô‰ÑÉÕ”ˆ…É¥„µ±…‰•±±•‘‰äô‰Í…Ù”µµ•µ½ÉäµÑ¥Ñ±”ˆ±…ÍÍ9…µ”ô‰É•±…Ñ¥Ù”Üµ™Õ±°É½Õ¹‘•µÐµlÈáÁát‰½É‘•È‰½É‘•Èµ±¥¹”‰œµÍÕÉ™…”µ•±•Ù…Ñ•Áà´ÔÁˆµmµ…à ÈÑÁà±•¹Ø¡Í…™”µ…É•„µ¥¹Í•Ðµ‰½ÑÑ½´¤¥tÁÐ´ÐÍ¡…‘½Üµ½µÁ½Í•Èµéµ…àµÜµ±œµéÉ½Õ¹‘•µ…ÉµéÀ´Øˆ½¹-•å½Ý¸õí¡…¹‘±•5•µ½Éå¥…±½-•å½Ý¹ôø4(€€€€€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰µàµ…ÕÑ¼µˆ´Ì ´ÄÜ´ÄÀÉ½Õ¹‘•µ™Õ±°‰œµ±¥¹”µÍÑÉ½¹œµé¡¥‘‘•¸ˆ…É¥„µ¡¥‘‘•¸€¼ø4(€€€€€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰™±•à¥Ñ•µÌµÍÑ…ÉÐ©ÕÍÑ¥™äµ‰•ÑÝ••¸…À´Ðˆø4(€€€€€€€€€€€€€€ñ‘¥ØøñÀ±…ÍÍ9…µ”ô‰•å•‰É½Üˆù1½¹œµÑ•É´µ•µ½Éäð½Àøñ È¥ô‰Í…Ù”µµ•µ½ÉäµÑ¥Ñ±”ˆ±…ÍÍ9…µ”ô‰µÐ´ÄÑ•áÐµá°™½¹Ðµµ•‘¥Õ´ÑÉ…­¥¹œµl´À¸ÀÉ•µtˆùM…Ù”Ý¡…Ðµ…ÑÑ•ÉÌð½ Èøð½‘¥Øø4(€€€€€€€€€€€€€€ñ‰ÕÑÑ½¸ÑåÁ”ô‰‰ÕÑÑ½¸ˆ±…ÍÍ9…µ”ô‰¥½¸µ‰ÕÑÑ½¸€µµÈ´È€µµÐ´Èˆ½¹±¥¬õí±½Í•5•µ½Éå¥…±½ô…É¥„µ±…‰•°ô‰±½Í”Í…Ù”Ñ¼µ•µ½Éäˆøñ`…É¥„µ¡¥‘‘•¸Í¥é”õìÈÁô€¼øð½‰ÕÑÑ½¸ø4(€€€€€€€€€€€€ð½‘¥Øø4(€€€€€€€€€€€€ñÀ±…ÍÍ9…µ”ô‰µÐ´ÌÑ•áÐµÍ´±•…‘¥¹œ´ØÑ•áÐµÑ•áÐµÍ•½¹‘…Éäˆù=¹±äÑ¡¥ÌÉ•Ù¥•Ý•¹½Ñ”Ý¥±°‰”Í…Ù•¸Q¡”É•ÍÐ½˜Ñ¡”½¹Ù•ÉÍ…Ñ¥½¸ÍÑ…åÌ½ÕÐ½˜±½¹œµÑ•É´5•µ½Éä¸ð½Àø4(€€€€€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰ÍÉ½±±‰…ÈµÍÕ‰Ñ±”µÐ´Ô™±•à…À´È½Ù•É™±½Üµàµ…ÕÑ¼Áˆ´ÄˆÉ½±”ô‰É½ÕÀˆ…É¥„µ±…‰•°ô‰5•µ½ÉäÑåÁ”ˆø4(€€€€€€€€€€€€€ì¡l‰™…Ðˆ°€‰ÁÉ•™•É•¹”ˆ°€‰ÉÕ±”ˆ°€‰ÁÉ½©•Ð‰t…Ì5•µ½Éå-¥¹‘mt¤¹µ…À ¡¥Ñ•´¤€ôø€ñ‰ÕÑÑ½¸­•äõí¥Ñ•µôÑåÁ”ô‰‰ÕÑÑ½¸ˆ±…ÍÍ9…µ”õí¡¥Àµ¥¸µ ´ÄÄÍ¡É¥¹¬´À…Á¥Ñ…±¥é”€‘íµ•µ½Éå-¥¹€ôôô¥Ñ•´€ü€‰‰œµ…•¹ÐµÍ½™ÐÑ•áÐµ…•¹Ðµ¡½Ù•Èˆ€è€ˆ‰õô…É¥„µÁÉ•ÍÍ•õíµ•µ½Éå-¥¹€ôôô¥Ñ•µô½¹±¥¬õì ¤€ôøÍ•Ñ5•µ½Éå-¥¹¡¥Ñ•´¥ôùí¥Ñ•µôð½‰ÕÑÑ½¸ø¥ô4(€€€€€€€€€€€€ð½‘¥Øø4(€€€€€€€€€€€€ñ±…‰•°±…ÍÍ9…µ”ô‰µÐ´Ð‰±½¬Ñ•áÐµáÌ™½¹Ðµµ•‘¥Õ´Ñ•áÐµÑ•áÐµÍ•½¹‘…Éäˆù5•µ½Éä¹½Ñ”ñÑ•áÑ…É•„±…ÍÍ9…µ”ô‰Ñ•áÑ…É•„µ™¥•±µÐ´Èµ¥¸µ ´ÌØÜµ™Õ±°É•Í¥é”µäÑ•áÐµlÄÕÁát±•…‘¥¹œ´ØˆÙ…±Õ”õíµ•µ½ÉåQ•áÑô½¹¡…¹”õì¡•Ù•¹Ð¤€ôøìÍ•Ñ5•µ½ÉåQ•áÐ¡•Ù•¹Ð¹Ñ…É•Ð¹Ù…±Õ”¤ì¥˜€¡µ•µ½ÉåMÑ…Ñ”€„ôô€‰¥‘±”ˆ¤Í•Ñ5•µ½ÉåMÑ…Ñ” ‰¥‘±”ˆ¤ìõô€¼øð½±…‰•°ø4(€€€€€€€€€€€€ñÀ±…ÍÍ9…µ”ô‰µÐ´ÈÑ•áÐµáÌÑ•áÐµÑ•áÐµÑ•ÉÑ¥…ÉäˆùAÉ½©•ÐèíÁÉ½©•ÑÌ¹™¥¹ ¡¥Ñ•´¤€ôø¥Ñ•´¹¥€ôôôÁÉ½©•Ð¤ü¹¹…µ”ñðÁÉ½©•Ñôƒ
+ÜM½ÕÉ”èÑ¡¥Ì½¹Ù•ÉÍ…Ñ¥½¸ð½Àø4(€€€€€€€€€€€íµ•µ½ÉåMÑ…Ñ”€ôôô€‰•ÉÉ½Èˆ€˜˜€ñÀ±…ÍÍ9…µ”ô‰µÐ´ÌÑ•áÐµÍ´Ñ•áÐµ‘…¹•ÈˆÉ½±”ô‰…±•ÉÐˆùQ¡¥Ì¹½Ñ”½Õ±¹½Ð‰”Í…Ù•¸¡•¬Ñ¡”±½…°A$…¹ÑÉä……¥¸¸ð½Àùô4(€€€€€€€€€€€€ñÀ±…ÍÍ9…µ”ô‰ÍÈµ½¹±äˆÉ½±”ô‰ÍÑ…ÑÕÌˆ…É¥„µ±¥Ù”ô‰Á½±¥Ñ”ˆùíµ•µ½ÉåMÑ…Ñ”€ôôô€‰Í…Ù•ˆ€ü€‰5•µ½ÉäÍ…Ù•¸ˆ€èµ•µ½ÉåMÑ…Ñ”€ôôô€‰Í…Ù¥¹œˆ€ü€‰M…Ù¥¹œµ•µ½Éä¸ˆ€è€ˆ‰ôð½Àø4(€€€€€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰µÐ´Ô™±•à…À´Ìˆø4(€€€€€€€€€€€€€€ñ‰ÕÑÑ½¸ÑåÁ”ô‰‰ÕÑÑ½¸ˆ±…ÍÍ9…µ”ô‰‰ÕÑÑ½¸µÍ•½¹‘…Éä™±•à´Äˆ½¹±¥¬õí±½Í•5•µ½Éå¥…±½ôù…¹•°ð½‰ÕÑÑ½¸ø4(€€€€€€€€€€€€€€ñ‰ÕÑÑ½¸ÑåÁ”ô‰‰ÕÑÑ½¸ˆ±…ÍÍ9…µ”ô‰‰ÕÑÑ½¸µÁÉ¥µ…Éä™±•à´Äˆ½¹±¥¬õì ¤€ôøÙ½¥Í…Ù•5•µ½Éä ¥ô‘¥Í…‰±•õì…µ•µ½ÉåQ•áÐ¹ÑÉ¥´ ¤ñðµ•µ½ÉåMÑ…Ñ”€ôôô€‰Í…Ù¥¹œˆñðµ•µ½ÉåMÑ…Ñ”€ôôô€‰Í…Ù•‰ôùíµ•µ½ÉåMÑ…Ñ”€ôôô€‰Í…Ù•ˆ€ü€ðøñ¡•¬…É¥„µ¡¥‘‘•¸Í¥é”õìÄÝô€¼ùM…Ù•ð¼ø€èµ•µ½ÉåMÑ…Ñ”€ôôô€‰Í…Ù¥¹œˆ€ü€‰M…Ù¥¹ŸŠ˜ˆ€è€‰M…Ù”µ•µ½Éä‰ôð½‰ÕÑÑ½¸ø4(€€€€€€€€€€€€ð½‘¥Øø4(€€€€€€€€€€ð½Í•Ñ¥½¸ø4(€€€€€€€€ð½‘¥Øø4(€€€€€€¥ô4(€€€€ð½‘¥Øø4(€€¤ì4)ô4(

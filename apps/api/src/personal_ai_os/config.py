@@ -6,6 +6,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from urllib.parse import urlsplit, urlunsplit
 
+from personal_ai_os_core import DeploymentMode, PlanId
+
 
 DEFAULT_REALTIME_ENDPOINT = "https://api.openai.com/v1/realtime/calls"
 
@@ -82,6 +84,11 @@ class Settings:
     access_password: str | None = field(default=None, repr=False)
     session_secret: str | None = field(default=None, repr=False)
     access_session_hours: int = 168
+    deployment_mode: DeploymentMode = DeploymentMode.COMMUNITY
+    plan: PlanId = PlanId.COMMUNITY
+    tenant_id: str = "local"
+    actor_id: str = "local-owner"
+    cloud_accounts_ready: bool = False
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -101,6 +108,23 @@ class Settings:
             raise RuntimeError(
                 "PERSONAL_AI_OS_SESSION_SECRET must contain at least 32 characters when access protection is enabled"
             )
+        deployment_mode = DeploymentMode(
+            os.getenv("PERSONAL_AI_OS_DEPLOYMENT_MODE", DeploymentMode.COMMUNITY.value)
+        )
+        default_plan = (
+            PlanId.COMMUNITY.value
+            if deployment_mode is DeploymentMode.COMMUNITY
+            else PlanId.CLOUD_FREE.value
+        )
+        plan = PlanId(os.getenv("PERSONAL_AI_OS_PLAN", default_plan))
+        tenant_id = os.getenv("PERSONAL_AI_OS_TENANT_ID", "local").strip()
+        actor_id = os.getenv("PERSONAL_AI_OS_ACTOR_ID", "local-owner").strip()
+        if not tenant_id or not actor_id:
+            raise RuntimeError("Tenant and actor identifiers must not be blank")
+        if deployment_mode is DeploymentMode.COMMUNITY and plan is not PlanId.COMMUNITY:
+            raise RuntimeError("Community deployment must use the community plan")
+        if deployment_mode is DeploymentMode.CLOUD and plan is PlanId.COMMUNITY:
+            raise RuntimeError("Cloud deployment must use a cloud plan")
         return cls(
             data_dir=data_dir,
             cors_origins=_csv(os.getenv("PERSONAL_AI_OS_CORS_ORIGINS", "http://localhost:3000")),
@@ -142,7 +166,17 @@ class Settings:
             access_session_hours=max(
                 1, min(24 * 30, int(os.getenv("PERSONAL_AI_OS_ACCESS_SESSION_HOURS", "168")))
             ),
+            deployment_mode=deployment_mode,
+            plan=plan,
+            tenant_id=tenant_id,
+            actor_id=actor_id,
         )
+
+    def validate_for_startup(self) -> None:
+        if self.deployment_mode is DeploymentMode.CLOUD and not self.cloud_accounts_ready:
+            raise RuntimeError(
+                "Cloud mode is not available until the account identity service is configured"
+            )
 
     @property
     def database_path(self) -> Path:

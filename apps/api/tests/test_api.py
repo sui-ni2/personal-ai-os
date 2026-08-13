@@ -7,6 +7,7 @@ from typing import Any
 
 import pytest
 import httpx
+from personal_ai_os_core import Capability, DeploymentMode, PlanId, build_product_profile
 from fastapi.testclient import TestClient
 from personal_ai_os_mcp import EchoMCPServer
 from personal_ai_os_providers import ProviderError, ProviderStreamInterrupted
@@ -79,15 +80,41 @@ def _sse_data(body: str) -> list[dict[str, object]]:
     return [json.loads(line[6:]) for line in body.splitlines() if line.startswith("data: ")]
 
 
-def test_health_and_secret_redaction(client: TestClient) -> None:
+def test_health_and_secret_redaction(client: TestClient, runtime) -> None:
     assert client.get("/health").json() == {"status": "ok", "version": "0.1.0"}
     settings = client.get("/api/settings").json()
     assert settings["secrets"] == {"storage": "environment", "values_exposed": False}
     assert "api_key" not in json.dumps(settings).lower()
+    product = client.get("/api/product")
+    assert product.status_code == 200
+    assert product.json()["deployment_mode"] == "community"
+    assert product.json()["plan"] == "community"
+    assert "mcp" in product.json()["capabilities"]
+    assert "actor_id" not in product.json()
+    with runtime.database.connect() as connection:
+        entitlement_rows = connection.execute(
+            "SELECT capability, enabled FROM tenant_entitlements WHERE tenant_id = ?",
+            (runtime.settings.tenant_id,),
+        ).fetchall()
+    assert len(entitlement_rows) == len(Capability)
+    assert all(row["enabled"] in {0, 1} for row in entitlement_rows)
     switched = client.patch("/api/settings", json={"default_provider": "anthropic"})
     assert switched.status_code == 200
     assert switched.json()["default_model"] == "anthropic-test"
     assert client.patch("/api/settings", json={"default_model": "not-allowlisted"}).status_code == 400
+
+
+def test_plan_capability_is_enforced_server_side(client: TestClient, runtime) -> None:
+    runtime.product = build_product_profile(
+        DeploymentMode.CLOUD,
+        PlanId.CLOUD_FREE,
+        "cloud-tenant",
+        "cloud-owner",
+        cloud_accounts_ready=True,
+    )
+    denied = client.get("/api/mcp/connectors")
+    assert denied.status_code == 403
+    assert denied.json()["detail"].endswith("mcp")
 
 
 def test_default_provider_rejects_an_empty_model_list(
@@ -354,56 +381,11 @@ def test_database_migrations_are_current(client: TestClient, runtime) -> None:
                 "SELECT version FROM schema_migrations ORDER BY version"
             )
         ]
-    assert versions == [1, 2, 3]
+    assert versions == [1, 2, 3, 4]
 
 
 def test_memory_and_repository_persist(client: TestClient) -> None:
-    response = client.post(
-        "/api/memory",
-        json={
-            "type": "preference",
-            "text": "Use concise status updates.",
-            "source": "user",
-            "confidence": 1,
-            "project_id": "general",
-        },
-    )
-    assert response.status_code == 201
-    memory_id = response.json()["id"]
-    assert client.get("/api/memory?status=active").json()["items"][0]["id"] == memory_id
-    timeline = client.get("/api/repository/timeline").json()["items"]
-    assert timeline[0]["event_type"] == "memory.created"
-    assert client.patch(f"/api/memory/{memory_id}", json={"status": "inactive"}).status_code == 200
-
-
-def test_mcp_reference_connector(client: TestClient) -> None:
-    tools = client.get("/api/mcp/tools?project_id=general").json()["items"]
-    assert [tool["name"] for tool in tools] == ["system.echo"]
-    response = client.post(
-        "/api/mcp/invoke",
-        json={"project_id": "general", "tool_name": "system.echo", "arguments": {"message": "verified"}},
-    )
-    assert response.status_code == 200
-    assert response.json()["result"]["content"][0]["text"] == "verified"
-
-
-def test_external_mcp_http_and_stdio_connectors(client: TestClient) -> None:
-    with _HTTPMCPServer() as server:
-        created = client.post(
-            "/api/mcp/connectors",
-            json={
-                "name": "HTTP test",
-                "transport": "http",
-                "endpoint": server.endpoint,
-                "enabled": True,
-                "allowed_tools": ["external.echo"],
-                "timeout_seconds": 2,
-            },
-        )
-        assert created.status_code == 201
-        http_id = created.json()["id"]
-        discovered = client.post(f"/api/mcp/connectors/{http_id}/discover")
-        assert discovered.status_code == 200
+    respoÎ]m¢Gß≤⁄Óù∆≠y”_code == 200
         assert discovered.json()["tools"][0]["name"] == "external.echo"
         invoked = client.post(
             "/api/mcp/invoke",

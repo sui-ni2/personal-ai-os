@@ -6,7 +6,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "Personal AI OS",
     short_name: "AI OS",
-    description: "A provider-neutral personal AI workbench",
+    description: "A user-controlled AI workspace for lasting projects and reusable outcomes",
     id: "/",
     start_url: "/",
     scope: "/",
