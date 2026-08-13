@@ -385,7 +385,52 @@ def test_database_migrations_are_current(client: TestClient, runtime) -> None:
 
 
 def test_memory_and_repository_persist(client: TestClient) -> None:
-    respoë]m¢G§²ÚîÆ­yÓ_code == 200
+    response = client.post(
+        "/api/memory",
+        json={
+            "type": "preference",
+            "text": "Use concise status updates.",
+            "source": "user",
+            "confidence": 1,
+            "project_id": "general",
+        },
+    )
+    assert response.status_code == 201
+    memory_id = response.json()["id"]
+    assert client.get("/api/memory?status=active").json()["items"][0]["id"] == memory_id
+    timeline = client.get("/api/repository/timeline").json()["items"]
+    assert timeline[0]["event_type"] == "memory.created"
+    assert client.patch(f"/api/memory/{memory_id}", json={"status": "inactive"}).status_code == 200
+
+
+def test_mcp_reference_connector(client: TestClient) -> None:
+    tools = client.get("/api/mcp/tools?project_id=general").json()["items"]
+    assert [tool["name"] for tool in tools] == ["system.echo"]
+    response = client.post(
+        "/api/mcp/invoke",
+        json={"project_id": "general", "tool_name": "system.echo", "arguments": {"message": "verified"}},
+    )
+    assert response.status_code == 200
+    assert response.json()["result"]["content"][0]["text"] == "verified"
+
+
+def test_external_mcp_http_and_stdio_connectors(client: TestClient) -> None:
+    with _HTTPMCPServer() as server:
+        created = client.post(
+            "/api/mcp/connectors",
+            json={
+                "name": "HTTP test",
+                "transport": "http",
+                "endpoint": server.endpoint,
+                "enabled": True,
+                "allowed_tools": ["external.echo"],
+                "timeout_seconds": 2,
+            },
+        )
+        assert created.status_code == 201
+        http_id = created.json()["id"]
+        discovered = client.post(f"/api/mcp/connectors/{http_id}/discover")
+        assert discovered.status_code == 200
         assert discovered.json()["tools"][0]["name"] == "external.echo"
         invoked = client.post(
             "/api/mcp/invoke",
