@@ -8,7 +8,7 @@ from typing import Annotated
 import httpx
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import Response, StreamingResponse
-from personal_ai_os_core import Message, MessageRole
+from personal_ai_os_core import Capability, Message, MessageRole
 from personal_ai_os_providers import ProviderError, ProviderRateLimited
 
 from .chat import conversation_title, stream_chat
@@ -31,6 +31,26 @@ router = APIRouter(prefix="/api")
 
 def runtime_from(request: Request) -> Runtime:
     return request.app.state.runtime
+
+
+def require_capability(runtime: Runtime, capability: Capability) -> None:
+    if not runtime.product.allows(capability):
+        raise HTTPException(
+            status_code=403,
+            detail=f"Capability is not available for the current plan: {capability.value}",
+        )
+
+
+def public_product(runtime: Runtime) -> dict[str, object]:
+    return runtime.product.model_dump(
+        mode="json",
+        exclude={"actor_id", "tenant_id"},
+    )
+
+
+@router.get("/product")
+def product(request: Request) -> dict[str, object]:
+    return public_product(runtime_from(request))
 
 
 @router.get("/providers")
@@ -398,6 +418,7 @@ async def list_mcp_tools(
     connector_id: str | None = None,
 ) -> dict[str, object]:
     runtime = runtime_from(request)
+    require_capability(runtime, Capability.MCP)
     try:
         if connector_id:
             items = await runtime.external_mcp.discover(connector_id)
@@ -413,6 +434,7 @@ async def list_mcp_tools(
 @router.post("/mcp/invoke")
 async def invoke_mcp(payload: MCPInvokeRequest, request: Request) -> dict[str, object]:
     runtime = runtime_from(request)
+    require_capability(runtime, Capability.MCP)
     try:
         if payload.connector_id:
             result = await runtime.external_mcp.invoke(
@@ -436,6 +458,7 @@ async def invoke_mcp(payload: MCPInvokeRequest, request: Request) -> dict[str, o
 
 @router.get("/mcp/connectors")
 def list_mcp_connectors(request: Request) -> dict[str, object]:
+    require_capability(runtime_from(request), Capability.MCP)
     return {
         "items": [
             item.model_dump(mode="json") for item in runtime_from(request).external_mcp.list()
@@ -447,6 +470,7 @@ def list_mcp_connectors(request: Request) -> dict[str, object]:
 def create_mcp_connector(
     payload: MCPConnectorCreate, request: Request
 ) -> dict[str, object]:
+    require_capability(runtime_from(request), Capability.MCP)
     try:
         connector = runtime_from(request).external_mcp.create(payload.model_dump())
     except RuntimeError as exc:
@@ -458,6 +482,7 @@ def create_mcp_connector(
 def update_mcp_connector(
     connector_id: str, payload: MCPConnectorUpdate, request: Request
 ) -> dict[str, object]:
+    require_capability(runtime_from(request), Capability.MCP)
     try:
         connector = runtime_from(request).external_mcp.update(
             connector_id, payload.model_dump(exclude_unset=True)
@@ -472,6 +497,7 @@ def update_mcp_connector(
 @router.post("/mcp/connectors/{connector_id}/discover")
 async def discover_mcp_connector(connector_id: str, request: Request) -> dict[str, object]:
     runtime = runtime_from(request)
+    require_capability(runtime, Capability.MCP)
     try:
         tools = await runtime.external_mcp.discover(connector_id)
         connector = runtime.external_mcp.get(connector_id)
@@ -502,6 +528,7 @@ def get_settings(request: Request) -> dict[str, object]:
             "stdio_command_aliases": runtime.external_mcp.registry.stdio_command_aliases,
         },
         "secrets": {"storage": "environment", "values_exposed": False},
+        "product": public_product(runtime),
     }
 
 

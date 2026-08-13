@@ -251,7 +251,7 @@ export function ChatWorkspace() {
           const delta = String(item.payload.delta || "");
           setMessages((current) => current.map((message, index) => index === current.length - 1 ? { ...message, content: message.content + delta } : message));
         }
-        if (item.type === "error") setMessages((current) => current.map((message, index) => index === current.length - 1 ? { role: "system", content: "The request could not be completed. Check your provider or tool settings, then try again." } : message));
+        if (item.type === "error") setMessages((current) => current.map((message, index) => index === current.length - 1 ? { role: "system", content: "The request could not be completed. Check your AI service or tool settings, then try again." } : message));
         if (item.type === "done" && typeof item.payload.conversation_id === "string") {
           setConversationId(item.payload.conversation_id);
           window.localStorage.setItem(ACTIVE_CONVERSATION_KEY, item.payload.conversation_id);
@@ -568,7 +568,7 @@ export function ChatWorkspace() {
               {providers.length > 0 && !providerReady && <div className="mx-auto mb-2 flex max-w-[780px] items-center justify-between gap-3 rounded-control bg-warning/10 px-3 py-2 text-xs text-warning"><span>{selectedProvider?.id === "anthropic" ? "Anthropic" : "OpenAI"} needs a server-side credential before messages can be sent.</span><Link href="/settings#models-settings" className="shrink-0 font-medium underline underline-offset-2">Open Settings</Link></div>}
               <div className="mx-auto max-w-[780px] rounded-[22px] border border-line-strong bg-surface-elevated p-2 shadow-composer focus-within:border-accent">
                 <textarea className="scrollbar-subtle max-h-40 min-h-[48px] w-full resize-none bg-transparent px-2 py-2 text-[15px] leading-6 outline-none placeholder:text-text-tertiary" placeholder="Ask anything…" aria-label="Message" value={input} rows={1} onChange={(event) => setInput(event.target.value)} />
-                <div className="flex items-center gap-1"><button type="button" className="icon-button" disabled title="Attachments are planned" aria-label="Attach a file (planned)"><Paperclip aria-hidden size={18} /></button><button type="button" className={`icon-button ${useMcp ? "bg-accent-soft text-accent" : ""}`} onClick={() => setUseMcp((current) => !current)} aria-pressed={useMcp} aria-label="Use an MCP tool"><Wrench aria-hidden size={18} /></button><button className="button-primary ml-auto size-10 min-h-10 px-0" aria-label={running ? "Sending message" : "Send message"} disabled={!input.trim() || !model || !providerReady || running || (useMcp && !toolName)}><Send aria-hidden size={17} /></button></div>
+                <div className="flex items-center gap-1"><button type="button" className="icon-button" disabled title="Attachments are planned" aria-label="Attach a file (planned)"><Paperclip aria-hidden size={18} /></button><button type="button" className={`icon-button ${useMcp ? "bg-accent-soft text-accent" : ""}`} onClick={() => setUseMcp((current) => !current)} aria-pressed={useMcp} aria-label="Use a tool"><Wrench aria-hidden size={18} /></button><button className="button-primary ml-auto size-10 min-h-10 px-0" aria-label={running ? "Sending message" : "Send message"} disabled={!input.trim() || !model || !providerReady || running || (useMcp && !toolName)}><Send aria-hidden size={17} /></button></div>
               </div>
             </form>
           </>

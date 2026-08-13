@@ -7,7 +7,7 @@ from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
-from personal_ai_os_core import Message
+from personal_ai_os_core import Message, build_product_profile
 from personal_ai_os_mcp import ConnectorRegistry, EchoMCPServer, MCPGateway
 from personal_ai_os_projects import P5Project, create_project_registry
 from personal_ai_os_providers import ProviderRegistry, ProviderTool, ProviderToolCall
@@ -78,7 +78,12 @@ def runtime_factory(tmp_path: Path):
             },
         )
         projects = create_project_registry(data_dir=tmp_path)
-        database = Database(settings.database_path)
+        database = Database(
+            settings.database_path,
+            tenant_id=settings.tenant_id,
+            actor_id=settings.actor_id,
+            deployment_mode=settings.deployment_mode.value,
+        )
         providers = ProviderRegistry(
             [
                 FakeProvider("openai", ("openai-test",)),
@@ -95,6 +100,12 @@ def runtime_factory(tmp_path: Path):
             mcp=MCPGateway(projects, [EchoMCPServer(), P5MCPServer(p5_project)]),
             external_mcp=ExternalMCPService(
                 database, projects, ConnectorRegistry(settings.mcp_stdio_commands)
+            ),
+            product=build_product_profile(
+                settings.deployment_mode,
+                settings.plan,
+                settings.tenant_id,
+                settings.actor_id,
             ),
         )
 

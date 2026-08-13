@@ -26,7 +26,7 @@ function actionLabel(item: SseEvent) {
 }
 
 function actionSummary(item: SseEvent) {
-  if (item.type === "error") return "Check provider or tool settings, then try again.";
+  if (item.type === "error") return "Check AI service or tool settings, then try again.";
   if (typeof item.duration_ms === "number") return `${item.duration_ms} ms`;
   if (item.status === "running" || item.status === "started") return "In progress";
   return item.status === "succeeded" ? "Completed" : "Recorded";
@@ -52,7 +52,7 @@ export function ActivityPanel({ trace }: { trace: SseEvent[] }) {
       </summary>
       <div className="mx-auto max-w-[780px] px-4 pb-5 sm:px-6">
         {actions.length === 0 ? (
-          <p className="rounded-control bg-surface-subtle/65 px-4 py-3 text-sm leading-6 text-text-secondary">Model, tool, MCP, retry, error, and completion events will appear here.</p>
+          <p className="rounded-control bg-surface-subtle/65 px-4 py-3 text-sm leading-6 text-text-secondary">AI service, tool, retry, error, and completion events will appear here.</p>
         ) : (
           <ol className="space-y-2" aria-label="Execution activity">
             {actions.map((item) => {

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from personal_ai_os_core import ProjectRegistry
+from personal_ai_os_core import ProductProfile, ProjectRegistry, build_product_profile
 from personal_ai_os_mcp import ConnectorRegistry, EchoMCPServer, MCPGateway
 from personal_ai_os_projects import create_project_registry
 from personal_ai_os_projects import P5Project
@@ -22,9 +22,18 @@ class Runtime:
     projects: ProjectRegistry
     mcp: MCPGateway
     external_mcp: ExternalMCPService
+    product: ProductProfile
 
 
 def create_runtime(settings: Settings) -> Runtime:
+    settings.validate_for_startup()
+    product = build_product_profile(
+        settings.deployment_mode,
+        settings.plan,
+        settings.tenant_id,
+        settings.actor_id,
+        cloud_accounts_ready=settings.cloud_accounts_ready,
+    )
     projects = create_project_registry(data_dir=settings.data_dir)
     providers = ProviderRegistry(
         [
@@ -44,7 +53,12 @@ def create_runtime(settings: Settings) -> Runtime:
             ),
         ]
     )
-    database = Database(settings.database_path)
+    database = Database(
+        settings.database_path,
+        tenant_id=settings.tenant_id,
+        actor_id=settings.actor_id,
+        deployment_mode=settings.deployment_mode.value,
+    )
     connector_registry = ConnectorRegistry(settings.mcp_stdio_commands)
     p5_project = projects.get("p5")
     if not isinstance(p5_project, P5Project):
@@ -56,4 +70,5 @@ def create_runtime(settings: Settings) -> Runtime:
         projects=projects,
         mcp=MCPGateway(projects=projects, servers=[EchoMCPServer(), P5MCPServer(p5_project)]),
         external_mcp=ExternalMCPService(database, projects, connector_registry),
+        product=product,
     )
