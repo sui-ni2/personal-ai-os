@@ -41,10 +41,16 @@ def require_capability(runtime: Runtime, capability: Capability) -> None:
         )
 
 
+def public_product(runtime: Runtime) -> dict[str, object]:
+    return runtime.product.model_dump(
+        mode="json",
+        exclude={"actor_id", "tenant_id"},
+    )
+
+
 @router.get("/product")
 def product(request: Request) -> dict[str, object]:
-    profile = runtime_from(request).product
-    return profile.model_dump(mode="json", exclude={"actor_id"})
+    return public_product(runtime_from(request))
 
 
 @router.get("/providers")
@@ -522,7 +528,7 @@ def get_settings(request: Request) -> dict[str, object]:
             "stdio_command_aliases": runtime.external_mcp.registry.stdio_command_aliases,
         },
         "secrets": {"storage": "environment", "values_exposed": False},
-        "product": runtime.product.model_dump(mode="json", exclude={"actor_id"}),
+        "product": public_product(runtime),
     }
 
 

@@ -91,6 +91,7 @@ def test_health_and_secret_redaction(client: TestClient, runtime) -> None:
     assert product.json()["plan"] == "community"
     assert "mcp" in product.json()["capabilities"]
     assert "actor_id" not in product.json()
+    assert "tenant_id" not in product.json()
     with runtime.database.connect() as connection:
         entitlement_rows = connection.execute(
             "SELECT capability, enabled FROM tenant_entitlements WHERE tenant_id = ?",
