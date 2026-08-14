@@ -6,6 +6,8 @@ from datetime import timedelta, timezone
 from fastapi.testclient import TestClient
 from personal_ai_os_projects import P5Project
 
+from personal_ai_os.project_state_mcp import PROJECT_STATE_TOOL_NAMES
+
 
 BEIJING = timezone(timedelta(hours=8), "Asia/Shanghai")
 
@@ -168,9 +170,11 @@ def test_p5_lock_is_immutable_and_mcp_tools_are_project_scoped(client: TestClien
         "p5.candidate.lookup",
         "p5.daily.run",
         "p5.audit",
+        *PROJECT_STATE_TOOL_NAMES,
     }
     general_tools = client.get("/api/mcp/tools?project_id=general").json()["items"]
     assert all(not tool["name"].startswith("p5.") for tool in general_tools)
+    assert PROJECT_STATE_TOOL_NAMES.isdisjoint({tool["name"] for tool in general_tools})
     blocked = client.post(
         "/api/mcp/invoke",
         json={

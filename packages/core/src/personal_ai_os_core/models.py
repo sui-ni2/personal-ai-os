@@ -23,6 +23,12 @@ class MemoryStatus(StrEnum):
     INACTIVE = "inactive"
 
 
+class ProjectStateStatus(StrEnum):
+    ACTIVE = "active"
+    LOCKED = "locked"
+    SUPERSEDED = "superseded"
+
+
 class Conversation(BaseModel):
     id: str
     title: str
@@ -51,6 +57,19 @@ class MemoryRecord(BaseModel):
     valid_from: datetime | None = None
     status: MemoryStatus = MemoryStatus.ACTIVE
     project_id: str | None = None
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
+
+
+class ProjectStateRecord(BaseModel):
+    id: str
+    project_id: str
+    namespace: str
+    key: str
+    value: dict[str, Any] = Field(default_factory=dict)
+    source: str
+    status: ProjectStateStatus = ProjectStateStatus.ACTIVE
+    version: int = Field(ge=1)
     created_at: datetime = Field(default_factory=utc_now)
     updated_at: datetime = Field(default_factory=utc_now)
 

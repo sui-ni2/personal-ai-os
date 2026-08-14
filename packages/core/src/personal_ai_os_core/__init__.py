@@ -1,5 +1,15 @@
 from .events import EventType, ExecutionEvent
-from .models import Artifact, Conversation, MemoryRecord, MemoryStatus, Message, MessageRole, RepositoryEvent
+from .models import (
+    Artifact,
+    Conversation,
+    MemoryRecord,
+    MemoryStatus,
+    Message,
+    MessageRole,
+    ProjectStateRecord,
+    ProjectStateStatus,
+    RepositoryEvent,
+)
 from .projects import ProjectMetadata, ProjectPlugin, ProjectRegistry, ProjectView
 from .product import (
     Capability,
@@ -24,6 +34,8 @@ __all__ = [
     "ProjectMetadata",
     "ProjectPlugin",
     "ProjectRegistry",
+    "ProjectStateRecord",
+    "ProjectStateStatus",
     "ProjectView",
     "ProductProfile",
     "RepositoryEvent",

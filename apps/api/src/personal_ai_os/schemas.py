@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+import re
 from datetime import datetime
 from typing import Any, Literal
 
 from personal_ai_os_core import MemoryStatus
 from pydantic import BaseModel, Field, field_validator, model_validator
+
+
+_SAFE_WORKFLOW_VALUE = re.compile(r"^[A-Za-z0-9_.-]+$")
 
 
 class ToolRequest(BaseModel):
@@ -60,6 +64,52 @@ class MemoryUpdate(BaseModel):
     valid_from: datetime | None = None
     status: MemoryStatus | None = None
     project_id: str | None = None
+
+
+class ProjectStatePut(BaseModel):
+    namespace: str = Field(min_length=1, max_length=80, pattern=r"^[A-Za-z0-9_.-]+$")
+    key: str = Field(min_length=1, max_length=120, pattern=r"^[A-Za-z0-9_.-]+$")
+    value: dict[str, Any] = Field(default_factory=dict)
+    source: str = Field(min_length=1, max_length=500)
+    confidence: float = Field(default=1, ge=0, le=1)
+    lock: bool = False
+    expected_version: int | None = Field(default=None, ge=0)
+    supersede_locked: bool = False
+
+
+class ProjectExperienceAppend(BaseModel):
+    namespace: str = Field(min_length=1, max_length=80, pattern=r"^[A-Za-z0-9_.-]+$")
+    text: str = Field(min_length=1, max_length=50_000)
+    source: str = Field(min_length=1, max_length=500)
+    confidence: float = Field(default=1, ge=0, le=1)
+
+
+class ProjectWorkflowCreate(BaseModel):
+    workflow_id: str = Field(min_length=1, max_length=80, pattern=r"^[A-Za-z0-9_.-]+$")
+    run_key: str = Field(min_length=1, max_length=120, pattern=r"^[A-Za-z0-9_.-]+$")
+    steps: list[str] = Field(min_length=1, max_length=64)
+    source: str = Field(min_length=1, max_length=500)
+
+    @field_validator("steps")
+    @classmethod
+    def validate_steps(cls, value: list[str]) -> list[str]:
+        if len(set(value)) != len(value):
+            raise ValueError("workflow steps must be unique")
+        if any(
+            not step
+            or len(step) > 80
+            or _SAFE_WORKFLOW_VALUE.fullmatch(step) is None
+            for step in value
+        ):
+            raise ValueError("workflow steps must use only letters, numbers, dot, underscore, or hyphen")
+        return value
+
+
+class ProjectWorkflowAdvance(BaseModel):
+    next_step: str = Field(min_length=1, max_length=80, pattern=r"^[A-Za-z0-9_.-]+$")
+    expected_version: int = Field(ge=1)
+    evidence: dict[str, Any] = Field(default_factory=dict)
+    source: str = Field(min_length=1, max_length=500)
 
 
 class ArtifactCreate(BaseModel):

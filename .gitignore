@@ -31,3 +31,13 @@ coverage/
 logs/
 *.log
 .DS_Store
+
+# Runtime/user state must never be committed. Public code defines the protocol only.
+.private-state/
+.local-state/
+private-state/
+data/private/
+data/runtime/
+**/private-memory/
+**/daily-state/
+**/formal-records/

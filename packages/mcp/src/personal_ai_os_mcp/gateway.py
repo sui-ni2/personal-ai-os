@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Protocol
+from typing import Any, Literal, Protocol
 from uuid import uuid4
 
 from personal_ai_os_core import ProjectRegistry
@@ -12,6 +12,7 @@ class MCPTool(BaseModel):
     description: str
     input_schema: dict[str, Any] = Field(default_factory=dict)
     server: str
+    audit_result: Literal["bounded", "metadata_only"] = "bounded"
 
 
 class MCPServer(Protocol):
@@ -88,22 +89,63 @@ class EchoMCPServer:
 
 
 class MCPGateway:
-    def __init__(self, projects: ProjectRegistry, servers: list[MCPServer]) -> None:
+    def __init__(
+        self,
+        projects: ProjectRegistry,
+        servers: list[MCPServer],
+        *,
+        shared_project_tools: dict[str, set[str]] | None = None,
+        metadata_only_tools: set[str] | None = None,
+    ) -> None:
         self._projects = projects
         self._servers = {server.id: server for server in servers}
+        self._shared_project_tools = {
+            project_id: frozenset(names)
+            for project_id, names in (shared_project_tools or {}).items()
+        }
+        self._metadata_only_tools = frozenset(metadata_only_tools or set())
         self._tools: dict[str, tuple[MCPServer, MCPTool]] = {}
         for server in servers:
             for tool in server.tools():
                 if tool.name in self._tools:
                     raise ValueError(f"Duplicate MCP tool: {tool.name}")
                 self._tools[tool.name] = (server, tool)
+        registered = set(self._tools)
+        for project_id, names in self._shared_project_tools.items():
+            self._projects.get(project_id)
+            missing = set(names) - registered
+            if missing:
+                raise ValueError(
+                    f"Shared project tools are not registered for {project_id}: {sorted(missing)}"
+                )
+        missing_audit_tools = set(self._metadata_only_tools) - registered
+        if missing_audit_tools:
+            raise ValueError(
+                f"Metadata-only tools are not registered: {sorted(missing_audit_tools)}"
+            )
+
+    def _allowed_tools(self, project_id: str) -> set[str]:
+        return set(self._projects.get(project_id).tools()) | set(
+            self._shared_project_tools.get(project_id, frozenset())
+        )
 
     def list_tools(self, project_id: str) -> list[MCPTool]:
-        allowed = self._projects.get(project_id).tools()
+        allowed = self._allowed_tools(project_id)
         return [tool for name, (_, tool) in self._tools.items() if name in allowed]
 
+    def audit_result_policy(self, project_id: str, tool_name: str) -> Literal["bounded", "metadata_only"]:
+        if tool_name not in self._allowed_tools(project_id):
+            raise MCPInvocationError(f"Tool is not permitted for project {project_id}: {tool_name}")
+        try:
+            _, tool = self._tools[tool_name]
+        except KeyError as exc:
+            raise MCPInvocationError(f"Tool is not registered: {tool_name}") from exc
+        if tool_name in self._metadata_only_tools:
+            return "metadata_only"
+        return tool.audit_result
+
     async def invoke(self, project_id: str, tool_name: str, arguments: dict[str, Any]) -> dict[str, Any]:
-        if tool_name not in self._projects.get(project_id).tools():
+        if tool_name not in self._allowed_tools(project_id):
             raise MCPInvocationError(f"Tool is not permitted for project {project_id}: {tool_name}")
         try:
             server, _ = self._tools[tool_name]
@@ -121,11 +163,17 @@ class MCPGateway:
                         "io.modelcontextprotocol/clientInfo": {
                             "name": "personal-ai-os",
                             "version": "0.1.0",
-                        }
+                        },
+                        "io.personal-ai-os/projectId": project_id,
                     },
                 },
             }
         )
         if "error" in response:
             raise MCPInvocationError(response["error"].get("message", "MCP request failed"))
-        return response["result"]
+        result = response["result"]
+        if self.audit_result_policy(project_id, tool_name) == "metadata_only":
+            if isinstance(result, dict):
+                return {"_audit_policy": "metadata_only", **result}
+            return {"_audit_policy": "metadata_only", "content": result}
+        return result
