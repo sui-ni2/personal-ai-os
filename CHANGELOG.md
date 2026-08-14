@@ -4,7 +4,9 @@ All notable changes to Personal AI OS are documented here.
 
 This project follows Semantic Versioning for public releases.
 
-## [0.1.0] - Unreleased
+## [0.2.0] - Unreleased
+
+This stable candidate continues the version line established by the historical `v0.2.0-alpha.1` tag. That alpha tag remains part of repository history; no GitHub Release was published for it.
 
 ### Added
 
@@ -30,4 +32,4 @@ This project follows Semantic Versioning for public releases.
 
 ### Release gate
 
-`v0.1.0` must not be published until the release checklist in `docs/release-checklist.md` passes, including a real-provider fresh-install smoke test. Until then this section remains `Unreleased`.
+`v0.2.0` must not be published until the release checklist in `docs/release-checklist.md` passes, including a real-provider fresh-install smoke test. Until then this section remains `Unreleased`.
