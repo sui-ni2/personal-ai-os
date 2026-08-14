@@ -121,7 +121,8 @@ class MCPGateway:
                         "io.modelcontextprotocol/clientInfo": {
                             "name": "personal-ai-os",
                             "version": "0.1.0",
-                        }
+                        },
+                        "io.personal-ai-os/projectId": project_id,
                     },
                 },
             }
