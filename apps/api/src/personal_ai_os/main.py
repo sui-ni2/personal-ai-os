@@ -12,6 +12,7 @@ from personal_ai_os_core import Capability
 from .auth import AccessProtectionMiddleware, create_auth_router
 from .config import Settings
 from .p5_routes import router as p5_router
+from .project_state_routes import router as project_state_router
 from .routes import router
 from .runtime import Runtime, create_runtime
 
@@ -54,6 +55,7 @@ def create_app(settings: Settings | None = None, runtime: Runtime | None = None)
         return {"status": "ok", "version": "0.1.0"}
 
     app.include_router(router)
+    app.include_router(project_state_router)
     app.include_router(p5_router)
     app.include_router(create_auth_router(app_runtime.settings))
     web_dir = os.getenv("PERSONAL_AI_OS_WEB_DIR")
