@@ -11,7 +11,7 @@ from .config import Settings
 from .db import Database
 from .mcp_service import ExternalMCPService
 from .p5_mcp import P5MCPServer
-from .project_state_mcp import ProjectStateMCPServer
+from .project_state_mcp import PROJECT_STATE_TOOL_NAMES, ProjectStateMCPServer
 
 
 @dataclass
@@ -76,6 +76,7 @@ def create_runtime(settings: Settings) -> Runtime:
         mcp=MCPGateway(
             projects=projects,
             servers=[EchoMCPServer(), private_state_server, P5MCPServer(p5_project)],
+            global_project_tools=PROJECT_STATE_TOOL_NAMES,
         ),
         external_mcp=ExternalMCPService(database, projects, connector_registry),
         product=product,
