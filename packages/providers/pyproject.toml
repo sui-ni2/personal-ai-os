@@ -4,12 +4,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "personal-ai-os-providers"
-version = "0.1.0"
+version = "0.2.0"
 description = "Streaming provider adapters for Personal AI OS"
 requires-python = ">=3.11"
 dependencies = [
   "httpx>=0.28,<1",
-  "personal-ai-os-core==0.1.0",
+  "personal-ai-os-core==0.2.0",
 ]
 
 [tool.setuptools.packages.find]
