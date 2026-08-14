@@ -20,6 +20,7 @@ async def test_private_state_tools_are_enabled_for_soccer_and_p5_only(runtime) -
 
 @pytest.mark.asyncio
 async def test_mcp_state_is_bound_to_active_project_and_cannot_cross_read(runtime) -> None:
+    runtime.database.migrate()
     written = await runtime.mcp.invoke(
         "soccer",
         "project.state.put",
@@ -50,6 +51,7 @@ async def test_mcp_state_is_bound_to_active_project_and_cannot_cross_read(runtim
 
 @pytest.mark.asyncio
 async def test_mcp_rejects_model_supplied_project_override(runtime) -> None:
+    runtime.database.migrate()
     with pytest.raises(MCPInvocationError, match="unknown arguments"):
         await runtime.mcp.invoke(
             "soccer",
@@ -70,6 +72,7 @@ async def test_mcp_rejects_model_supplied_project_override(runtime) -> None:
 
 @pytest.mark.asyncio
 async def test_mcp_lock_and_stale_version_fail_closed(runtime) -> None:
+    runtime.database.migrate()
     first = await runtime.mcp.invoke(
         "soccer",
         "project.state.put",
@@ -129,6 +132,7 @@ async def test_mcp_lock_and_stale_version_fail_closed(runtime) -> None:
 
 @pytest.mark.asyncio
 async def test_mcp_workflow_cannot_skip_gate_and_is_project_isolated(runtime) -> None:
+    runtime.database.migrate()
     created = await runtime.mcp.invoke(
         "soccer",
         "project.workflow.create",
