@@ -98,6 +98,10 @@ def runtime_factory(tmp_path: Path):
             data_dir=settings.data_dir,
             tenant_id=settings.tenant_id,
         )
+        shared_tools = {
+            "soccer": set(PROJECT_STATE_TOOL_NAMES),
+            "p5": set(PROJECT_STATE_TOOL_NAMES),
+        }
         return Runtime(
             settings=settings,
             database=database,
@@ -106,7 +110,7 @@ def runtime_factory(tmp_path: Path):
             mcp=MCPGateway(
                 projects,
                 [EchoMCPServer(), private_state_server, P5MCPServer(p5_project)],
-                global_project_tools=PROJECT_STATE_TOOL_NAMES,
+                shared_project_tools=shared_tools,
             ),
             external_mcp=ExternalMCPService(
                 database, projects, ConnectorRegistry(settings.mcp_stdio_commands)
