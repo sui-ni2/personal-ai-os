@@ -4,17 +4,17 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "personal-ai-os-api"
-version = "0.1.0"
+version = "0.2.0"
 description = "FastAPI modular-monolith API for Personal AI OS"
 requires-python = ">=3.11"
 dependencies = [
   "fastapi>=0.115,<1",
   "httpx>=0.28,<1",
   "uvicorn[standard]>=0.34,<1",
-  "personal-ai-os-core==0.1.0",
-  "personal-ai-os-providers==0.1.0",
-  "personal-ai-os-mcp==0.1.0",
-  "personal-ai-os-projects==0.1.0",
+  "personal-ai-os-core==0.2.0",
+  "personal-ai-os-providers==0.2.0",
+  "personal-ai-os-mcp==0.2.0",
+  "personal-ai-os-projects==0.2.0",
 ]
 
 [tool.setuptools.packages.find]
