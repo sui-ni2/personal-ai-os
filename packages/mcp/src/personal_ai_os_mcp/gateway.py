@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Protocol
+from typing import Any, Literal, Protocol
 from uuid import uuid4
 
 from personal_ai_os_core import ProjectRegistry
@@ -12,6 +12,7 @@ class MCPTool(BaseModel):
     description: str
     input_schema: dict[str, Any] = Field(default_factory=dict)
     server: str
+    audit_result: Literal["bounded", "metadata_only"] = "bounded"
 
 
 class MCPServer(Protocol):
@@ -124,6 +125,15 @@ class MCPGateway:
     def list_tools(self, project_id: str) -> list[MCPTool]:
         allowed = self._allowed_tools(project_id)
         return [tool for name, (_, tool) in self._tools.items() if name in allowed]
+
+    def audit_result_policy(self, project_id: str, tool_name: str) -> Literal["bounded", "metadata_only"]:
+        if tool_name not in self._allowed_tools(project_id):
+            raise MCPInvocationError(f"Tool is not permitted for project {project_id}: {tool_name}")
+        try:
+            _, tool = self._tools[tool_name]
+        except KeyError as exc:
+            raise MCPInvocationError(f"Tool is not registered: {tool_name}") from exc
+        return tool.audit_result
 
     async def invoke(self, project_id: str, tool_name: str, arguments: dict[str, Any]) -> dict[str, Any]:
         if tool_name not in self._allowed_tools(project_id):
