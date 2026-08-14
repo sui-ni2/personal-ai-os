@@ -16,8 +16,9 @@ from personal_ai_os.config import Settings
 from personal_ai_os.db import Database
 from personal_ai_os.main import create_app
 from personal_ai_os.mcp_service import ExternalMCPService
-from personal_ai_os.runtime import Runtime
 from personal_ai_os.p5_mcp import P5MCPServer
+from personal_ai_os.project_state_mcp import PROJECT_STATE_TOOL_NAMES, ProjectStateMCPServer
+from personal_ai_os.runtime import Runtime
 
 
 class FakeProvider:
@@ -92,12 +93,21 @@ def runtime_factory(tmp_path: Path):
         )
         p5_project = projects.get("p5")
         assert isinstance(p5_project, P5Project)
+        private_state_server = ProjectStateMCPServer(
+            database,
+            data_dir=settings.data_dir,
+            tenant_id=settings.tenant_id,
+        )
         return Runtime(
             settings=settings,
             database=database,
             providers=providers,
             projects=projects,
-            mcp=MCPGateway(projects, [EchoMCPServer(), P5MCPServer(p5_project)]),
+            mcp=MCPGateway(
+                projects,
+                [EchoMCPServer(), private_state_server, P5MCPServer(p5_project)],
+                global_project_tools=PROJECT_STATE_TOOL_NAMES,
+            ),
             external_mcp=ExternalMCPService(
                 database, projects, ConnectorRegistry(settings.mcp_stdio_commands)
             ),
