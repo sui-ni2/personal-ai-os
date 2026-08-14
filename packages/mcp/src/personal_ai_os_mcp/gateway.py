@@ -171,4 +171,9 @@ class MCPGateway:
         )
         if "error" in response:
             raise MCPInvocationError(response["error"].get("message", "MCP request failed"))
-        return response["result"]
+        result = response["result"]
+        if self.audit_result_policy(project_id, tool_name) == "metadata_only":
+            if isinstance(result, dict):
+                return {"_audit_policy": "metadata_only", **result}
+            return {"_audit_policy": "metadata_only", "content": result}
+        return result
