@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { trapFocus } from "@/lib/focus";
+import { useExperienceMode } from "@/lib/experience-mode";
 import {
   Archive,
   ChevronLeft,
@@ -21,15 +22,13 @@ import {
 } from "lucide-react";
 
 const navigation = [
-  { href: "/", label: "Home", icon: Home, exact: true },
+  { href: "/", label: "Workspace", icon: Home, exact: true },
   { href: "/chat", label: "Chat", icon: MessageCircle },
-  { href: "/memory", label: "Memory", icon: NotebookTabs },
-  { href: "/repository", label: "Outcomes", icon: Archive },
+  { href: "/memory", label: "Memory control", icon: NotebookTabs, advancedOnly: true },
+  { href: "/repository", label: "Results", icon: Archive },
   { href: "/projects", label: "Projects", icon: FolderKanban },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
-
-const mobileNavigation = navigation.filter((item) => ["/", "/chat", "/projects"].includes(item.href));
 
 type InstallPromptEvent = Event & {
   prompt: () => Promise<void>;
@@ -37,6 +36,8 @@ type InstallPromptEvent = Event & {
 };
 
 function SidebarContent({ pathname, onNavigate }: { pathname: string; onNavigate?: () => void }) {
+  const experienceMode = useExperienceMode();
+  const visibleNavigation = navigation.filter((item) => experienceMode === "advanced" || !item.advancedOnly);
   return (
     <div className="flex h-full flex-col">
       <Link href="/" className="flex min-h-12 items-center gap-3 rounded-control" onClick={onNavigate}>
@@ -47,7 +48,7 @@ function SidebarContent({ pathname, onNavigate }: { pathname: string; onNavigate
       </Link>
 
       <nav className="mt-10 space-y-1" aria-label="Primary navigation">
-        {navigation.map((item) => {
+        {visibleNavigation.map((item) => {
           const active = item.exact ? pathname === item.href : pathname.startsWith(item.href);
           const Icon = item.icon;
           return (
@@ -96,6 +97,7 @@ function SidebarContent({ pathname, onNavigate }: { pathname: string; onNavigate
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const experienceMode = useExperienceMode();
   const [moreOpen, setMoreOpen] = useState(false);
   const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null);
   const [iosInstallAvailable, setIosInstallAvailable] = useState(false);
@@ -103,6 +105,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const sheetRef = useRef<HTMLElement>(null);
   const moreTriggerRef = useRef<HTMLButtonElement>(null);
   const focusedChat = pathname.startsWith("/chat");
+  const visibleNavigation = navigation.filter((item) => experienceMode === "advanced" || !item.advancedOnly);
+  const mobileNavigation = visibleNavigation.filter((item) => ["/", "/chat", "/projects"].includes(item.href));
 
   useEffect(() => { setMoreOpen(false); setShowInstallHelp(false); }, [pathname]);
 
@@ -213,7 +217,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   </button>
                 )}
                 {!installPrompt && iosInstallAvailable && <button type="button" className="flex min-h-14 items-center gap-3 rounded-control bg-accent-soft px-4 text-left text-sm font-medium text-accent-hover" onClick={() => setShowInstallHelp(true)}><SquarePlus aria-hidden size={19} strokeWidth={1.7} />Install on iPhone</button>}
-                {navigation.filter((item) => ["/memory", "/repository", "/settings"].includes(item.href)).map((item) => {
+                {visibleNavigation.filter((item) => ["/memory", "/repository", "/settings"].includes(item.href)).map((item) => {
                   const Icon = item.icon;
                   return <Link key={item.href} href={item.href} className="flex min-h-14 items-center gap-3 rounded-control bg-surface-subtle/60 px-4 text-sm font-medium" onClick={closeMore}><Icon aria-hidden size={19} strokeWidth={1.7} />{item.label}</Link>;
                 })}

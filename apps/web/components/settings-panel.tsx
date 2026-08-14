@@ -1,8 +1,9 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { Cable, Check, ChevronDown, Database, Mic2, Palette, Plus, RefreshCw, Server, ShieldCheck, Smartphone } from "lucide-react";
+import { Cable, Check, ChevronDown, Database, Gauge, Mic2, Palette, Plus, RefreshCw, Server, ShieldCheck, Smartphone } from "lucide-react";
 import { apiJson } from "@/lib/api";
+import { setExperienceMode, useExperienceMode } from "@/lib/experience-mode";
 import { ErrorState, LoadingState } from "@/components/ui-states";
 
 type Provider = { id: string; configured: boolean; models: string[] };
@@ -43,6 +44,7 @@ function providerName(id: string) {
 }
 
 export function SettingsPanel() {
+  const experienceMode = useExperienceMode();
   const [settings, setSettings] = useState<Settings>();
   const [provider, setProvider] = useState("");
   const [model, setModel] = useState("");
@@ -87,6 +89,26 @@ export function SettingsPanel() {
     });
   }, []);
   const selected = useMemo(() => settings?.providers.find((item) => item.id === provider), [provider, settings]);
+  const interfaceModeCard = (
+    <section className="panel p-4 sm:p-5" aria-labelledby="interface-mode-settings">
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+        <div className="flex gap-3">
+          <Gauge aria-hidden size={19} className="mt-0.5 shrink-0 text-text-tertiary" />
+          <div>
+            <h2 id="interface-mode-settings" className="section-title">Interface mode</h2>
+            <p className="mt-1 text-sm leading-6 text-text-secondary">
+              {experienceMode === "standard" ? "Standard keeps technical controls out of your daily workflow." : "Advanced shows model, memory, connector, and tool controls."}
+            </p>
+          </div>
+        </div>
+        <div className="grid min-w-[248px] grid-cols-2 rounded-control bg-surface-subtle p-1" role="group" aria-label="Interface mode">
+          {(["standard", "advanced"] as const).map((mode) => (
+            <button key={mode} type="button" className={`min-h-10 rounded-small px-3 text-sm font-medium capitalize transition-colors ${experienceMode === mode ? "bg-surface-elevated text-text-primary shadow-soft" : "text-text-secondary hover:text-text-primary"}`} aria-pressed={experienceMode === mode} onClick={() => setExperienceMode(mode)}>{mode}</button>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
 
   async function submitDefaults(event: FormEvent) {
     event.preventDefault();
@@ -167,16 +189,17 @@ export function SettingsPanel() {
     await load();
   }
 
-  if (loadError) return <ErrorState title="Settings are unavailable" detail="Safe configuration could not be loaded. Start the API and refresh this page." />;
-  if (!settings) return <LoadingState label="Loading safe configuration" />;
+  if (loadError) return <div className="space-y-6">{interfaceModeCard}<ErrorState title="AI service settings are unavailable" detail="The interface mode still works. Start the local API to manage AI services and tool connections." /></div>;
+  if (!settings) return <div className="space-y-6">{interfaceModeCard}<LoadingState label="Loading safe configuration" /></div>;
 
   return (
     <div className="space-y-8 sm:space-y-10">
+      {interfaceModeCard}
       <nav className="scrollbar-subtle -mx-1 flex gap-2 overflow-x-auto px-1 pb-1" aria-label="Settings sections">
-        {[{ href: "#models-settings", label: "Models" }, { href: "#mcp-settings", label: "MCP" }, { href: "#appearance-settings", label: "Appearance" }, { href: "#data-settings", label: "Data" }].map((item) => <a key={item.href} href={item.href} className="chip min-h-11 shrink-0 hover:bg-accent-soft hover:text-accent-hover">{item.label}</a>)}
+        {[{ href: "#models-settings", label: "AI service" }, ...(experienceMode === "advanced" ? [{ href: "#mcp-settings", label: "Tool connections" }] : []), { href: "#appearance-settings", label: "Appearance" }, { href: "#data-settings", label: "Data & privacy" }].map((item) => <a key={item.href} href={item.href} className="chip min-h-11 shrink-0 hover:bg-accent-soft hover:text-accent-hover">{item.label}</a>)}
       </nav>
       <section className="scroll-mt-6" aria-labelledby="models-settings">
-        <div className="mb-4 flex items-center gap-2"><Server aria-hidden size={18} className="text-text-tertiary" /><h2 id="models-settings" className="section-title">Models</h2></div>
+        <div className="mb-4 flex items-center gap-2"><Server aria-hidden size={18} className="text-text-tertiary" /><h2 id="models-settings" className="section-title">AI service</h2></div>
         {!settings.providers.some((item) => item.configured) && (
           <div className="panel mb-4 border-accent/30 bg-accent-soft/45 p-4 sm:p-5">
             <p className="eyebrow">First run</p>
@@ -212,9 +235,9 @@ export function SettingsPanel() {
             })}
           </div>
           <form onSubmit={submitDefaults} className="panel p-4 sm:p-5">
-            <h3 className="text-[15px] font-medium">Default model</h3>
+            <h3 className="text-[15px] font-medium">Default AI</h3>
             <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
-              <label className="text-xs font-medium text-text-secondary">Provider
+              <label className="text-xs font-medium text-text-secondary">AI service
                 <select className="field mt-1.5 w-full" value={provider} onChange={(event) => { const id = event.target.value; setProvider(id); setModel(settings.providers.find((item) => item.id === id)?.models[0] || ""); }}>
                   {settings.providers.map((item) => <option key={item.id} value={item.id}>{providerName(item.id)}</option>)}
                 </select>
@@ -231,11 +254,11 @@ export function SettingsPanel() {
         </div>
       </section>
 
-      <section className="scroll-mt-6" aria-labelledby="mcp-settings">
+      {experienceMode === "advanced" && <section className="scroll-mt-6" aria-labelledby="mcp-settings">
         <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
           <div>
-            <div className="flex items-center gap-2"><Cable aria-hidden size={18} className="text-text-tertiary" /><h2 id="mcp-settings" className="section-title">MCP</h2></div>
-            <p className="mt-2 text-sm leading-6 text-text-secondary">Allowlisted tool connections available to your workspace.</p>
+            <div className="flex items-center gap-2"><Cable aria-hidden size={18} className="text-text-tertiary" /><h2 id="mcp-settings" className="section-title">Tool connections <span className="chip ml-2 align-middle">Advanced</span></h2></div>
+            <p className="mt-2 text-sm leading-6 text-text-secondary">Manage MCP connectors and their allowlisted tools.</p>
           </div>
           <details className="group relative">
             <summary className="button-primary cursor-pointer list-none"><Plus aria-hidden size={17} />Add connector</summary>
@@ -294,7 +317,7 @@ export function SettingsPanel() {
             </article>
           ))}
         </div>
-      </section>
+      </section>}
 
       <div className="grid gap-4 sm:grid-cols-2">
         <section className="panel scroll-mt-6 p-4 sm:p-5" aria-labelledby="appearance-settings">
@@ -302,7 +325,7 @@ export function SettingsPanel() {
           <div className="mt-5 flex items-center justify-between rounded-control bg-surface-subtle p-4"><span className="text-sm font-medium">Theme</span><span className="chip">Light</span></div>
         </section>
         <section className="panel scroll-mt-6 p-4 sm:p-5" aria-labelledby="data-settings">
-          <div className="flex items-center gap-2"><Database aria-hidden size={18} className="text-text-tertiary" /><h2 id="data-settings" className="section-title">Data</h2></div>
+          <div className="flex items-center gap-2"><Database aria-hidden size={18} className="text-text-tertiary" /><h2 id="data-settings" className="section-title">Data & privacy</h2></div>
           <div className="mt-5 flex gap-3 rounded-control bg-surface-subtle p-4"><ShieldCheck aria-hidden size={18} className="mt-0.5 shrink-0 text-success" /><div><p className="text-sm font-medium">Local persistence</p><p className="mt-1 text-xs leading-5 text-text-secondary">Conversation, memory, and repository data remain managed by the local API. Secret values are never exposed here.</p></div></div>
         </section>
         <section className="panel scroll-mt-6 p-4 sm:col-span-2 sm:p-5" aria-labelledby="mobile-settings">

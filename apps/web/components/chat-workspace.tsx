@@ -28,6 +28,7 @@ import { ModelSelector, type ProviderOption } from "@/components/model-selector"
 import { RichMessage } from "@/components/rich-message";
 import { ErrorState } from "@/components/ui-states";
 import { apiJson, type SseEvent, streamSse } from "@/lib/api";
+import { useExperienceMode } from "@/lib/experience-mode";
 import { focusableSelector, trapFocus } from "@/lib/focus";
 
 type Project = { id: string; name: string; description: string };
@@ -50,6 +51,7 @@ const starterPrompts = [
 ];
 
 export function ChatWorkspace() {
+  const experienceMode = useExperienceMode();
   const [providers, setProviders] = useState<ProviderOption[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -88,6 +90,10 @@ export function ChatWorkspace() {
   const peerRef = useRef<RTCPeerConnection | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    if (experienceMode === "standard") setUseMcp(false);
+  }, [experienceMode]);
   const inputTranscriptRef = useRef("");
   const outputTranscriptRef = useRef("");
   const savedLiveItemsRef = useRef(new Set<string>());
@@ -568,7 +574,7 @@ export function ChatWorkspace() {
               {providers.length > 0 && !providerReady && <div className="mx-auto mb-2 flex max-w-[780px] items-center justify-between gap-3 rounded-control bg-warning/10 px-3 py-2 text-xs text-warning"><span>{selectedProvider?.id === "anthropic" ? "Anthropic" : "OpenAI"} needs a server-side credential before messages can be sent.</span><Link href="/settings#models-settings" className="shrink-0 font-medium underline underline-offset-2">Open Settings</Link></div>}
               <div className="mx-auto max-w-[780px] rounded-[22px] border border-line-strong bg-surface-elevated p-2 shadow-composer focus-within:border-accent">
                 <textarea className="scrollbar-subtle max-h-40 min-h-[48px] w-full resize-none bg-transparent px-2 py-2 text-[15px] leading-6 outline-none placeholder:text-text-tertiary" placeholder="Ask anything…" aria-label="Message" value={input} rows={1} onChange={(event) => setInput(event.target.value)} />
-                <div className="flex items-center gap-1"><button type="button" className="icon-button" disabled title="Attachments are planned" aria-label="Attach a file (planned)"><Paperclip aria-hidden size={18} /></button><button type="button" className={`icon-button ${useMcp ? "bg-accent-soft text-accent" : ""}`} onClick={() => setUseMcp((current) => !current)} aria-pressed={useMcp} aria-label="Use a tool"><Wrench aria-hidden size={18} /></button><button className="button-primary ml-auto size-10 min-h-10 px-0" aria-label={running ? "Sending message" : "Send message"} disabled={!input.trim() || !model || !providerReady || running || (useMcp && !toolName)}><Send aria-hidden size={17} /></button></div>
+                <div className="flex items-center gap-1"><button type="button" className="icon-button" disabled title="Attachments are planned" aria-label="Attach a file (planned)"><Paperclip aria-hidden size={18} /></button>{experienceMode === "advanced" && <button type="button" className={`icon-button ${useMcp ? "bg-accent-soft text-accent" : ""}`} onClick={() => setUseMcp((current) => !current)} aria-pressed={useMcp} aria-label="Use an advanced tool"><Wrench aria-hidden size={18} /></button>}<button className="button-primary ml-auto size-10 min-h-10 px-0" aria-label={running ? "Sending message" : "Send message"} disabled={!input.trim() || !model || !providerReady || running || (useMcp && !toolName)}><Send aria-hidden size={17} /></button></div>
               </div>
             </form>
           </>

@@ -4,7 +4,7 @@ import { SettingsPanel } from "@/components/settings-panel";
 export default function SettingsPage() {
   return (
     <div className="page-frame">
-      <PageHeading title="Settings" description="Manage models, tool connections, appearance, and local data without exposing secrets." />
+      <PageHeading title="Settings" description="Manage your AI service, privacy, appearance, and advanced controls." />
       <SettingsPanel />
     </div>
   );
