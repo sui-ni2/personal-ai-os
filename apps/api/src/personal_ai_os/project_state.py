@@ -58,19 +58,19 @@ class ProjectStateService:
 
     Public source code defines the protocol only. Runtime values are stored in a separate SQLite
     database for each project under ``data/private/project-state``. The main repository database is
-    used only for an audit event, so project state does not leak into the generic Memory listing.
+    used only for audit events, so project state does not leak into the generic Memory listing.
     """
 
     def __init__(
         self,
         audit_database: Database,
         *,
-        data_dir: Path,
-        tenant_id: str,
+        data_dir: Path | None = None,
+        tenant_id: str | None = None,
     ) -> None:
         self.audit_database = audit_database
-        self.data_dir = Path(data_dir)
-        self.tenant_id = tenant_id
+        self.data_dir = Path(data_dir) if data_dir is not None else audit_database.path.parent
+        self.tenant_id = tenant_id or audit_database.tenant_id
 
     def storage_path(self, project_id: str) -> Path:
         project = _safe_project_id(project_id)
@@ -215,11 +215,7 @@ class ProjectStateService:
                 version = current_version + 1
                 created_at = current["created_at"]
 
-            status = (
-                ProjectStateStatus.LOCKED.value
-                if lock
-                else ProjectStateStatus.ACTIVE.value
-            )
+            status = ProjectStateStatus.LOCKED.value if lock else ProjectStateStatus.ACTIVE.value
             connection.execute(
                 "INSERT INTO current_state(namespace, key, value_json, source, confidence, version, status, created_at, updated_at) "
                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) "
