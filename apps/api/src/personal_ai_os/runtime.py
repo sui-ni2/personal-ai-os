@@ -81,6 +81,7 @@ def create_runtime(settings: Settings) -> Runtime:
             projects=projects,
             servers=[EchoMCPServer(), private_state_server, P5MCPServer(p5_project)],
             shared_project_tools=shared_tools,
+            metadata_only_tools=set(PROJECT_STATE_TOOL_NAMES),
         ),
         external_mcp=ExternalMCPService(database, projects, connector_registry),
         product=product,
