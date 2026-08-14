@@ -88,22 +88,35 @@ class EchoMCPServer:
 
 
 class MCPGateway:
-    def __init__(self, projects: ProjectRegistry, servers: list[MCPServer]) -> None:
+    def __init__(
+        self,
+        projects: ProjectRegistry,
+        servers: list[MCPServer],
+        *,
+        global_project_tools: set[str] | None = None,
+    ) -> None:
         self._projects = projects
         self._servers = {server.id: server for server in servers}
+        self._global_project_tools = frozenset(global_project_tools or set())
         self._tools: dict[str, tuple[MCPServer, MCPTool]] = {}
         for server in servers:
             for tool in server.tools():
                 if tool.name in self._tools:
                     raise ValueError(f"Duplicate MCP tool: {tool.name}")
                 self._tools[tool.name] = (server, tool)
+        missing = self._global_project_tools - set(self._tools)
+        if missing:
+            raise ValueError(f"Global project tools are not registered: {sorted(missing)}")
+
+    def _allowed_tools(self, project_id: str) -> set[str]:
+        return set(self._projects.get(project_id).tools()) | set(self._global_project_tools)
 
     def list_tools(self, project_id: str) -> list[MCPTool]:
-        allowed = self._projects.get(project_id).tools()
+        allowed = self._allowed_tools(project_id)
         return [tool for name, (_, tool) in self._tools.items() if name in allowed]
 
     async def invoke(self, project_id: str, tool_name: str, arguments: dict[str, Any]) -> dict[str, Any]:
-        if tool_name not in self._projects.get(project_id).tools():
+        if tool_name not in self._allowed_tools(project_id):
             raise MCPInvocationError(f"Tool is not permitted for project {project_id}: {tool_name}")
         try:
             server, _ = self._tools[tool_name]
