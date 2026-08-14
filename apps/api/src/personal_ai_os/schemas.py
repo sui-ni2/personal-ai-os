@@ -68,6 +68,9 @@ class ProjectStatePut(BaseModel):
     value: dict[str, Any] = Field(default_factory=dict)
     source: str = Field(min_length=1, max_length=500)
     confidence: float = Field(default=1, ge=0, le=1)
+    lock: bool = False
+    expected_version: int | None = Field(default=None, ge=0)
+    supersede_locked: bool = False
 
 
 class ProjectExperienceAppend(BaseModel):
