@@ -93,23 +93,33 @@ class MCPGateway:
         projects: ProjectRegistry,
         servers: list[MCPServer],
         *,
-        global_project_tools: set[str] | None = None,
+        shared_project_tools: dict[str, set[str]] | None = None,
     ) -> None:
         self._projects = projects
         self._servers = {server.id: server for server in servers}
-        self._global_project_tools = frozenset(global_project_tools or set())
+        self._shared_project_tools = {
+            project_id: frozenset(names)
+            for project_id, names in (shared_project_tools or {}).items()
+        }
         self._tools: dict[str, tuple[MCPServer, MCPTool]] = {}
         for server in servers:
             for tool in server.tools():
                 if tool.name in self._tools:
                     raise ValueError(f"Duplicate MCP tool: {tool.name}")
                 self._tools[tool.name] = (server, tool)
-        missing = self._global_project_tools - set(self._tools)
-        if missing:
-            raise ValueError(f"Global project tools are not registered: {sorted(missing)}")
+        registered = set(self._tools)
+        for project_id, names in self._shared_project_tools.items():
+            self._projects.get(project_id)
+            missing = set(names) - registered
+            if missing:
+                raise ValueError(
+                    f"Shared project tools are not registered for {project_id}: {sorted(missing)}"
+                )
 
     def _allowed_tools(self, project_id: str) -> set[str]:
-        return set(self._projects.get(project_id).tools()) | set(self._global_project_tools)
+        return set(self._projects.get(project_id).tools()) | set(
+            self._shared_project_tools.get(project_id, frozenset())
+        )
 
     def list_tools(self, project_id: str) -> list[MCPTool]:
         allowed = self._allowed_tools(project_id)
