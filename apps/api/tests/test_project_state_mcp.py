@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import json
+
 import pytest
+from personal_ai_os_core import EventType, ExecutionEvent
 from personal_ai_os_mcp import MCPInvocationError
 
 from personal_ai_os.project_state_mcp import PROJECT_STATE_TOOL_NAMES
@@ -16,6 +19,9 @@ async def test_private_state_tools_are_enabled_for_soccer_and_p5_only(runtime) -
     assert PROJECT_STATE_TOOL_NAMES.issubset(p5_tools)
     assert PROJECT_STATE_TOOL_NAMES.isdisjoint(general_tools)
     assert "system.echo" in general_tools
+    assert runtime.mcp.audit_result_policy("soccer", "project.state.snapshot") == "metadata_only"
+    assert runtime.mcp.audit_result_policy("p5", "project.workflow.list") == "metadata_only"
+    assert runtime.mcp.audit_result_policy("general", "system.echo") == "bounded"
 
 
 @pytest.mark.asyncio
@@ -37,6 +43,7 @@ async def test_mcp_state_is_bound_to_active_project_and_cannot_cross_read(runtim
     payload = written["content"][0]["json"]
     assert payload["project_id"] == "soccer"
     assert payload["status"] == "locked"
+    assert written["_audit_policy"] == "metadata_only"
 
     soccer = await runtime.mcp.invoke("soccer", "project.state.snapshot", {})
     p5 = await runtime.mcp.invoke("p5", "project.state.snapshot", {})
@@ -47,6 +54,36 @@ async def test_mcp_state_is_bound_to_active_project_and_cannot_cross_read(runtim
     assert soccer_json["states"][0]["value"] == {"record": "synthetic-soccer"}
     assert p5_json["project_id"] == "p5"
     assert p5_json["states"] == []
+
+
+@pytest.mark.asyncio
+async def test_metadata_only_private_result_is_available_to_provider_but_not_audit(runtime) -> None:
+    runtime.database.migrate()
+    await runtime.mcp.invoke(
+        "soccer",
+        "project.state.put",
+        {
+            "namespace": "private",
+            "key": "synthetic",
+            "value": {"sensitive_value": "do-not-copy-to-audit"},
+            "source": "test",
+            "expected_version": 0,
+        },
+    )
+    raw_result = await runtime.mcp.invoke("soccer", "project.state.snapshot", {})
+    assert "do-not-copy-to-audit" in json.dumps(raw_result)
+
+    event = ExecutionEvent(
+        id="private-tool-result",
+        type=EventType.TOOL_RESULT,
+        status="succeeded",
+        conversation_id="synthetic-conversation",
+        tool="project.state.snapshot",
+        payload={"result": raw_result},
+    )
+    serialized = json.dumps(event.public_payload())
+    assert "do-not-copy-to-audit" not in serialized
+    assert "private result omitted from audit" in serialized
 
 
 @pytest.mark.asyncio
