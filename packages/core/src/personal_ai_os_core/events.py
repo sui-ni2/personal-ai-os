@@ -15,6 +15,7 @@ _MAX_AUDIT_ITEMS = 50
 _MAX_AUDIT_STRING = 4_000
 _REDACTED = "[redacted]"
 _TRUNCATED = "[truncated]"
+_PRIVATE_RESULT = "[private result omitted from audit]"
 _BEARER_PATTERN = re.compile(r"(?i)\bBearer\s+[A-Za-z0-9._~+/=-]{8,}")
 _PROVIDER_KEY_PATTERN = re.compile(r"\bsk-(?:ant-)?[A-Za-z0-9_-]{12,}\b", re.IGNORECASE)
 _NAMED_SECRET_PATTERN = re.compile(
@@ -69,6 +70,11 @@ def _sanitize_audit_value(value: Any, depth: int = 0) -> Any:
     if isinstance(value, str):
         return _sanitize_audit_string(value)
     if isinstance(value, dict):
+        if value.get("_audit_policy") == "metadata_only":
+            return {
+                "_audit_policy": "metadata_only",
+                "result": _PRIVATE_RESULT,
+            }
         sanitized: dict[str, Any] = {}
         for index, (key, item) in enumerate(value.items()):
             if index >= _MAX_AUDIT_ITEMS:
