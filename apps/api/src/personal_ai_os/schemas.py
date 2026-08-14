@@ -62,6 +62,21 @@ class MemoryUpdate(BaseModel):
     project_id: str | None = None
 
 
+class ProjectStatePut(BaseModel):
+    namespace: str = Field(min_length=1, max_length=80, pattern=r"^[A-Za-z0-9_.-]+$")
+    key: str = Field(min_length=1, max_length=120, pattern=r"^[A-Za-z0-9_.-]+$")
+    value: dict[str, Any] = Field(default_factory=dict)
+    source: str = Field(min_length=1, max_length=500)
+    confidence: float = Field(default=1, ge=0, le=1)
+
+
+class ProjectExperienceAppend(BaseModel):
+    namespace: str = Field(min_length=1, max_length=80, pattern=r"^[A-Za-z0-9_.-]+$")
+    text: str = Field(min_length=1, max_length=50_000)
+    source: str = Field(min_length=1, max_length=500)
+    confidence: float = Field(default=1, ge=0, le=1)
+
+
 class ArtifactCreate(BaseModel):
     kind: Literal["file", "url", "note"]
     locator: str = Field(min_length=1, max_length=4000)
