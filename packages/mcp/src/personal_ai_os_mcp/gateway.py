@@ -95,6 +95,7 @@ class MCPGateway:
         servers: list[MCPServer],
         *,
         shared_project_tools: dict[str, set[str]] | None = None,
+        metadata_only_tools: set[str] | None = None,
     ) -> None:
         self._projects = projects
         self._servers = {server.id: server for server in servers}
@@ -102,6 +103,7 @@ class MCPGateway:
             project_id: frozenset(names)
             for project_id, names in (shared_project_tools or {}).items()
         }
+        self._metadata_only_tools = frozenset(metadata_only_tools or set())
         self._tools: dict[str, tuple[MCPServer, MCPTool]] = {}
         for server in servers:
             for tool in server.tools():
@@ -116,6 +118,11 @@ class MCPGateway:
                 raise ValueError(
                     f"Shared project tools are not registered for {project_id}: {sorted(missing)}"
                 )
+        missing_audit_tools = set(self._metadata_only_tools) - registered
+        if missing_audit_tools:
+            raise ValueError(
+                f"Metadata-only tools are not registered: {sorted(missing_audit_tools)}"
+            )
 
     def _allowed_tools(self, project_id: str) -> set[str]:
         return set(self._projects.get(project_id).tools()) | set(
@@ -133,6 +140,8 @@ class MCPGateway:
             _, tool = self._tools[tool_name]
         except KeyError as exc:
             raise MCPInvocationError(f"Tool is not registered: {tool_name}") from exc
+        if tool_name in self._metadata_only_tools:
+            return "metadata_only"
         return tool.audit_result
 
     async def invoke(self, project_id: str, tool_name: str, arguments: dict[str, Any]) -> dict[str, Any]:
