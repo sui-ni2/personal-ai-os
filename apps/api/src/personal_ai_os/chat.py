@@ -11,6 +11,7 @@ from personal_ai_os_core import EventType, ExecutionEvent, Message, MessageRole
 from personal_ai_os_providers import ProviderCancelled, ProviderError, ProviderTool
 
 from .project_state import ProjectStateService
+from .project_workflow import ProjectWorkflowService
 from .runtime import Runtime
 from .schemas import ChatRequest
 
@@ -185,7 +186,12 @@ async def stream_chat(
                 + json.dumps(project.context(), ensure_ascii=False)
             ),
         )
-        persistent_state = ProjectStateService(runtime.database).context_json(request.project_id)
+        state_service = ProjectStateService(
+            runtime.database,
+            data_dir=runtime.settings.data_dir,
+            tenant_id=runtime.settings.tenant_id,
+        )
+        persistent_state = state_service.context_json(request.project_id)
         state_message = Message(
             id="project-persistent-state",
             conversation_id=conversation.id,
@@ -199,7 +205,25 @@ async def stream_chat(
                 + persistent_state
             ),
         )
-        provider_messages = [system_message, state_message, *history]
+        workflow_service = ProjectWorkflowService(
+            runtime.database,
+            data_dir=runtime.settings.data_dir,
+            tenant_id=runtime.settings.tenant_id,
+        )
+        workflow_state = workflow_service.context_json(request.project_id)
+        workflow_message = Message(
+            id="project-workflow-state",
+            conversation_id=conversation.id,
+            role=MessageRole.SYSTEM,
+            content=(
+                "Persistent project workflow gates (runtime data, scoped only to this project). "
+                "Treat completed_steps/current_step/next_step as authoritative workflow state. "
+                "Do not claim that a later workflow step is complete unless it appears in completed_steps, "
+                "and do not silently skip the required next_step. Never invent a missing workflow. Data: "
+                + workflow_state
+            ),
+        )
+        provider_messages = [system_message, state_message, workflow_message, *history]
 
         call = None
         tool_result: dict[str, Any] | None = None
