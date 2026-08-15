@@ -24,6 +24,7 @@ from .base import (
 
 class OpenAIAdapter:
     id = "openai"
+    provider_name = "OpenAI"
 
     def __init__(
         self,
@@ -91,13 +92,14 @@ class OpenAIAdapter:
             if str(call["function"]["name"]) != safe_tool_name:
                 raise TypeError
             return ProviderToolCall(
-                id=str(call.get("id") or "openai-tool-call"),
+                id=str(call.get("id") or f"{self.id}-tool-call"),
                 name=tool.name,
                 arguments=arguments,
             )
         except (KeyError, IndexError, TypeError, json.JSONDecodeError) as exc:
             raise ProviderError(
-                "OpenAI returned an invalid tool call", code="invalid_tool_call"
+                f"{self.provider_name} returned an invalid tool call",
+                code="invalid_tool_call",
             ) from exc
 
     async def _post_json(self, payload: dict[str, Any]) -> dict[str, Any]:
@@ -110,7 +112,7 @@ class OpenAIAdapter:
                         self._endpoint, headers=self._headers(), json=payload
                     )
                 if response.is_error:
-                    raise error_for_status("OpenAI", response.status_code)
+                    raise error_for_status(self.provider_name, response.status_code)
                 item = response.json()
                 if not isinstance(item, dict):
                     raise ValueError
@@ -121,12 +123,16 @@ class OpenAIAdapter:
             except httpx.TimeoutException as exc:
                 if attempt >= self._max_retries:
                     raise ProviderTimeout(
-                        "OpenAI request timed out", code="timeout", retryable=True
+                        f"{self.provider_name} request timed out",
+                        code="timeout",
+                        retryable=True,
                     ) from exc
             except (httpx.HTTPError, ValueError) as exc:
                 if attempt >= self._max_retries:
                     raise ProviderError(
-                        "OpenAI request failed", code="network_error", retryable=True
+                        f"{self.provider_name} request failed",
+                        code="network_error",
+                        retryable=True,
                     ) from exc
             await retry_pause(attempt, self._retry_base_seconds)
         raise AssertionError("retry loop exhausted")
@@ -186,7 +192,7 @@ class OpenAIAdapter:
                         "POST", self._endpoint, headers=self._headers(), json=payload
                     ) as response:
                         if response.is_error:
-                            raise error_for_status("OpenAI", response.status_code)
+                            raise error_for_status(self.provider_name, response.status_code)
                         async for line in response.aiter_lines():
                             if not line.startswith("data: "):
                                 continue
@@ -201,7 +207,7 @@ class OpenAIAdapter:
                                 yield str(delta)
                 if not completed:
                     raise ProviderStreamInterrupted(
-                        "OpenAI stream ended before completion",
+                        f"{self.provider_name} stream ended before completion",
                         code="stream_interrupted",
                         retryable=not emitted,
                     )
@@ -214,12 +220,14 @@ class OpenAIAdapter:
             except httpx.TimeoutException as exc:
                 if emitted or attempt >= self._max_retries:
                     raise ProviderTimeout(
-                        "OpenAI stream timed out", code="timeout", retryable=not emitted
+                        f"{self.provider_name} stream timed out",
+                        code="timeout",
+                        retryable=not emitted,
                     ) from exc
             except (httpx.HTTPError, json.JSONDecodeError) as exc:
                 if emitted or attempt >= self._max_retries:
                     raise ProviderStreamInterrupted(
-                        "OpenAI stream was interrupted",
+                        f"{self.provider_name} stream was interrupted",
                         code="stream_interrupted",
                         retryable=not emitted,
                     ) from exc
@@ -227,5 +235,7 @@ class OpenAIAdapter:
 
     def _validate(self, model: str) -> None:
         if not self._api_key:
-            raise ProviderNotConfigured("OpenAI is not configured on the server")
+            raise ProviderNotConfigured(
+                f"{self.provider_name} is not configured on the server"
+            )
         validate_model(model, self.models)
