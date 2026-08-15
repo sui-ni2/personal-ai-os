@@ -67,10 +67,12 @@ class Settings:
     cors_origins: tuple[str, ...]
     openai_models: tuple[str, ...]
     anthropic_models: tuple[str, ...]
+    github_models_models: tuple[str, ...]
     default_provider: str
     default_model: str
     openai_api_key: str | None = field(default=None, repr=False)
     anthropic_api_key: str | None = field(default=None, repr=False)
+    github_models_token: str | None = field(default=None, repr=False)
     realtime_api_key: str | None = field(default=None, repr=False)
     realtime_endpoint: str = DEFAULT_REALTIME_ENDPOINT
     mcp_stdio_commands: dict[str, tuple[str, ...]] = field(default_factory=dict, repr=False)
@@ -132,10 +134,14 @@ class Settings:
             anthropic_models=_csv(
                 os.getenv("PERSONAL_AI_OS_ANTHROPIC_MODELS", "claude-sonnet-4-5,claude-haiku-4-5")
             ),
+            github_models_models=_csv(
+                os.getenv("PERSONAL_AI_OS_GITHUB_MODELS_MODELS", "openai/gpt-4.1")
+            ),
             default_provider=os.getenv("PERSONAL_AI_OS_DEFAULT_PROVIDER", "openai"),
             default_model=os.getenv("PERSONAL_AI_OS_DEFAULT_MODEL", "gpt-5.1"),
             openai_api_key=os.getenv("PERSONAL_AI_OS_OPENAI_API_KEY") or None,
             anthropic_api_key=os.getenv("PERSONAL_AI_OS_ANTHROPIC_API_KEY") or None,
+            github_models_token=os.getenv("PERSONAL_AI_OS_GITHUB_MODELS_TOKEN") or None,
             realtime_api_key=os.getenv("PERSONAL_AI_OS_REALTIME_API_KEY") or None,
             realtime_endpoint=_realtime_endpoint(
                 os.getenv("PERSONAL_AI_OS_REALTIME_ENDPOINT")
