@@ -16,6 +16,7 @@ function displayName(model: string) {
 function providerName(provider: string) {
   if (provider.toLowerCase() === "openai") return "OpenAI";
   if (provider.toLowerCase() === "anthropic") return "Anthropic";
+  if (provider.toLowerCase() === "ollama") return "Ollama";
   return provider.charAt(0).toUpperCase() + provider.slice(1);
 }
 

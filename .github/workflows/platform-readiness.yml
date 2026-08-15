@@ -12,6 +12,7 @@ on:
       - "apps/**"
       - "packages/**"
       - "scripts/release-provider-smoke.py"
+      - "scripts/check-mobile-readiness.ps1"
       - ".github/workflows/platform-readiness.yml"
   push:
     branches: [main]
@@ -24,6 +25,7 @@ on:
       - "apps/**"
       - "packages/**"
       - "scripts/release-provider-smoke.py"
+      - "scripts/check-mobile-readiness.ps1"
       - ".github/workflows/platform-readiness.yml"
   workflow_dispatch:
 
@@ -49,7 +51,7 @@ jobs:
         run: python scripts/release-provider-smoke.py --provider openai --no-key-only
 
   container:
-    name: Container build and health
+    name: Container build, health, and mobile shell
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -76,6 +78,10 @@ jobs:
           echo "Container did not become healthy" >&2
           docker logs personal-ai-os-ci >&2 || true
           exit 1
+      - name: Verify production mobile/PWA readiness
+        shell: pwsh
+        run: |
+          ./scripts/check-mobile-readiness.ps1 -BaseUrl "http://127.0.0.1:18080" -AllowInsecureLocalhost
       - name: Clean up container
         if: always()
         run: docker rm -f personal-ai-os-ci >/dev/null 2>&1 || true

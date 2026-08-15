@@ -11,6 +11,7 @@ Add focused repository topics after confirming they accurately describe the proj
 - `mcp`
 - `openai`
 - `anthropic`
+- `ollama`
 - `self-hosted`
 - `privacy`
 - `developer-tools`
@@ -29,15 +30,15 @@ Target policy:
 - keep maintainer bypass exceptional rather than routine;
 - do not require an external approval while the project has only one maintainer, unless a second trusted maintainer is added.
 
-This is a real gap today: an administrator can currently write directly to `main`, so the project process is stronger than the repository enforcement.
+The connected GitHub integration cannot read the branch-protection endpoint for this repository, so this setting remains an explicit repository-admin verification item rather than source-controlled evidence.
 
 ## Security analysis settings
 
-Enable the repository **Dependency graph** before adding the Dependency Review workflow. A real trial of `actions/dependency-review-action@v5` failed closed because GitHub reported that Dependency Review is not supported while the graph is disabled. Once the graph is enabled, add the pull-request Dependency Review gate back and fail on newly introduced `high` or `critical` vulnerabilities.
-
-GitHub private vulnerability reporting is also currently disabled. Enable it when possible, then update `SECURITY.md` to point reporters directly to the private reporting flow instead of asking them to establish a private channel first.
-
-CodeQL is already configured in source control for Python and JavaScript/TypeScript. Dependabot version updates are also configured; production Docker runtime **major** jumps remain deliberate compatibility work rather than automatic version-update PRs.
+- [x] Dependency graph is enabled. The previously failing Dependency Review run was rerun after the repository setting changed and completed successfully.
+- [x] Pull-request Dependency Review is present and fails on newly introduced high-severity dependency risk according to the source-controlled workflow policy.
+- [x] CodeQL is configured for Python and JavaScript/TypeScript.
+- [x] Dependabot version updates are configured; production Docker runtime **major** jumps remain deliberate compatibility work rather than automatic version-update PRs.
+- [ ] GitHub private vulnerability reporting is currently disabled. Enable it when possible, then update `SECURITY.md` to point reporters directly to the private reporting flow instead of asking them to establish a private channel first.
 
 ## Discussions
 
@@ -45,4 +46,4 @@ Enable GitHub Discussions when there is enough external traffic to justify a low
 
 ## Release gate
 
-Do not weaken the real-provider release gate merely because repository-level settings are incomplete. `v0.2.0` remains blocked until the required real-provider smoke test passes with a real credential.
+Do not weaken the real-provider release gate merely because repository-level settings are incomplete. `v0.2.0` remains blocked until the required real-inference smoke test completes successfully. The fallback local Ollama path is valid only when the workflow installs a real runtime, loads a real model, and completes the application-level connection/chat/restart loop; mocks or a successful model download alone do not satisfy the gate.
