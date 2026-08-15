@@ -1,11 +1,24 @@
 # Personal AI OS
 
+[![CI](https://github.com/sui-ni2/personal-ai-os/actions/workflows/ci.yml/badge.svg)](https://github.com/sui-ni2/personal-ai-os/actions/workflows/ci.yml)
+
 A user-controlled AI workspace for long-running projects. It preserves context, helps complete
 work, and turns useful results into reusable outcomes while keeping memory decisions visible to
 the user. One modular core supports a community/self-hosted delivery mode today and a fail-closed
 managed cloud boundary for future account-based delivery.
 
 ![Personal AI OS flow](apps/web/public/assets/personal-ai-flow.png)
+
+## Early testers wanted
+
+Personal AI OS is preparing its first stable `v0.2.0` release. The most useful contribution right
+now is a genuine fresh-install test: configure a supported provider, complete one text-chat turn,
+restart the app, and report any setup friction or reproducible bug.
+
+- Testers: use [Issue #7](https://github.com/sui-ni2/personal-ai-os/issues/7) for sanitized feedback.
+- Contributors: focused documentation fixes, bug fixes, and small pull requests are welcome.
+- Never post API keys, `.env` files, authorization headers, cookies, private conversations,
+  runtime databases, logs containing secrets, uploads/backups, or private project data.
 
 ## What is runnable now
 

@@ -3,6 +3,13 @@
 Thank you for helping improve Personal AI OS. Contributions should keep the core
 general-purpose, local-first, auditable, and safe for private user data.
 
+## Good first contributions
+
+If you are new to the project, the highest-value contribution is to try a fresh install and report
+real setup or first-chat friction in [Issue #7](https://github.com/sui-ni2/personal-ai-os/issues/7).
+Small documentation corrections and focused bug fixes are also welcome. Please do not create
+synthetic feedback or test data that could be mistaken for real user adoption.
+
 ## Before opening a change
 
 - Search existing issues before starting overlapping work.
