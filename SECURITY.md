@@ -10,14 +10,16 @@ multi-version support policy will be published with the first stable release.
 Do not report vulnerabilities that contain credentials, private user data, exploit
 details, or sensitive deployment information in a public issue.
 
-After the public GitHub repository is created, use GitHub's private vulnerability
-reporting or a private security advisory. If private reporting is not yet enabled,
-contact the maintainer through the public GitHub profile without including sensitive
-details and request a private channel.
+GitHub private vulnerability reporting is not currently enabled for this repository.
+Until it is enabled, contact the maintainer through the public GitHub profile without
+including sensitive details and request a private channel. Do not paste a proof of
+concept, credential, private conversation, deployment secret, or sensitive log into a
+public issue or discussion.
 
 Include the affected version or commit, impact, reproduction conditions, and a minimal
-proof of concept with all secrets and personal data removed. Please allow reasonable
-time for confirmation and remediation before public disclosure.
+proof of concept only after a private reporting channel is established, with all secrets
+and personal data removed. Please allow reasonable time for confirmation and remediation
+before public disclosure.
 
 ## Security boundaries
 
