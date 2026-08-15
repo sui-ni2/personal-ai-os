@@ -1,0 +1,48 @@
+name: Release provider smoke probe
+
+on:
+  push:
+    branches:
+      - chore/provider-smoke-gate
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  provider-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PERSONAL_AI_OS_OPENAI_API_KEY: ${{ secrets.PERSONAL_AI_OS_OPENAI_API_KEY }}
+      PERSONAL_AI_OS_ANTHROPIC_API_KEY: ${{ secrets.PERSONAL_AI_OS_ANTHROPIC_API_KEY }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install Python dependencies
+        run: python -m pip install -r requirements-dev.txt
+
+      - name: Select configured provider without exposing secrets
+        id: provider
+        shell: bash
+        run: |
+          if [[ -n "$PERSONAL_AI_OS_OPENAI_API_KEY" ]]; then
+            echo "provider=openai" >> "$GITHUB_OUTPUT"
+            echo "Using configured OpenAI repository secret."
+          elif [[ -n "$PERSONAL_AI_OS_ANTHROPIC_API_KEY" ]]; then
+            echo "provider=anthropic" >> "$GITHUB_OUTPUT"
+            echo "Using configured Anthropic repository secret."
+          else
+            echo "::error title=Real provider smoke blocked::Neither PERSONAL_AI_OS_OPENAI_API_KEY nor PERSONAL_AI_OS_ANTHROPIC_API_KEY is configured as a repository Actions secret."
+            exit 1
+          fi
+
+      - name: Run isolated real-provider release smoke
+        run: python scripts/release-provider-smoke.py --provider "${{ steps.provider.outputs.provider }}"
