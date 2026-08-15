@@ -11,14 +11,16 @@ managed cloud boundary for future account-based delivery.
 
 ## Early testers wanted
 
-Personal AI OS is preparing its first stable `v0.2.0` release. The most useful contribution right
-now is a genuine fresh-install test: configure a supported provider, complete one text-chat turn,
-restart the app, and report any setup friction or reproducible bug.
+Personal AI OS is preparing its first stable `v0.2.0` release. **You do not need a paid API key to help test it.**
 
-- Testers: use [Issue #7](https://github.com/sui-ni2/personal-ai-os/issues/7) for sanitized feedback.
-- Contributors: focused documentation fixes, bug fixes, and small pull requests are welcome.
+- **No API key:** follow [Try without an API key](docs/try-without-api.md) or run `python scripts/release-provider-smoke.py --provider openai --no-key-only` after installing the Python dependencies. This makes no billable model call.
+- **Have your own provider key:** use [Issue #7](https://github.com/sui-ni2/personal-ai-os/issues/7) for the full provider → first chat → restart-persistence path.
+- **New contributor:** [Issue #15](https://github.com/sui-ni2/personal-ai-os/issues/15) is a concrete Windows fresh-install verification task labeled `good first issue`.
+- Focused documentation fixes, bug fixes, and small pull requests are welcome.
 - Never post API keys, `.env` files, authorization headers, cookies, private conversations,
   runtime databases, logs containing secrets, uploads/backups, or private project data.
+
+The zero-cost path verifies safe startup, runtime version, unconfigured-provider behavior, and secret redaction. It does **not** substitute for the real-provider release gate.
 
 ## What is runnable now
 
