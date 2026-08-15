@@ -11,7 +11,7 @@ COPY apps/web apps/web
 COPY scripts/build-static.mjs scripts/prepare-static-export.mjs scripts/
 RUN pnpm build:static
 
-FROM python:3.12-slim AS runtime
+FROM python:3.14-slim AS runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
