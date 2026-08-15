@@ -1,9 +1,6 @@
-name: Release provider smoke probe
+name: Release provider smoke
 
 on:
-  push:
-    branches:
-      - chore/provider-smoke-gate
   workflow_dispatch:
 
 permissions:
