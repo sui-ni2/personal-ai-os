@@ -67,9 +67,9 @@ class Settings:
     cors_origins: tuple[str, ...]
     openai_models: tuple[str, ...]
     anthropic_models: tuple[str, ...]
-    github_models_models: tuple[str, ...]
     default_provider: str
     default_model: str
+    github_models_models: tuple[str, ...] = ("openai/gpt-4.1",)
     openai_api_key: str | None = field(default=None, repr=False)
     anthropic_api_key: str | None = field(default=None, repr=False)
     github_models_token: str | None = field(default=None, repr=False)
