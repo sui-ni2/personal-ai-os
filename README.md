@@ -1,6 +1,8 @@
 # Personal AI OS
 
 [![CI](https://github.com/sui-ni2/personal-ai-os/actions/workflows/ci.yml/badge.svg)](https://github.com/sui-ni2/personal-ai-os/actions/workflows/ci.yml)
+[![Platform Readiness](https://github.com/sui-ni2/personal-ai-os/actions/workflows/platform-readiness.yml/badge.svg)](https://github.com/sui-ni2/personal-ai-os/actions/workflows/platform-readiness.yml)
+[![CodeQL](https://github.com/sui-ni2/personal-ai-os/actions/workflows/codeql.yml/badge.svg)](https://github.com/sui-ni2/personal-ai-os/actions/workflows/codeql.yml)
 
 A user-controlled AI workspace for long-running projects. It preserves context, helps complete
 work, and turns useful results into reusable outcomes while keeping memory decisions visible to
@@ -21,6 +23,17 @@ Personal AI OS is preparing its first stable `v0.2.0` release. **You do not need
   runtime databases, logs containing secrets, uploads/backups, or private project data.
 
 The zero-cost path verifies safe startup, runtime version, unconfigured-provider behavior, and secret redaction. It does **not** substitute for the real-provider release gate.
+
+## Maintenance and security
+
+Repository maintenance is executable rather than release-note-only:
+
+- normal pull requests run backend tests, Python compilation, frontend type checks/builds, and the no-key startup gate;
+- Platform Readiness runs the no-key smoke on a real Windows runner and builds, starts, and health-checks the production Docker image;
+- CodeQL analyzes Python and JavaScript/TypeScript on pull requests, `main`, and a weekly schedule;
+- Dependabot checks JavaScript, Python, GitHub Actions, and Docker dependencies weekly; production Docker runtime major jumps remain deliberate compatibility work rather than automatic version updates.
+
+Repository-admin settings that source-controlled CI cannot replace are tracked honestly in [`docs/repository-admin-checklist.md`](docs/repository-admin-checklist.md).
 
 ## What is runnable now
 
