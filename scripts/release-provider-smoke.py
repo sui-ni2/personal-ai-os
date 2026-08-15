@@ -176,10 +176,10 @@ def _assert_conversation(client: httpx.Client, conversation_id: str, minimum_mes
         _fail("Provider returned an empty assistant message")
 
 
-def run(provider: str, requested_model: str | None) -> None:
+def run(provider: str, requested_model: str | None, *, no_key_only: bool = False) -> None:
     if provider not in KEY_ENV:
         _fail(f"Unsupported provider: {provider}")
-    if not os.getenv(KEY_ENV[provider]):
+    if not no_key_only and not os.getenv(KEY_ENV[provider]):
         _fail(f"Set {KEY_ENV[provider]} in the current shell; the script never prints or writes its value")
 
     with tempfile.TemporaryDirectory(prefix="personal-ai-os-release-smoke-") as temp_dir:
@@ -202,6 +202,10 @@ def run(provider: str, requested_model: str | None) -> None:
             _pass("fresh install starts safely with provider unconfigured and secrets hidden")
         finally:
             _stop_api(process)
+
+        if no_key_only:
+            _pass("no-key readiness gate completed without provider credentials or billable model calls")
+            return
 
         # Phase 2: restart with the real credential and exercise a complete chat turn.
         process, base_url = _start_api(_environment(data_dir, provider=provider, include_credential=True))
@@ -258,13 +262,18 @@ def run(provider: str, requested_model: str | None) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Fail-closed v0.2.0 real-provider smoke test. Never prints provider credentials or response text."
+        description="Fail-closed v0.2.0 readiness smoke test. Never prints provider credentials or response text."
     )
     parser.add_argument("--provider", choices=sorted(KEY_ENV), default="openai")
     parser.add_argument("--model", default=None, help="Optional allowlisted model override")
+    parser.add_argument(
+        "--no-key-only",
+        action="store_true",
+        help="Verify fresh no-key startup and secret boundaries without requiring a provider credential or making billable model calls.",
+    )
     args = parser.parse_args()
     try:
-        run(args.provider, args.model)
+        run(args.provider, args.model, no_key_only=args.no_key_only)
     except SmokeFailure as exc:
         print(f"[FAIL] {exc}", file=sys.stderr)
         return 1
