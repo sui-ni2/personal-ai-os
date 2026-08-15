@@ -26,6 +26,16 @@ def _bool(value: str) -> bool:
     raise RuntimeError(f"Expected a boolean value, received {value!r}")
 
 
+def _optional_positive_int(value: str) -> int | None:
+    normalized = value.strip()
+    if not normalized:
+        return None
+    parsed = int(normalized)
+    if parsed < 1:
+        raise RuntimeError("Expected a positive integer")
+    return parsed
+
+
 def _stdio_commands(value: str) -> dict[str, tuple[str, ...]]:
     try:
         parsed = json.loads(value)
@@ -92,6 +102,7 @@ class Settings:
     ollama_enabled: bool = False
     ollama_models: tuple[str, ...] = ("smollm2:135m-instruct-q2_K",)
     ollama_endpoint: str = DEFAULT_OLLAMA_ENDPOINT
+    ollama_max_output_tokens: int | None = None
     realtime_api_key: str | None = field(default=None, repr=False)
     realtime_endpoint: str = DEFAULT_REALTIME_ENDPOINT
     mcp_stdio_commands: dict[str, tuple[str, ...]] = field(default_factory=dict, repr=False)
@@ -163,6 +174,9 @@ class Settings:
             ),
             ollama_endpoint=_ollama_endpoint(
                 os.getenv("PERSONAL_AI_OS_OLLAMA_ENDPOINT") or DEFAULT_OLLAMA_ENDPOINT
+            ),
+            ollama_max_output_tokens=_optional_positive_int(
+                os.getenv("PERSONAL_AI_OS_OLLAMA_MAX_OUTPUT_TOKENS", "")
             ),
             realtime_api_key=os.getenv("PERSONAL_AI_OS_REALTIME_API_KEY") or None,
             realtime_endpoint=_realtime_endpoint(
