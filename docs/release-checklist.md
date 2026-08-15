@@ -6,22 +6,22 @@ This checklist is the publication gate for Personal AI OS releases. A release is
 
 ### Version history
 
-- [x] Historical tag `v0.2.0-alpha.1` exists and is an ancestor of current `main`.
+- [x] Historical tag `v0.2.0-alpha.1` exists and is an ancestor of the v0.2 release line.
 - [x] No GitHub Release was published for `v0.2.0-alpha.1`; the tag remains intact as historical prerelease evidence.
 - [x] The next stable release line is `v0.2.0`, not a chronological rollback to `v0.1.0`.
 
 ### Source and repository
 
-- [x] `main` contains the persistent project-state core.
-- [x] `main` contains Standard / Advanced navigation.
+- [x] The release candidate contains the persistent project-state core.
+- [x] The release candidate contains Standard / Advanced navigation.
 - [x] Apache-2.0 license, `SECURITY.md`, and `CONTRIBUTING.md` are present.
 - [x] Public README documents local startup, checks, privacy boundaries, and current runnable scope.
-- [x] API, internal Python packages, and Web package are aligned to version `0.2.0` in the release candidate.
-- [ ] `CHANGELOG.md` is switched from `Unreleased` to the actual release date immediately before tagging.
+- [x] API, internal Python packages, and Web package are aligned to version `0.2.0`.
+- [x] `CHANGELOG.md` is dated `2026-08-15` before tagging.
 
 ### Automated verification
 
-Before publishing, all of the following must pass from a clean checkout:
+The final release candidate is verified through the equivalent automated clean-checkout paths below:
 
 ```powershell
 .\.venv\Scripts\python.exe -m pytest
@@ -31,41 +31,58 @@ pnpm build:web
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-mobile-readiness.ps1 -BaseUrl "http://127.0.0.1:3001" -AllowInsecureLocalhost
 ```
 
-- [x] Latest `main` GitHub Actions CI is green after merging the core v0.2 feature work and release-gate documentation.
-- [ ] Clean-checkout verification above has been rerun for the final release candidate after version alignment.
-- [ ] Release-branch CI, CodeQL/Dependency Review as applicable, and Platform Readiness are green for the final diff.
+- [x] Backend tests pass, including provider failure guidance and Ollama output-cap coverage.
+- [x] Python package/API version consistency and compilation pass.
+- [x] Frontend type checks and production build pass.
+- [x] Windows fresh no-key readiness passes.
+- [x] Production Docker image builds, starts, and passes health checks.
+- [x] Production PWA/mobile readiness passes against the running production image.
+- [x] Dependency Review passes with the source-controlled high-severity gate restored.
+- [x] CodeQL passes for the release candidate.
+- [x] Platform Readiness passes for the release candidate.
 
 ### Fresh-install real-provider smoke test
 
-Run in an isolated temporary data/runtime location. Do not reuse or commit private user runtime databases.
-
 A valid release gate must execute a **real model inference request**, not a mock, fixture, synthetic response, or disabled provider. The release workflow prefers a maintainer-configured OpenAI or Anthropic server-side secret when one exists. Otherwise it installs a pinned Ollama runtime on the isolated GitHub Actions runner, pulls the allowlisted small CI model, and exercises the same application provider boundary through Ollama's local OpenAI-compatible endpoint.
 
-Ollama is disabled during the fresh no-provider phase and enabled only for the real-inference phases. Its local endpoint requires no provider credential; this does not weaken the gate because an actual model is loaded and queried.
+Ollama is disabled during the fresh no-provider phase and enabled only for the real-inference phases. Its local endpoint requires no provider credential. CI applies an explicit small output-token cap only to the release runner so model verbosity cannot make the gate nondeterministic; normal Ollama usage remains uncapped unless the operator explicitly configures a limit.
 
-- [ ] Start from a fresh clone/install with no application state.
-- [ ] Application starts with no provider enabled/credential configured and reports providers as unconfigured without exposing secret values.
-- [ ] Configure or explicitly enable one real provider without placing a secret in Git, logs, screenshots, issues, or release artifacts.
-- [ ] Run the provider connection check and receive a complete successful model response.
-- [ ] Select a provider and model, save them, and verify the choice is persisted.
-- [ ] Complete one real text-chat turn and receive a complete non-empty response.
-- [ ] Restart the API against the same isolated data directory and verify the selected default provider/model and persisted conversation remain valid.
-- [ ] Continue the same conversation after restart and verify the application persists the additional exchange.
-- [ ] Verify user-facing invalid-credential, unreachable/offline, and rate/quota-limit failure categories remain distinguishable through automated tests or a safe controlled test.
+- [x] Start from an isolated fresh runtime with no application state.
+- [x] Application starts with no provider enabled/credential configured and reports providers as unconfigured without exposing secret values.
+- [x] Explicitly enable one real provider without placing a secret in Git, logs, screenshots, issues, or release artifacts.
+- [x] Run the provider connection check and receive a complete successful model response.
+- [x] Select a provider and model, save them, and verify the choice is persisted.
+- [x] Complete one real text-chat turn and receive a complete non-empty response.
+- [x] Restart the API against the same isolated data directory and verify the selected default provider/model and persisted conversation remain valid.
+- [x] Continue the same conversation after restart and verify the application persists the additional exchange.
+- [x] Verify invalid-credential, unreachable/offline, and rate/quota-limit failure categories through automated API/provider tests.
 
 ### Privacy and artifact audit
 
-- [ ] Final release-prep diff has no unexpected generated/runtime files before tagging.
-- [ ] No `.env`, API keys, authorization headers, cookies, private conversations, runtime SQLite databases, Soccer/P5 private data, logs, uploads, model cache files, or backups are included in the release diff/artifacts.
-- [ ] Release notes contain no private provider responses or user data.
+- [x] Final PR file list contains only source, tests, workflows, public documentation, and `.env.example`; no unexpected generated/runtime file is present.
+- [x] No `.env` values, API keys, authorization headers, cookies, private conversations, runtime SQLite databases, Soccer/P5 private data, logs, uploads, model cache files, or backups are included in the release diff.
+- [x] Release notes contain no private provider response text or user data.
+- [x] The release smoke runner does not print model response text or provider credentials.
+
+### Verified evidence
+
+PR #35 release head `a2e09202448e543eb99c20a7085e2e3b9408a4ef` passed all five release lines before this checklist-only evidence update:
+
+- CI — success
+- CodeQL — success
+- Dependency Review — success
+- Platform Readiness — success, including Windows no-key and production Docker/PWA checks
+- Release provider smoke — success with real local Ollama inference, persisted provider/model selection, API restart, and continued conversation state
+
+This checklist update changes documentation only. The resulting final PR head must still remain green before merge.
 
 ### Publication
 
-Only after every required box above passes:
+Only after the final checklist head remains green:
 
-1. Replace `Unreleased` in `CHANGELOG.md` with the release date.
-2. Merge the final release-prep change to `main` and require green CI.
-3. Close Issue #1 only if its real fresh-install/provider acceptance criteria are actually satisfied.
+1. Merge PR #35 to `main`.
+2. Verify post-merge `main` CI/security/platform checks.
+3. Close Issue #1 with sanitized evidence because its fresh-install/provider acceptance criteria are satisfied.
 4. Create tag `v0.2.0` from the verified `main` commit.
 5. Publish GitHub Release `v0.2.0` with concise release notes and known limitations.
 6. Verify the release tag points to the intended commit and no secret/private artifact is attached.
