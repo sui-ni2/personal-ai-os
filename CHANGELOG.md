@@ -10,9 +10,9 @@ This stable candidate continues the version line established by the historical `
 
 ### Added
 
-- A local-first Personal AI workspace with Next.js web UI and FastAPI/SQLite backend.
+- A local-first, provider-neutral Personal AI workspace with Next.js web UI and FastAPI/SQLite backend.
 - Text chat and GPT Live conversation modes with restart-safe conversation history.
-- OpenAI and Anthropic provider adapters behind one streaming interface.
+- OpenAI, Anthropic, and optional local Ollama provider adapters behind one streaming interface.
 - Server-side provider configuration, live connection checks, and persistent default provider/model selection.
 - Standard and Advanced interface modes so ordinary workflows can hide technical controls while keeping self-hosted capabilities available.
 - Project-scoped persistent state, version history, optimistic concurrency, locked/formal-state protection, workflow gates, and project-bound MCP continuity tools.
@@ -21,15 +21,18 @@ This stable candidate continues the version line established by the historical `
 - P5 review-first workflow with immutable 10,000-candidate observation locks, diagnostic Top10/Top5 prefixes, lookup, evidence, conflict rejection, and audit views.
 - Tenant-scoped core persistence and explicit community/cloud delivery contracts.
 - Mobile PWA shell and documented HTTPS deployment path.
+- An isolated release workflow that performs real model inference with a pinned local Ollama runtime when no maintainer-owned remote provider secret is available.
 
 ### Security and privacy
 
 - Provider credentials remain server-side and are not returned by Settings.
+- Ollama is disabled by default and must be explicitly enabled before the application treats it as configured.
 - Private project runtime databases and project-specific data remain physically isolated.
 - Execution/audit surfaces redact credentials, authorization data, cookies, tracebacks, and reasoning fields.
 - MCP tools are allowlisted and models cannot submit arbitrary shell commands.
 - Cloud mode fails closed until real account identity is available.
+- CI, CodeQL, Dependency Review, Platform Readiness, and a real-inference release gate form the repository release-safety baseline.
 
 ### Release gate
 
-`v0.2.0` must not be published until the release checklist in `docs/release-checklist.md` passes, including a real-provider fresh-install smoke test. Until then this section remains `Unreleased`.
+`v0.2.0` must not be published until the release checklist in `docs/release-checklist.md` passes. In particular, the final release candidate must complete a real fresh-install inference loop—not a mock or stub—including provider connection, one text-chat turn, restart, and continued persisted conversation state. Until then this section remains `Unreleased`.
