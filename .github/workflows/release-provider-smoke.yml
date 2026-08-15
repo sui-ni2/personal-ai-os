@@ -15,7 +15,7 @@ jobs:
       PERSONAL_AI_OS_ANTHROPIC_API_KEY: ${{ secrets.PERSONAL_AI_OS_ANTHROPIC_API_KEY }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python
         uses: actions/setup-python@v5
