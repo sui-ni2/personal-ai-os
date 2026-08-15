@@ -5,7 +5,12 @@ from dataclasses import dataclass
 from personal_ai_os_core import ProductProfile, ProjectRegistry, build_product_profile
 from personal_ai_os_mcp import ConnectorRegistry, EchoMCPServer, MCPGateway
 from personal_ai_os_projects import P5Project, create_project_registry
-from personal_ai_os_providers import AnthropicAdapter, OpenAIAdapter, ProviderRegistry
+from personal_ai_os_providers import (
+    AnthropicAdapter,
+    OllamaAdapter,
+    OpenAIAdapter,
+    ProviderRegistry,
+)
 
 from .config import Settings
 from .db import Database
@@ -50,6 +55,14 @@ def create_runtime(settings: Settings) -> Runtime:
                 settings.provider_timeout_seconds,
                 settings.provider_max_retries,
                 settings.provider_retry_base_seconds,
+            ),
+            OllamaAdapter(
+                settings.ollama_enabled,
+                settings.ollama_models,
+                settings.provider_timeout_seconds,
+                settings.provider_max_retries,
+                settings.provider_retry_base_seconds,
+                endpoint=settings.ollama_endpoint,
             ),
         ]
     )
