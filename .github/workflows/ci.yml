@@ -24,6 +24,8 @@ jobs:
         run: python -m pytest apps/api/tests -q
       - name: Compile Python sources
         run: python -m compileall -q apps/api/src packages
+      - name: Verify fresh no-key readiness
+        run: python scripts/release-provider-smoke.py --provider openai --no-key-only
 
   frontend:
     runs-on: ubuntu-latest
