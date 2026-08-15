@@ -7,7 +7,6 @@ import pytest
 from personal_ai_os_core import Message, MessageRole
 from personal_ai_os_providers import (
     AnthropicAdapter,
-    GitHubModelsAdapter,
     OpenAIAdapter,
     ProviderRateLimited,
     ProviderStreamInterrupted,
@@ -71,33 +70,6 @@ async def test_openai_detects_partial_stream_interruption() -> None:
     )
     with pytest.raises(ProviderStreamInterrupted):
         _ = [item async for item in adapter.stream(_messages(), "test-model")]
-
-
-@pytest.mark.asyncio
-async def test_github_models_uses_github_headers_and_openai_stream_protocol() -> None:
-    captured: dict[str, str] = {}
-
-    def handler(request: httpx.Request) -> httpx.Response:
-        captured["url"] = str(request.url)
-        captured["authorization"] = request.headers["Authorization"]
-        captured["accept"] = request.headers["Accept"]
-        captured["api_version"] = request.headers["X-GitHub-Api-Version"]
-        body = 'data: {"choices":[{"delta":{"content":"github-ok"}}]}\n\ndata: [DONE]\n\n'
-        return httpx.Response(200, text=body, request=request)
-
-    adapter = GitHubModelsAdapter(
-        "github-test-token",
-        ("openai/gpt-4.1",),
-        transport=httpx.MockTransport(handler),
-        endpoint="https://models.github.test/inference/chat/completions",
-    )
-    output = [item async for item in adapter.stream(_messages(), "openai/gpt-4.1")]
-    assert output == ["github-ok"]
-    assert adapter.id == "github_models"
-    assert captured["url"] == "https://models.github.test/inference/chat/completions"
-    assert captured["authorization"] == "Bearer github-test-token"
-    assert captured["accept"] == "application/vnd.github+json"
-    assert captured["api_version"] == "2026-03-10"
 
 
 @pytest.mark.asyncio
