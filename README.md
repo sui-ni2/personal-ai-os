@@ -3,11 +3,17 @@
 [![CI](https://github.com/sui-ni2/personal-ai-os/actions/workflows/ci.yml/badge.svg)](https://github.com/sui-ni2/personal-ai-os/actions/workflows/ci.yml)
 [![Platform Readiness](https://github.com/sui-ni2/personal-ai-os/actions/workflows/platform-readiness.yml/badge.svg)](https://github.com/sui-ni2/personal-ai-os/actions/workflows/platform-readiness.yml)
 [![CodeQL](https://github.com/sui-ni2/personal-ai-os/actions/workflows/codeql.yml/badge.svg)](https://github.com/sui-ni2/personal-ai-os/actions/workflows/codeql.yml)
+[![Dependency Review](https://github.com/sui-ni2/personal-ai-os/actions/workflows/dependency-review.yml/badge.svg)](https://github.com/sui-ni2/personal-ai-os/actions/workflows/dependency-review.yml)
 
-A user-controlled AI workspace for long-running projects. It preserves context, helps complete
-work, and turns useful results into reusable outcomes while keeping memory decisions visible to
-the user. One modular core supports a community/self-hosted delivery mode today and a fail-closed
-managed cloud boundary for future account-based delivery.
+**Personal AI OS is a local-first, provider-neutral workspace for long-running AI work.**
+Projects, context, reviewed memory, tools, and auditable execution belong to the workspace rather
+than to any single model provider. Users can change AI services without making the project itself
+belong to that service. The community edition runs locally today; managed-cloud account and billing
+boundaries remain fail-closed until their identity infrastructure is ready.
+
+It is not an account switcher and it is not a thin chat client. The goal is a durable personal AI
+work layer in which model providers are replaceable execution engines while project state remains
+under the user's control.
 
 ![Personal AI OS flow](apps/web/public/assets/personal-ai-flow.png)
 
@@ -16,13 +22,13 @@ managed cloud boundary for future account-based delivery.
 Personal AI OS is preparing its first stable `v0.2.0` release. **You do not need a paid API key to help test it.**
 
 - **No API key:** follow [Try without an API key](docs/try-without-api.md) or run `python scripts/release-provider-smoke.py --provider openai --no-key-only` after installing the Python dependencies. This makes no billable model call.
-- **Have your own provider key:** use [Issue #7](https://github.com/sui-ni2/personal-ai-os/issues/7) for the full provider → first chat → restart-persistence path.
+- **Have your own provider credential:** use [Issue #7](https://github.com/sui-ni2/personal-ai-os/issues/7) for the full provider → first chat → restart-persistence path. OpenAI, Anthropic, and GitHub Models are supported server-side adapters.
 - **New contributor:** [Issue #15](https://github.com/sui-ni2/personal-ai-os/issues/15) is a concrete Windows fresh-install verification task labeled `good first issue`.
 - Focused documentation fixes, bug fixes, and small pull requests are welcome.
-- Never post API keys, `.env` files, authorization headers, cookies, private conversations,
+- Never post API keys, GitHub tokens, `.env` files, authorization headers, cookies, private conversations,
   runtime databases, logs containing secrets, uploads/backups, or private project data.
 
-The zero-cost path verifies safe startup, runtime version, unconfigured-provider behavior, and secret redaction. It does **not** substitute for the real-provider release gate.
+The zero-cost path verifies safe startup, runtime version, unconfigured-provider behavior, and secret redaction. It does **not** substitute for the real-provider release gate. The release workflow can perform that isolated gate with GitHub Models using the workflow-scoped `GITHUB_TOKEN` and read-only Models permission; the token is never printed or persisted by the smoke runner.
 
 ## Maintenance and security
 
@@ -31,7 +37,9 @@ Repository maintenance is executable rather than release-note-only:
 - normal pull requests run backend tests, Python compilation, frontend type checks/builds, and the no-key startup gate;
 - Platform Readiness runs the no-key smoke on a real Windows runner and builds, starts, and health-checks the production Docker image;
 - CodeQL analyzes Python and JavaScript/TypeScript on pull requests, `main`, and a weekly schedule;
-- Dependabot checks JavaScript, Python, GitHub Actions, and Docker dependencies weekly; production Docker runtime major jumps remain deliberate compatibility work rather than automatic version updates.
+- Dependency Review fails closed on high-severity dependency changes once the repository dependency graph is available;
+- Dependabot checks JavaScript, Python, GitHub Actions, and Docker dependencies weekly; production Docker runtime major jumps remain deliberate compatibility work rather than automatic version updates;
+- `release/*` pull requests run an isolated real-provider smoke before `v0.2.0` can be published.
 
 Repository-admin settings that source-controlled CI cannot replace are tracked honestly in [`docs/repository-admin-checklist.md`](docs/repository-admin-checklist.md).
 
@@ -43,7 +51,7 @@ Repository-admin settings that source-controlled CI cannot replace are tracked h
 - Focused Text and GPT Live conversation modes. Completed Live transcripts stay in the
   same conversation, update its short title, and do not become long-term Memory automatically.
 - FastAPI API with SQLite persistence and automatic schema migration.
-- OpenAI and Anthropic adapters behind one streaming interface, with timeout,
+- OpenAI, Anthropic, and GitHub Models adapters behind one streaming interface, with timeout,
   cancellation, bounded retry, rate-limit normalization, and interrupted-stream handling.
 - SSE execution protocol: `message`, `tool_start`, `tool_result`, `error`, `done`.
 - Restart-safe conversation history with project filtering and restored execution traces.
@@ -58,7 +66,7 @@ Repository-admin settings that source-controlled CI cannot replace are tracked h
   capability-based access to advanced features. The runnable distribution remains the
   community edition; cloud accounts, billing, managed routing, and device sync are not yet live.
 
-Provider calls require server-side environment variables. The application still starts without keys and reports each provider as unconfigured without exposing secret values.
+Provider calls require server-side credentials. The application still starts without credentials and reports each provider as unconfigured without exposing secret values. OpenAI uses `PERSONAL_AI_OS_OPENAI_API_KEY`, Anthropic uses `PERSONAL_AI_OS_ANTHROPIC_API_KEY`, and GitHub Models uses `PERSONAL_AI_OS_GITHUB_MODELS_TOKEN`.
 
 Public deployments can enable the built-in single-user access gate with
 `PERSONAL_AI_OS_REQUIRE_AUTH=true`. The access password and 32+ character session secret remain
@@ -139,7 +147,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-mobile-readi
 - MCP tools are registered and allowlisted; the model cannot supply shell commands.
 - HTTP connector endpoints and stdio aliases are operator configuration; discovered tools
   must still be explicitly added to each connector's `allowed_tools` list.
-- V0.1 is a modular monolith, not a microservice system.
+- V0.2 remains a modular monolith, not a microservice system.
 - Community and cloud are delivery modes of one product core, not separate applications.
 - Core storage is tenant-scoped. Cloud mode refuses to start until real account identity is ready.
 - Ordinary UI language uses AI service, Tools, Outcomes, and Activity; Provider, MCP, Repository,
@@ -158,7 +166,7 @@ registry; this does not restrict use of the source code under Apache-2.0. See
 security issue. The initial problem statement and honest first-party usage case are
 documented in `docs/dogfooding.md`.
 
-The focused path from the current prototype to a usable public product is in
+The focused path from the current release candidate to a usable public product is in
 `ROADMAP.md`.
 The positioning, delivery-mode, terminology, capability, and tenant contracts are in
 `docs/product-contract.md`.
