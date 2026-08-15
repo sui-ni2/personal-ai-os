@@ -50,5 +50,27 @@ jobs:
             exit 1
           fi
 
+      - name: Preflight GitHub Models HTTP status without response body
+        if: steps.provider.outputs.provider == 'github_models'
+        shell: bash
+        run: |
+          status="$({
+            curl --silent --show-error \
+              --output /dev/null \
+              --write-out '%{http_code}' \
+              --request POST \
+              --url 'https://models.github.ai/inference/chat/completions' \
+              --header 'Accept: application/vnd.github+json' \
+              --header "Authorization: Bearer $PERSONAL_AI_OS_GITHUB_MODELS_TOKEN" \
+              --header 'X-GitHub-Api-Version: 2026-03-10' \
+              --header 'Content-Type: application/json' \
+              --data '{"model":"openai/gpt-4.1","messages":[{"role":"user","content":"Reply with exactly OK."}],"stream":false,"max_tokens":8}'
+          })"
+          echo "GitHub Models preflight HTTP status: $status"
+          if [[ "$status" != "200" ]]; then
+            echo "::error title=GitHub Models preflight rejected::The real inference endpoint returned HTTP $status. Response content was discarded."
+            exit 1
+          fi
+
       - name: Run isolated real-provider release smoke
         run: python scripts/release-provider-smoke.py --provider "${{ steps.provider.outputs.provider }}"
