@@ -10,6 +10,18 @@ real setup or first-chat friction in [Issue #7](https://github.com/sui-ni2/perso
 Small documentation corrections and focused bug fixes are also welcome. Please do not create
 synthetic feedback or test data that could be mistaken for real user adoption.
 
+You do **not** need a paid provider API key to verify the safe first-run path. After installing the
+Python dependencies, run:
+
+```powershell
+.\.venv\Scripts\python.exe scripts\release-provider-smoke.py --provider openai --no-key-only
+```
+
+This starts an isolated temporary API runtime with provider credentials stripped, verifies the
+`v0.2.0` health contract, confirms the selected provider remains unconfigured, and confirms secret
+values are not exposed through Settings. It makes no billable model call and deletes its temporary
+runtime data when complete.
+
 ## Before opening a change
 
 - Search existing issues before starting overlapping work.
@@ -41,6 +53,7 @@ request:
 ```powershell
 .\.venv\Scripts\python.exe -m pytest apps/api/tests -q
 .\.venv\Scripts\python.exe -m compileall -q apps/api/src packages
+.\.venv\Scripts\python.exe scripts\release-provider-smoke.py --provider openai --no-key-only
 pnpm check:web
 pnpm build:web
 ```
