@@ -1,0 +1,11 @@
+# Default ownership for review and maintenance.
+* @sui-ni2
+
+# Security-sensitive and release-sensitive surfaces.
+/.github/workflows/ @sui-ni2
+/.github/dependabot.yml @sui-ni2
+/SECURITY.md @sui-ni2
+/apps/api/src/personal_ai_os/auth.py @sui-ni2
+/apps/api/src/personal_ai_os/config.py @sui-ni2
+/packages/providers/ @sui-ni2
+/packages/mcp/ @sui-ni2
