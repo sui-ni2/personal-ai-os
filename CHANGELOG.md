@@ -12,7 +12,7 @@ This stable candidate continues the version line established by the historical `
 
 - A local-first, provider-neutral Personal AI workspace with Next.js web UI and FastAPI/SQLite backend.
 - Text chat and GPT Live conversation modes with restart-safe conversation history.
-- OpenAI, Anthropic, and GitHub Models provider adapters behind one streaming interface.
+- OpenAI and Anthropic provider adapters behind one streaming interface.
 - Server-side provider configuration, live connection checks, and persistent default provider/model selection.
 - Standard and Advanced interface modes so ordinary workflows can hide technical controls while keeping self-hosted capabilities available.
 - Project-scoped persistent state, version history, optimistic concurrency, locked/formal-state protection, workflow gates, and project-bound MCP continuity tools.
@@ -21,7 +21,7 @@ This stable candidate continues the version line established by the historical `
 - P5 review-first workflow with immutable 10,000-candidate observation locks, diagnostic Top10/Top5 prefixes, lookup, evidence, conflict rejection, and audit views.
 - Tenant-scoped core persistence and explicit community/cloud delivery contracts.
 - Mobile PWA shell and documented HTTPS deployment path.
-- An isolated real-provider release workflow that can use GitHub Models with a workflow-scoped `GITHUB_TOKEN` and read-only Models permission instead of requiring a maintainer-owned API key.
+- An isolated release workflow that runs a non-billable no-key readiness gate on release pull requests and requires a configured OpenAI or Anthropic credential for the manual real-provider gate.
 
 ### Security and privacy
 
@@ -34,4 +34,4 @@ This stable candidate continues the version line established by the historical `
 
 ### Release gate
 
-`v0.2.0` must not be published until the release checklist in `docs/release-checklist.md` passes, including a real-provider fresh-install smoke test. A release-branch GitHub Models run is valid evidence only when the workflow itself completes successfully; the presence of the workflow is not treated as a pass. Until then this section remains `Unreleased`.
+`v0.2.0` must not be published until the release checklist in `docs/release-checklist.md` passes, including a real-provider fresh-install smoke test. A no-key pull-request readiness run is not real-provider evidence; the manual `Release provider smoke` workflow must pass with a configured OpenAI or Anthropic credential before publication. Until then this section remains `Unreleased`.
