@@ -8,10 +8,12 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 REQUIREMENTS = ROOT / "requirements-dev.txt"
+RUNTIME_VERSION_FILE = ROOT / "apps" / "api" / "src" / "personal_ai_os" / "__init__.py"
 INTERNAL_PREFIX = "personal-ai-os-"
 EXACT_PIN_RE = re.compile(
     r"^([A-Za-z0-9_.-]+)(?:\[[^\]]+\])?\s*==\s*([^\s;]+)"
 )
+RUNTIME_VERSION_RE = re.compile(r'^__version__\s*=\s*["\']([^"\']+)["\']\s*$', re.MULTILINE)
 
 
 @dataclass(frozen=True)
@@ -68,6 +70,19 @@ def load_project(path: Path) -> Project:
     return Project(path, name, version, tuple(dependencies))
 
 
+def runtime_version() -> str:
+    if not RUNTIME_VERSION_FILE.is_file():
+        raise ValueError(
+            f"missing runtime version file: {RUNTIME_VERSION_FILE.relative_to(ROOT)}"
+        )
+    match = RUNTIME_VERSION_RE.search(RUNTIME_VERSION_FILE.read_text(encoding="utf-8"))
+    if match is None:
+        raise ValueError(
+            f"missing __version__ assignment: {RUNTIME_VERSION_FILE.relative_to(ROOT)}"
+        )
+    return match.group(1)
+
+
 def main() -> int:
     errors: list[str] = []
 
@@ -120,6 +135,17 @@ def main() -> int:
                         f"but local version is {expected_version}"
                     )
 
+        try:
+            api_runtime_version = runtime_version()
+        except (OSError, ValueError) as exc:
+            errors.append(str(exc))
+        else:
+            if api_runtime_version != expected_version:
+                errors.append(
+                    "API runtime __version__ does not match the aligned package version: "
+                    f"runtime={api_runtime_version}, packages={expected_version}"
+                )
+
     if errors:
         for error in errors:
             print(f"::error title=Internal package version check::{error}")
@@ -128,7 +154,7 @@ def main() -> int:
     expected_version = next(iter(versions))
     names = ", ".join(sorted(internal))
     print(
-        f"Internal package version check passed: {len(internal)} packages at "
+        f"Internal package version check passed: {len(internal)} packages and API runtime at "
         f"v{expected_version} ({names})"
     )
     return 0
