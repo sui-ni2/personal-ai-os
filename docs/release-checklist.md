@@ -33,24 +33,29 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-mobile-readi
 
 - [x] Latest `main` GitHub Actions CI is green after merging the core v0.2 feature work and release-gate documentation.
 - [ ] Clean-checkout verification above has been rerun for the final release candidate after version alignment.
+- [ ] Release-branch CI, CodeQL/Dependency Review as applicable, and Platform Readiness are green for the final diff.
 
 ### Fresh-install real-provider smoke test
 
 Run in an isolated temporary data/runtime location. Do not reuse or commit private user runtime databases.
 
+A valid credential may be either a maintainer-owned server-side provider secret or the ephemeral GitHub Actions `GITHUB_TOKEN` used with GitHub Models and workflow permission `models: read`. The latter is acceptable because it performs a real remote inference request while remaining scoped to the workflow job. The smoke runner must never print, persist, or attach the token or model response text.
+
+The release workflow invokes `scripts/release-provider-smoke.py` on `release/*` pull requests. A configured OpenAI or Anthropic repository secret takes precedence; otherwise the workflow uses GitHub Models with its ephemeral token. **The workflow existing is not evidence of a pass; the completed run itself must be green.**
+
 - [ ] Start from a fresh clone/install with no application state.
-- [ ] Application starts with no provider key and reports providers as unconfigured without exposing secret values.
+- [ ] Application starts with no provider credential and reports providers as unconfigured without exposing secret values.
 - [ ] Configure one real server-side provider credential without placing the secret in Git, logs, screenshots, issues, or release artifacts.
-- [ ] Run **Test connection** and receive a complete successful provider response.
+- [ ] Run the provider connection check and receive a complete successful provider response.
 - [ ] Select a provider and model, save them, and verify the choice is persisted.
 - [ ] Complete one real text-chat turn and receive a complete response.
-- [ ] Restart API/Web and verify the selected default provider/model and expected application state remain valid.
+- [ ] Restart the API and verify the selected default provider/model and persisted conversation remain valid; frontend build/type checks independently protect the Web client contract.
 - [ ] Verify the user-facing failure paths for invalid credentials, unreachable/offline provider, and rate/quota limit remain distinguishable through automated tests or a safe controlled test.
 
 ### Privacy and artifact audit
 
-- [ ] `git status` is clean before tagging.
-- [ ] No `.env`, API keys, authorization headers, cookies, private conversations, runtime SQLite databases, Soccer/P5 private data, logs, uploads, or backups are included in the release diff/artifacts.
+- [ ] Final release-prep branch has no unexpected generated/runtime files before tagging.
+- [ ] No `.env`, API keys, GitHub tokens, authorization headers, cookies, private conversations, runtime SQLite databases, Soccer/P5 private data, logs, uploads, or backups are included in the release diff/artifacts.
 - [ ] Release notes contain no private provider responses or user data.
 
 ### Publication
@@ -66,4 +71,4 @@ Only after every required box above passes:
 
 ## Fail-closed rule
 
-If the real-provider smoke test cannot be executed because no usable credential/environment is available, keep Issue #1 open and do not publish `v0.2.0`. All non-secret automated and repository checks may still be completed in advance.
+If the real-provider smoke test cannot be executed or does not complete successfully, keep Issue #1 open and do not publish `v0.2.0`. All non-secret automated and repository checks may still be completed in advance.
