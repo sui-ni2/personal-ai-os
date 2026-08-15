@@ -63,6 +63,7 @@ def create_runtime(settings: Settings) -> Runtime:
                 settings.provider_max_retries,
                 settings.provider_retry_base_seconds,
                 endpoint=settings.ollama_endpoint,
+                max_output_tokens=settings.ollama_max_output_tokens,
             ),
         ]
     )
