@@ -22,13 +22,13 @@ under the user's control.
 Personal AI OS is preparing its first stable `v0.2.0` release. **You do not need a paid API key to help test it.**
 
 - **No API key:** follow [Try without an API key](docs/try-without-api.md) or run `python scripts/release-provider-smoke.py --provider openai --no-key-only` after installing the Python dependencies. This makes no billable model call.
-- **Have your own provider credential:** use [Issue #7](https://github.com/sui-ni2/personal-ai-os/issues/7) for the full provider → first chat → restart-persistence path. OpenAI, Anthropic, and GitHub Models are supported server-side adapters.
+- **Have your own provider credential:** use [Issue #7](https://github.com/sui-ni2/personal-ai-os/issues/7) for the full provider → first chat → restart-persistence path. OpenAI and Anthropic are the supported server-side adapters for this release.
 - **New contributor:** [Issue #15](https://github.com/sui-ni2/personal-ai-os/issues/15) is a concrete Windows fresh-install verification task labeled `good first issue`.
 - Focused documentation fixes, bug fixes, and small pull requests are welcome.
 - Never post API keys, GitHub tokens, `.env` files, authorization headers, cookies, private conversations,
   runtime databases, logs containing secrets, uploads/backups, or private project data.
 
-The zero-cost path verifies safe startup, runtime version, unconfigured-provider behavior, and secret redaction. It does **not** substitute for the real-provider release gate. The release workflow can perform that isolated gate with GitHub Models using the workflow-scoped `GITHUB_TOKEN` and read-only Models permission; the token is never printed or persisted by the smoke runner.
+The zero-cost path verifies safe startup, runtime version, unconfigured-provider behavior, and secret redaction. It does **not** substitute for the real-provider release gate. Before publishing `v0.2.0`, the manual `Release provider smoke` workflow must pass with either an OpenAI or Anthropic repository Actions secret configured; without one, that manual gate fails closed.
 
 ## Maintenance and security
 
@@ -39,7 +39,7 @@ Repository maintenance is executable rather than release-note-only:
 - CodeQL analyzes Python and JavaScript/TypeScript on pull requests, `main`, and a weekly schedule;
 - Dependency Review fails closed on high-severity dependency changes once the repository dependency graph is available;
 - Dependabot checks JavaScript, Python, GitHub Actions, and Docker dependencies weekly; production Docker runtime major jumps remain deliberate compatibility work rather than automatic version updates;
-- `release/*` pull requests run an isolated real-provider smoke before `v0.2.0` can be published.
+- `release/*` pull requests run a non-billable no-key readiness gate automatically; the real-provider smoke remains a separate manual release requirement before `v0.2.0` can be published.
 
 Repository-admin settings that source-controlled CI cannot replace are tracked honestly in [`docs/repository-admin-checklist.md`](docs/repository-admin-checklist.md).
 
@@ -51,7 +51,7 @@ Repository-admin settings that source-controlled CI cannot replace are tracked h
 - Focused Text and GPT Live conversation modes. Completed Live transcripts stay in the
   same conversation, update its short title, and do not become long-term Memory automatically.
 - FastAPI API with SQLite persistence and automatic schema migration.
-- OpenAI, Anthropic, and GitHub Models adapters behind one streaming interface, with timeout,
+- OpenAI and Anthropic adapters behind one streaming interface, with timeout,
   cancellation, bounded retry, rate-limit normalization, and interrupted-stream handling.
 - SSE execution protocol: `message`, `tool_start`, `tool_result`, `error`, `done`.
 - Restart-safe conversation history with project filtering and restored execution traces.
@@ -66,7 +66,7 @@ Repository-admin settings that source-controlled CI cannot replace are tracked h
   capability-based access to advanced features. The runnable distribution remains the
   community edition; cloud accounts, billing, managed routing, and device sync are not yet live.
 
-Provider calls require server-side credentials. The application still starts without credentials and reports each provider as unconfigured without exposing secret values. OpenAI uses `PERSONAL_AI_OS_OPENAI_API_KEY`, Anthropic uses `PERSONAL_AI_OS_ANTHROPIC_API_KEY`, and GitHub Models uses `PERSONAL_AI_OS_GITHUB_MODELS_TOKEN`.
+Provider calls require server-side credentials. The application still starts without credentials and reports each provider as unconfigured without exposing secret values. OpenAI uses `PERSONAL_AI_OS_OPENAI_API_KEY`, and Anthropic uses `PERSONAL_AI_OS_ANTHROPIC_API_KEY`.
 
 Public deployments can enable the built-in single-user access gate with
 `PERSONAL_AI_OS_REQUIRE_AUTH=true`. The access password and 32+ character session secret remain
