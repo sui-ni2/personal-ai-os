@@ -31,6 +31,14 @@ Target policy:
 
 This is a real gap today: an administrator can currently write directly to `main`, so the project process is stronger than the repository enforcement.
 
+## Security analysis settings
+
+Enable the repository **Dependency graph** before adding the Dependency Review workflow. A real trial of `actions/dependency-review-action@v5` failed closed because GitHub reported that Dependency Review is not supported while the graph is disabled. Once the graph is enabled, add the pull-request Dependency Review gate back and fail on newly introduced `high` or `critical` vulnerabilities.
+
+GitHub private vulnerability reporting is also currently disabled. Enable it when possible, then update `SECURITY.md` to point reporters directly to the private reporting flow instead of asking them to establish a private channel first.
+
+CodeQL is already configured in source control for Python and JavaScript/TypeScript. Dependabot version updates are also configured; production Docker runtime **major** jumps remain deliberate compatibility work rather than automatic version-update PRs.
+
 ## Discussions
 
 Enable GitHub Discussions when there is enough external traffic to justify a lower-friction Q&A/ideas channel. Keep reproducible bugs and release blockers in Issues so they remain actionable.
