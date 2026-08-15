@@ -69,6 +69,7 @@ def runtime_factory(tmp_path: Path):
             cors_origins=("http://localhost:3000",),
             openai_models=("openai-test",),
             anthropic_models=("anthropic-test",),
+            github_models_models=("openai/gpt-4.1",),
             default_provider="openai",
             default_model="openai-test",
             mcp_stdio_commands={
