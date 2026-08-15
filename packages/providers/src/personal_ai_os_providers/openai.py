@@ -173,7 +173,6 @@ class OpenAIAdapter:
                 {
                     "role": "tool",
                     "tool_call_id": call.id,
-                    "tool_name": safe_name,
                     "content": json.dumps(result, ensure_ascii=False),
                 },
             ]
