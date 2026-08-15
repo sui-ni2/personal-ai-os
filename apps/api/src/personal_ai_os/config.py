@@ -10,6 +10,7 @@ from personal_ai_os_core import DeploymentMode, PlanId
 
 
 DEFAULT_REALTIME_ENDPOINT = "https://api.openai.com/v1/realtime/calls"
+DEFAULT_OLLAMA_ENDPOINT = "http://127.0.0.1:11434/v1/chat/completions"
 
 
 def _csv(value: str) -> tuple[str, ...]:
@@ -61,6 +62,23 @@ def _realtime_endpoint(value: str) -> str:
     return urlunsplit((parsed.scheme, parsed.netloc, parsed.path.rstrip("/"), "", ""))
 
 
+def _ollama_endpoint(value: str) -> str:
+    parsed = urlsplit(value.strip())
+    if (
+        parsed.scheme not in {"http", "https"}
+        or not parsed.hostname
+        or parsed.username
+        or parsed.password
+        or parsed.query
+        or parsed.fragment
+        or not parsed.path.rstrip("/").endswith("/v1/chat/completions")
+    ):
+        raise RuntimeError(
+            "PERSONAL_AI_OS_OLLAMA_ENDPOINT must be an HTTP(S) endpoint ending in /v1/chat/completions"
+        )
+    return urlunsplit((parsed.scheme, parsed.netloc, parsed.path.rstrip("/"), "", ""))
+
+
 @dataclass(frozen=True)
 class Settings:
     data_dir: Path
@@ -71,6 +89,9 @@ class Settings:
     default_model: str
     openai_api_key: str | None = field(default=None, repr=False)
     anthropic_api_key: str | None = field(default=None, repr=False)
+    ollama_enabled: bool = False
+    ollama_models: tuple[str, ...] = ("smollm2:135m-instruct-q2_K",)
+    ollama_endpoint: str = DEFAULT_OLLAMA_ENDPOINT
     realtime_api_key: str | None = field(default=None, repr=False)
     realtime_endpoint: str = DEFAULT_REALTIME_ENDPOINT
     mcp_stdio_commands: dict[str, tuple[str, ...]] = field(default_factory=dict, repr=False)
@@ -136,6 +157,13 @@ class Settings:
             default_model=os.getenv("PERSONAL_AI_OS_DEFAULT_MODEL", "gpt-5.1"),
             openai_api_key=os.getenv("PERSONAL_AI_OS_OPENAI_API_KEY") or None,
             anthropic_api_key=os.getenv("PERSONAL_AI_OS_ANTHROPIC_API_KEY") or None,
+            ollama_enabled=_bool(os.getenv("PERSONAL_AI_OS_OLLAMA_ENABLED", "false")),
+            ollama_models=_csv(
+                os.getenv("PERSONAL_AI_OS_OLLAMA_MODELS", "smollm2:135m-instruct-q2_K")
+            ),
+            ollama_endpoint=_ollama_endpoint(
+                os.getenv("PERSONAL_AI_OS_OLLAMA_ENDPOINT") or DEFAULT_OLLAMA_ENDPOINT
+            ),
             realtime_api_key=os.getenv("PERSONAL_AI_OS_REALTIME_API_KEY") or None,
             realtime_endpoint=_realtime_endpoint(
                 os.getenv("PERSONAL_AI_OS_REALTIME_ENDPOINT")
