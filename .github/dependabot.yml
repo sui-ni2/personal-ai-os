@@ -6,8 +6,6 @@ updates:
       interval: "weekly"
       day: "monday"
     open-pull-requests-limit: 5
-    labels:
-      - "dependencies"
 
   - package-ecosystem: "github-actions"
     directory: "/"
@@ -15,8 +13,6 @@ updates:
       interval: "weekly"
       day: "monday"
     open-pull-requests-limit: 5
-    labels:
-      - "dependencies"
 
   - package-ecosystem: "pip"
     directory: "/apps/api"
@@ -24,8 +20,6 @@ updates:
       interval: "weekly"
       day: "monday"
     open-pull-requests-limit: 5
-    labels:
-      - "dependencies"
 
   - package-ecosystem: "pip"
     directory: "/packages/core"
@@ -33,8 +27,6 @@ updates:
       interval: "weekly"
       day: "monday"
     open-pull-requests-limit: 5
-    labels:
-      - "dependencies"
 
   - package-ecosystem: "pip"
     directory: "/packages/providers"
@@ -42,8 +34,6 @@ updates:
       interval: "weekly"
       day: "monday"
     open-pull-requests-limit: 5
-    labels:
-      - "dependencies"
 
   - package-ecosystem: "pip"
     directory: "/packages/mcp"
@@ -51,8 +41,6 @@ updates:
       interval: "weekly"
       day: "monday"
     open-pull-requests-limit: 5
-    labels:
-      - "dependencies"
 
   - package-ecosystem: "pip"
     directory: "/packages/projects"
@@ -60,5 +48,3 @@ updates:
       interval: "weekly"
       day: "monday"
     open-pull-requests-limit: 5
-    labels:
-      - "dependencies"
