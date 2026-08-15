@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import httpx
 
-from .base import ProviderNotConfigured
 from .openai import OpenAIAdapter
 
 
@@ -14,6 +13,7 @@ class GitHubModelsAdapter(OpenAIAdapter):
     """GitHub Models inference through the OpenAI-compatible chat-completions protocol."""
 
     id = "github_models"
+    provider_name = "GitHub Models"
 
     def __init__(
         self,
@@ -43,8 +43,3 @@ class GitHubModelsAdapter(OpenAIAdapter):
             "X-GitHub-Api-Version": GITHUB_API_VERSION,
             "Content-Type": "application/json",
         }
-
-    def _validate(self, model: str) -> None:
-        if not self._api_key:
-            raise ProviderNotConfigured("GitHub Models is not configured on the server")
-        super()._validate(model)
