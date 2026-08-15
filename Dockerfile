@@ -1,4 +1,4 @@
-FROM node:22-bookworm-slim AS web-build
+FROM node:26-bookworm-slim AS web-build
 
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
