@@ -18,6 +18,7 @@ ROOT = Path(__file__).resolve().parents[1]
 KEY_ENV = {
     "openai": "PERSONAL_AI_OS_OPENAI_API_KEY",
     "anthropic": "PERSONAL_AI_OS_ANTHROPIC_API_KEY",
+    "github_models": "PERSONAL_AI_OS_GITHUB_MODELS_TOKEN",
 }
 ALL_SECRET_ENV = tuple(KEY_ENV.values()) + ("PERSONAL_AI_OS_REALTIME_API_KEY",)
 
@@ -126,7 +127,13 @@ def _provider(client: httpx.Client, provider_id: str) -> dict[str, Any]:
     _fail(f"Provider is not registered: {provider_id}")
 
 
-def _chat(client: httpx.Client, provider: str, model: str, content: str, conversation_id: str | None = None) -> str:
+def _chat(
+    client: httpx.Client,
+    provider: str,
+    model: str,
+    content: str,
+    conversation_id: str | None = None,
+) -> str:
     payload: dict[str, Any] = {
         "provider": provider,
         "model": model,
@@ -153,7 +160,11 @@ def _chat(client: httpx.Client, provider: str, model: str, content: str, convers
         _fail("Chat stream emitted no execution events")
     errors = [item for item in events if item.get("type") == "error"]
     if errors:
-        code = ((errors[-1].get("payload") or {}).get("code") if isinstance(errors[-1].get("payload"), dict) else None)
+        code = (
+            (errors[-1].get("payload") or {}).get("code")
+            if isinstance(errors[-1].get("payload"), dict)
+            else None
+        )
         _fail(f"Chat stream reported a provider/application error{f' ({code})' if code else ''}")
     done = next((item for item in reversed(events) if item.get("type") == "done"), None)
     if not done or done.get("status") != "succeeded":
@@ -185,8 +196,9 @@ def run(provider: str, requested_model: str | None, *, no_key_only: bool = False
     with tempfile.TemporaryDirectory(prefix="personal-ai-os-release-smoke-") as temp_dir:
         data_dir = Path(temp_dir)
 
-        # Phase 1: fresh install with no provider credential.
-        process, base_url = _start_api(_environment(data_dir, provider=provider, include_credential=False))
+        process, base_url = _start_api(
+            _environment(data_dir, provider=provider, include_credential=False)
+        )
         try:
             with httpx.Client(base_url=base_url, timeout=20) as client:
                 health = _json(client, "GET", "/health")
@@ -207,8 +219,9 @@ def run(provider: str, requested_model: str | None, *, no_key_only: bool = False
             _pass("no-key readiness gate completed without provider credentials or billable model calls")
             return
 
-        # Phase 2: restart with the real credential and exercise a complete chat turn.
-        process, base_url = _start_api(_environment(data_dir, provider=provider, include_credential=True))
+        process, base_url = _start_api(
+            _environment(data_dir, provider=provider, include_credential=True)
+        )
         try:
             with httpx.Client(base_url=base_url, timeout=30) as client:
                 item = _provider(client, provider)
@@ -220,7 +233,9 @@ def run(provider: str, requested_model: str | None, *, no_key_only: bool = False
                     _fail(f"Requested model is not allowlisted for {provider}: {model}")
                 checked = _json(client, "POST", f"/api/providers/{provider}/check")
                 if checked.get("status") != "connected":
-                    _fail(f"Live provider connection check did not connect (status={checked.get('status')})")
+                    _fail(
+                        f"Live provider connection check did not connect (status={checked.get('status')})"
+                    )
                 saved = _json(
                     client,
                     "PATCH",
@@ -235,8 +250,9 @@ def run(provider: str, requested_model: str | None, *, no_key_only: bool = False
         finally:
             _stop_api(process)
 
-        # Phase 3: restart again against the same isolated data directory and verify persistence.
-        process, base_url = _start_api(_environment(data_dir, provider=provider, include_credential=True))
+        process, base_url = _start_api(
+            _environment(data_dir, provider=provider, include_credential=True)
+        )
         try:
             with httpx.Client(base_url=base_url, timeout=30) as client:
                 settings = _json(client, "GET", "/api/settings")
