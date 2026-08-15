@@ -9,7 +9,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from personal_ai_os_core import Capability
 
-from . import __version__
 from .auth import AccessProtectionMiddleware, create_auth_router
 from .config import Settings
 from .p5_routes import router as p5_router
@@ -35,7 +34,7 @@ def create_app(settings: Settings | None = None, runtime: Runtime | None = None)
 
     app = FastAPI(
         title="Personal AI OS API",
-        version=__version__,
+        version="0.1.0",
         description="Provider-neutral modular-monolith API with auditable execution traces.",
         lifespan=lifespan,
         docs_url="/api/docs",
@@ -54,7 +53,7 @@ def create_app(settings: Settings | None = None, runtime: Runtime | None = None)
 
     @app.get("/health")
     def health() -> dict[str, str]:
-        return {"status": "ok", "version": __version__}
+        return {"status": "ok", "version": "0.1.0"}
 
     app.include_router(router)
     app.include_router(project_state_router)
