@@ -1,45 +1,46 @@
 # Product roadmap
 
-Personal AI OS is currently an early V0.2 prototype. The goal is simple by
-default and powerful when needed: an ordinary user should be able to configure
-the app and complete a natural conversation within a few minutes.
+Personal AI OS is currently a `v0.2.0` release candidate. The core first-use loop now exists: the community edition can start safely without credentials, connect a supported AI service, persist a default provider/model, complete text conversations, retain project/conversation state across restart, and expose tools and reviewed memory without binding that state to one model provider.
 
-## Priorities
+The release is still fail-closed until the final real-provider and privacy/artifact gates pass. A release candidate is not treated as a stable release merely because the feature set exists.
 
-1. **Lock the product and delivery contract**
-   - Keep one core with community/self-hosted and managed cloud delivery modes.
-   - Use ordinary-language defaults and keep engineering controls in Advanced Settings.
-   - Preserve tenant ownership, capabilities, and plan boundaries in every new feature.
-2. **Close the first-use loop**
-   - Add first-run guidance, provider setup, connection checks, and model lists
-     based on configured services.
-   - Keep one provider-independent chat interface and make text chat reliable.
-3. **Build one Settings center**
-   - Bring providers, default models, voice, memory and privacy, appearance,
-     language, data controls, MCP, and diagnostics into one coherent place.
-4. **Simplify the workspace**
-   - Keep Chat, New chat, Model, Projects, and Settings in the default experience.
-   - Move Memory, MCP, provider status, logs, and repository controls into an
-     advanced or developer mode.
-5. **Complete projects, files, outcomes, and reviewed memory**
-   - Make Tasks, Conversations, Files, Outcomes, and Project Memory first-class project areas.
-   - Save useful results as versioned outcomes without silently writing long-term memory.
-6. **Add recovery, routing, privacy, and cost controls**
-   - Add cancellation, retry, interrupted-stream recovery, provider fallback, and draft recovery.
-   - Add send-scope receipts, explicit side-effect confirmation, budgets, and usage ledgers.
-7. **Complete voice end to end**
-   - First deliver push-to-talk, speech-to-text, and text submission.
-   - Then add spoken replies, interruption, and continuous conversation, with
-     room for browser, local, and cloud voice adapters.
-8. **Expand model choice**
-   - Prioritize OpenAI-compatible APIs, Anthropic, Gemini, Ollama, and custom
-     compatible endpoints, in that order.
-9. **Prepare both delivery paths**
-   - Add clear offline, missing-key, and quota guidance; privacy controls;
-     Windows installation and updates; crash recovery; accessibility and mobile checks.
-   - Package the community edition and run a small managed-cloud test only after account
-     identity, tenant isolation, usage limits, export, and deletion pass acceptance tests.
+## Current product contract
 
-Until the core loop is complete, broad new feature areas are lower priority.
-Progress should be demonstrated through working releases and end-to-end checks,
-not feature count.
+1. **One Personal AI workspace, replaceable AI services**
+   - Projects, context, reviewed memory, tools, and execution history belong to the workspace.
+   - OpenAI, Anthropic, and GitHub Models use the same provider-independent chat contract.
+   - Provider-specific details remain behind adapters and Advanced Settings.
+2. **Local-first community edition**
+   - FastAPI/SQLite and the web client run locally with server-side credential boundaries.
+   - Community/self-hosted is the runnable delivery mode today.
+   - Managed cloud remains fail-closed until account identity, tenant isolation, billing, export, and deletion are real.
+3. **Simple by default, inspectable when needed**
+   - Standard mode keeps routine model, project, and chat work simple.
+   - Advanced mode exposes MCP, provider, repository, memory, and execution controls.
+4. **Continuity before feature count**
+   - Restart-safe conversations, project-scoped state, workflow gates, version history, outcomes, and MCP continuity are more important than adding disconnected features.
+
+## Next priorities after v0.2.0
+
+1. **Prove workspace continuity with external users**
+   - Fresh-install tests on Windows.
+   - Real A→B provider/model switching while the project and task state remain continuous.
+   - External issue/PR feedback instead of synthetic adoption signals.
+2. **Strengthen Project Continuity**
+   - Make Tasks, Conversations, Files, Outcomes, decisions, changed files, blockers, and reviewed Project Memory first-class project state.
+   - Add compact and full handoff forms plus crash/restart recovery without copying private provider sessions.
+3. **Finish the Settings center**
+   - Unify AI services, default models, voice, memory/privacy, appearance, data controls, MCP, and diagnostics.
+   - Keep credential values server-side and never return them to the browser.
+4. **Improve recovery, routing, privacy, and cost controls**
+   - Provider fallback, draft recovery, explicit side-effect confirmation, send-scope receipts, budgets, and usage ledgers.
+5. **Expand provider choice deliberately**
+   - Add Gemini, Ollama, and carefully scoped OpenAI-compatible endpoints only when their adapter and failure semantics are tested.
+6. **Complete voice end to end**
+   - Harden push-to-talk and transcription, then spoken replies, interruption, and continuous conversation.
+7. **Package the community edition**
+   - Windows installation/update path, crash recovery, accessibility, mobile checks, signed artifacts when the release process is mature enough.
+8. **Grow maintainership, not vanity metrics**
+   - Convert real tester friction into focused issues, small PRs, release notes, and reproducible maintenance evidence.
+
+Progress is demonstrated through working releases, real-provider checks, reproducible user feedback, and auditable maintenance—not feature count or manufactured engagement.
