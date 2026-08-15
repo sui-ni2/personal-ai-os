@@ -10,11 +10,13 @@ from .base import (
     ProviderTool,
     ProviderToolCall,
 )
+from .ollama import OllamaAdapter
 from .openai import OpenAIAdapter
 from .registry import ProviderRegistry
 
 __all__ = [
     "AnthropicAdapter",
+    "OllamaAdapter",
     "OpenAIAdapter",
     "ProviderAdapter",
     "ProviderCancelled",
