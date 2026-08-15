@@ -2,17 +2,23 @@ name: Release provider smoke
 
 on:
   workflow_dispatch:
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: read
+  models: read
 
 jobs:
   provider-smoke:
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.head_ref, 'release/')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
       PERSONAL_AI_OS_OPENAI_API_KEY: ${{ secrets.PERSONAL_AI_OS_OPENAI_API_KEY }}
       PERSONAL_AI_OS_ANTHROPIC_API_KEY: ${{ secrets.PERSONAL_AI_OS_ANTHROPIC_API_KEY }}
+      PERSONAL_AI_OS_GITHUB_MODELS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -36,8 +42,11 @@ jobs:
           elif [[ -n "$PERSONAL_AI_OS_ANTHROPIC_API_KEY" ]]; then
             echo "provider=anthropic" >> "$GITHUB_OUTPUT"
             echo "Using configured Anthropic repository secret."
+          elif [[ -n "$PERSONAL_AI_OS_GITHUB_MODELS_TOKEN" ]]; then
+            echo "provider=github_models" >> "$GITHUB_OUTPUT"
+            echo "Using workflow-scoped GitHub Models token."
           else
-            echo "::error title=Real provider smoke blocked::Neither PERSONAL_AI_OS_OPENAI_API_KEY nor PERSONAL_AI_OS_ANTHROPIC_API_KEY is configured as a repository Actions secret."
+            echo "::error title=Real provider smoke blocked::No supported real-provider credential is available."
             exit 1
           fi
 
