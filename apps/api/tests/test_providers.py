@@ -7,7 +7,9 @@ import pytest
 from personal_ai_os_core import Message, MessageRole
 from personal_ai_os_providers import (
     AnthropicAdapter,
+    OllamaAdapter,
     OpenAIAdapter,
+    ProviderNotConfigured,
     ProviderRateLimited,
     ProviderStreamInterrupted,
     ProviderTool,
@@ -73,7 +75,51 @@ async def test_openai_detects_partial_stream_interruption() -> None:
 
 
 @pytest.mark.asyncio
-async def test_provider_tool_call_parsing_for_openai_and_anthropic() -> None:
+async def test_ollama_is_fail_closed_until_explicitly_enabled() -> None:
+    adapter = OllamaAdapter(
+        False,
+        ("smollm2:135m-instruct-q2_K",),
+        endpoint="http://ollama.test/v1/chat/completions",
+    )
+    assert adapter.configured is False
+    with pytest.raises(ProviderNotConfigured):
+        _ = [
+            item
+            async for item in adapter.stream(_messages(), "smollm2:135m-instruct-q2_K")
+        ]
+
+
+@pytest.mark.asyncio
+async def test_ollama_uses_openai_compatible_stream_without_credentials() -> None:
+    captured: dict[str, object] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["url"] = str(request.url)
+        captured["authorization"] = request.headers.get("Authorization")
+        captured["body"] = json.loads(request.content)
+        body = 'data: {"choices":[{"delta":{"content":"local-ok"}}]}\n\ndata: [DONE]\n\n'
+        return httpx.Response(200, text=body, request=request)
+
+    model = "smollm2:135m-instruct-q2_K"
+    adapter = OllamaAdapter(
+        True,
+        (model,),
+        transport=httpx.MockTransport(handler),
+        endpoint="http://ollama.test/v1/chat/completions",
+    )
+    assert [item async for item in adapter.stream(_messages(), model)] == ["local-ok"]
+    assert adapter.configured is True
+    assert captured["url"] == "http://ollama.test/v1/chat/completions"
+    assert captured["authorization"] is None
+    assert captured["body"] == {
+        "model": model,
+        "messages": [{"role": "user", "content": "Echo hello."}],
+        "stream": True,
+    }
+
+
+@pytest.mark.asyncio
+async def test_provider_tool_call_parsing_for_openai_ollama_and_anthropic() -> None:
     openai_payload = {
         "choices": [{"message": {"tool_calls": [{"id": "call-openai", "function": {"name": "system_echo", "arguments": json.dumps({"message": "hello"})}}]}}]
     }
@@ -85,6 +131,19 @@ async def test_provider_tool_call_parsing_for_openai_and_anthropic() -> None:
     openai_call = await openai.request_tool(_messages(), "test-model", _tool())
     assert openai_call.name == "system.echo"
     assert openai_call.arguments == {"message": "hello"}
+
+    ollama_payload = {
+        "choices": [{"message": {"tool_calls": [{"function": {"name": "system_echo", "arguments": {"message": "hello"}}}]}}]
+    }
+    ollama = OllamaAdapter(
+        True,
+        ("test-model",),
+        transport=httpx.MockTransport(lambda request: httpx.Response(200, json=ollama_payload, request=request)),
+        endpoint="http://ollama.test/v1/chat/completions",
+    )
+    ollama_call = await ollama.request_tool(_messages(), "test-model", _tool())
+    assert ollama_call.name == "system.echo"
+    assert ollama_call.arguments == {"message": "hello"}
 
     anthropic_payload = {"content": [{"type": "tool_use", "id": "call-anthropic", "name": "system_echo", "input": {"message": "hello"}}]}
     anthropic = AnthropicAdapter(
