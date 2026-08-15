@@ -4,7 +4,7 @@ import os
 
 import pytest
 from personal_ai_os_core import Message, MessageRole
-from personal_ai_os_providers import AnthropicAdapter, GitHubModelsAdapter, OpenAIAdapter
+from personal_ai_os_providers import AnthropicAdapter, OpenAIAdapter
 
 
 def _model(env_name: str, fallback: str) -> str:
@@ -31,17 +31,5 @@ async def test_openai_live_smoke() -> None:
 async def test_anthropic_live_smoke() -> None:
     model = _model("PERSONAL_AI_OS_ANTHROPIC_MODELS", "claude-haiku-4-5")
     adapter = AnthropicAdapter(os.getenv("PERSONAL_AI_OS_ANTHROPIC_API_KEY"), (model,), 45, 1)
-    output = "".join([item async for item in adapter.stream(_message(), model)])
-    assert output.strip()
-
-
-@pytest.mark.live_provider
-@pytest.mark.asyncio
-@pytest.mark.skipif(not os.getenv("PERSONAL_AI_OS_GITHUB_MODELS_TOKEN"), reason="GitHub Models token is not configured")
-async def test_github_models_live_smoke() -> None:
-    model = _model("PERSONAL_AI_OS_GITHUB_MODELS_MODELS", "openai/gpt-4.1")
-    adapter = GitHubModelsAdapter(
-        os.getenv("PERSONAL_AI_OS_GITHUB_MODELS_TOKEN"), (model,), 45, 1
-    )
     output = "".join([item async for item in adapter.stream(_message(), model)])
     assert output.strip()
