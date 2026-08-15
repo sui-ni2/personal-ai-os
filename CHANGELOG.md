@@ -4,9 +4,9 @@ All notable changes to Personal AI OS are documented here.
 
 This project follows Semantic Versioning for public releases.
 
-## [0.2.0] - Unreleased
+## [0.2.0] - 2026-08-15
 
-This stable candidate continues the version line established by the historical `v0.2.0-alpha.1` tag. That alpha tag remains part of repository history; no GitHub Release was published for it.
+This stable release continues the version line established by the historical `v0.2.0-alpha.1` tag. That alpha tag remains part of repository history; no GitHub Release was published for it.
 
 ### Added
 
@@ -33,6 +33,6 @@ This stable candidate continues the version line established by the historical `
 - Cloud mode fails closed until real account identity is available.
 - CI, CodeQL, Dependency Review, Platform Readiness, and a real-inference release gate form the repository release-safety baseline.
 
-### Release gate
+### Release verification
 
-`v0.2.0` must not be published until the release checklist in `docs/release-checklist.md` passes. In particular, the final release candidate must complete a real fresh-install inference loop—not a mock or stub—including provider connection, one text-chat turn, restart, and continued persisted conversation state. Until then this section remains `Unreleased`.
+The `v0.2.0` release candidate is gated by `docs/release-checklist.md`. The final verified commit must pass the complete application-level real-inference loop—including provider connection, one text-chat turn, restart, and continued persisted conversation state—plus the normal CI/security/platform checks before the tag and GitHub Release are created.
