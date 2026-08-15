@@ -15,11 +15,14 @@ import httpx
 
 
 ROOT = Path(__file__).resolve().parents[1]
-KEY_ENV = {
+PROVIDER_SECRET_ENV: dict[str, str | None] = {
     "openai": "PERSONAL_AI_OS_OPENAI_API_KEY",
     "anthropic": "PERSONAL_AI_OS_ANTHROPIC_API_KEY",
+    "ollama": None,
 }
-ALL_SECRET_ENV = tuple(KEY_ENV.values()) + ("PERSONAL_AI_OS_REALTIME_API_KEY",)
+ALL_SECRET_ENV = tuple(
+    name for name in PROVIDER_SECRET_ENV.values() if name is not None
+) + ("PERSONAL_AI_OS_REALTIME_API_KEY",)
 
 
 class SmokeFailure(RuntimeError):
@@ -40,18 +43,25 @@ def _free_port() -> int:
         return int(sock.getsockname()[1])
 
 
-def _environment(data_dir: Path, *, provider: str, include_credential: bool) -> dict[str, str]:
+def _environment(data_dir: Path, *, provider: str, enable_provider: bool) -> dict[str, str]:
     env = os.environ.copy()
-    credential = env.get(KEY_ENV[provider], "")
+    credential_env = PROVIDER_SECRET_ENV[provider]
+    credential = env.get(credential_env, "") if credential_env else ""
     for name in ALL_SECRET_ENV:
         env.pop(name, None)
     env["PERSONAL_AI_OS_DATA_DIR"] = str(data_dir)
     env["PERSONAL_AI_OS_REQUIRE_AUTH"] = "false"
+    env["PERSONAL_AI_OS_OLLAMA_ENABLED"] = "false"
     env["PYTHONUNBUFFERED"] = "1"
-    if include_credential:
-        if not credential:
-            _fail(f"Missing required server-side credential environment variable: {KEY_ENV[provider]}")
-        env[KEY_ENV[provider]] = credential
+    if enable_provider:
+        if provider == "ollama":
+            env["PERSONAL_AI_OS_OLLAMA_ENABLED"] = "true"
+        else:
+            if not credential_env or not credential:
+                _fail(
+                    f"Missing required server-side credential environment variable: {credential_env}"
+                )
+            env[credential_env] = credential
     return env
 
 
@@ -126,7 +136,13 @@ def _provider(client: httpx.Client, provider_id: str) -> dict[str, Any]:
     _fail(f"Provider is not registered: {provider_id}")
 
 
-def _chat(client: httpx.Client, provider: str, model: str, content: str, conversation_id: str | None = None) -> str:
+def _chat(
+    client: httpx.Client,
+    provider: str,
+    model: str,
+    content: str,
+    conversation_id: str | None = None,
+) -> str:
     payload: dict[str, Any] = {
         "provider": provider,
         "model": model,
@@ -153,8 +169,14 @@ def _chat(client: httpx.Client, provider: str, model: str, content: str, convers
         _fail("Chat stream emitted no execution events")
     errors = [item for item in events if item.get("type") == "error"]
     if errors:
-        code = ((errors[-1].get("payload") or {}).get("code") if isinstance(errors[-1].get("payload"), dict) else None)
-        _fail(f"Chat stream reported a provider/application error{f' ({code})' if code else ''}")
+        code = (
+            (errors[-1].get("payload") or {}).get("code")
+            if isinstance(errors[-1].get("payload"), dict)
+            else None
+        )
+        _fail(
+            f"Chat stream reported a provider/application error{f' ({code})' if code else ''}"
+        )
     done = next((item for item in reversed(events) if item.get("type") == "done"), None)
     if not done or done.get("status") != "succeeded":
         _fail("Chat stream did not finish successfully")
@@ -177,16 +199,20 @@ def _assert_conversation(client: httpx.Client, conversation_id: str, minimum_mes
 
 
 def run(provider: str, requested_model: str | None, *, no_key_only: bool = False) -> None:
-    if provider not in KEY_ENV:
+    if provider not in PROVIDER_SECRET_ENV:
         _fail(f"Unsupported provider: {provider}")
-    if not no_key_only and not os.getenv(KEY_ENV[provider]):
-        _fail(f"Set {KEY_ENV[provider]} in the current shell; the script never prints or writes its value")
+    credential_env = PROVIDER_SECRET_ENV[provider]
+    if not no_key_only and credential_env and not os.getenv(credential_env):
+        _fail(
+            f"Set {credential_env} in the current shell; the script never prints or writes its value"
+        )
 
     with tempfile.TemporaryDirectory(prefix="personal-ai-os-release-smoke-") as temp_dir:
         data_dir = Path(temp_dir)
 
-        # Phase 1: fresh install with no provider credential.
-        process, base_url = _start_api(_environment(data_dir, provider=provider, include_credential=False))
+        process, base_url = _start_api(
+            _environment(data_dir, provider=provider, enable_provider=False)
+        )
         try:
             with httpx.Client(base_url=base_url, timeout=20) as client:
                 health = _json(client, "GET", "/health")
@@ -194,12 +220,12 @@ def run(provider: str, requested_model: str | None, *, no_key_only: bool = False
                     _fail("Runtime health version is not aligned to v0.2.0")
                 item = _provider(client, provider)
                 if item.get("configured") is not False:
-                    _fail("Fresh no-key startup unexpectedly reports the provider as configured")
+                    _fail("Fresh no-provider startup unexpectedly reports the provider as configured")
                 settings = _json(client, "GET", "/api/settings")
                 secrets = settings.get("secrets")
                 if secrets != {"storage": "environment", "values_exposed": False}:
                     _fail("Settings secret boundary is not fail-closed")
-            _pass("fresh install starts safely with provider unconfigured and secrets hidden")
+            _pass("fresh install starts safely with provider disabled/unconfigured and secrets hidden")
         finally:
             _stop_api(process)
 
@@ -207,8 +233,9 @@ def run(provider: str, requested_model: str | None, *, no_key_only: bool = False
             _pass("no-key readiness gate completed without provider credentials or billable model calls")
             return
 
-        # Phase 2: restart with the real credential and exercise a complete chat turn.
-        process, base_url = _start_api(_environment(data_dir, provider=provider, include_credential=True))
+        process, base_url = _start_api(
+            _environment(data_dir, provider=provider, enable_provider=True)
+        )
         try:
             with httpx.Client(base_url=base_url, timeout=30) as client:
                 item = _provider(client, provider)
@@ -220,7 +247,9 @@ def run(provider: str, requested_model: str | None, *, no_key_only: bool = False
                     _fail(f"Requested model is not allowlisted for {provider}: {model}")
                 checked = _json(client, "POST", f"/api/providers/{provider}/check")
                 if checked.get("status") != "connected":
-                    _fail(f"Live provider connection check did not connect (status={checked.get('status')})")
+                    _fail(
+                        f"Live provider connection check did not connect (status={checked.get('status')})"
+                    )
                 saved = _json(
                     client,
                     "PATCH",
@@ -235,8 +264,9 @@ def run(provider: str, requested_model: str | None, *, no_key_only: bool = False
         finally:
             _stop_api(process)
 
-        # Phase 3: restart again against the same isolated data directory and verify persistence.
-        process, base_url = _start_api(_environment(data_dir, provider=provider, include_credential=True))
+        process, base_url = _start_api(
+            _environment(data_dir, provider=provider, enable_provider=True)
+        )
         try:
             with httpx.Client(base_url=base_url, timeout=30) as client:
                 settings = _json(client, "GET", "/api/settings")
@@ -264,12 +294,12 @@ def main() -> int:
     parser = argparse.ArgumentParser(
         description="Fail-closed v0.2.0 readiness smoke test. Never prints provider credentials or response text."
     )
-    parser.add_argument("--provider", choices=sorted(KEY_ENV), default="openai")
+    parser.add_argument("--provider", choices=sorted(PROVIDER_SECRET_ENV), default="openai")
     parser.add_argument("--model", default=None, help="Optional allowlisted model override")
     parser.add_argument(
         "--no-key-only",
         action="store_true",
-        help="Verify fresh no-key startup and secret boundaries without requiring a provider credential or making billable model calls.",
+        help="Verify fresh no-provider startup and secret boundaries without requiring a credential or making billable model calls.",
     )
     args = parser.parse_args()
     try:
