@@ -19,6 +19,17 @@ activity, MCP/tool integration, structured memory, outcomes, and project plugins
 - Backend tests: `python -m pytest apps/api/tests`
 - Frontend checks: `pnpm --filter @personal-ai-os/web lint && pnpm --filter @personal-ai-os/web typecheck`
 
+## Codex account handoff trial
+
+The local repository and its Git state are the continuity boundary. A ChatGPT/Codex account session is not the source of truth.
+
+- At the start of a Codex work session, if `.local-state/codex-handoff/FACTS.md` or `.local-state/codex-handoff/HANDOFF.md` exists, read both before changing files. Compare the recorded branch/HEAD with the current repository; if the factual snapshot is missing or stale, run `python scripts/codex-handoff.py` first.
+- When the user says they are switching accounts, changing accounts, handing off, or asks another account to continue, run `python scripts/codex-handoff.py`, then refresh `.local-state/codex-handoff/HANDOFF.md` with only compact semantic context Git cannot reconstruct: Objective, Completed, Decisions/constraints, Blockers, and Next action.
+- Keep `HANDOFF.md` concise (target <= 80 lines). Do not copy chat transcripts, credentials, tokens, cookies, private chain-of-thought, or large source/diff bodies into it.
+- If a prior account stopped before creating a semantic handoff, the next account must run `python scripts/codex-handoff.py`, inspect the current Git/files, reconstruct only what can be supported by local evidence, and mark any remaining context gap instead of inventing it.
+- Current files and Git state override a stale handoff. Record the discrepancy and continue from the verified repository state.
+- `.local-state/` is local runtime data and must never be committed or uploaded as a project artifact.
+
 ## Files and directories not to touch
 
 - Never access, print, modify, or commit `.env`, API keys, tokens, credentials, browser profiles, or cookies.
