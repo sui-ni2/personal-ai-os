@@ -4,6 +4,21 @@ All notable changes to Personal AI OS are documented here.
 
 This project follows Semantic Versioning for public releases.
 
+## [Unreleased]
+
+### Added
+
+- A guarded one-command Windows first-run bootstrap that validates Python/Node/pnpm prerequisites, preserves existing local configuration, installs repository dependencies, and runs the no-key readiness gate without a billable provider model call.
+- A localhost-only Docker Compose first-run path with a named persistent data volume and optional host Ollama connectivity.
+- A private security-reporting entry in the GitHub issue chooser so vulnerability details are routed away from public issues.
+
+### Security and maintenance
+
+- The default branch is protected by an active repository ruleset requiring pull requests, independent CI/CodeQL/Dependency Review checks, resolved review conversations, and blocking force pushes and deletion.
+- GitHub private vulnerability reporting is enabled and `SECURITY.md` directs sensitive reports to the private flow.
+- Platform Readiness now exercises both the Windows bootstrap and Docker Compose startup paths end to end, including health and mobile/PWA verification.
+- Contributor and tester documentation now surfaces the verified low-friction first-run paths while retaining a manual source setup for advanced contributors.
+
 ## [0.2.0] - 2026-08-15
 
 This stable release continues the version line established by the historical `v0.2.0-alpha.1` tag. That alpha tag remains part of repository history; no GitHub Release was published for it.
@@ -35,4 +50,4 @@ This stable release continues the version line established by the historical `v0
 
 ### Release verification
 
-The `v0.2.0` release candidate is gated by `docs/release-checklist.md`. The final verified commit must pass the complete application-level real-inference loop—including provider connection, one text-chat turn, restart, and continued persisted conversation state—plus the normal CI/security/platform checks before the tag and GitHub Release are created.
+The `v0.2.0` release was gated by `docs/release-checklist.md`. The tagged release commit passed the complete application-level real-inference loop—including provider connection, one text-chat turn, restart, and continued persisted conversation state—plus the normal CI/security/platform checks before the GitHub Release was published.
