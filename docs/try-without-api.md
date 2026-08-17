@@ -15,9 +15,39 @@ The zero-cost readiness check starts the API against a temporary data directory 
 
 It does **not** certify a real provider connection, model response, or provider-backed conversation. Those remain part of the separate release smoke gate.
 
-## Run the zero-cost check
+## Windows: prepare a fresh checkout in one command
 
-After installing the Python dependencies:
+Prerequisites are Python 3.11+, Node.js 20+, and pnpm 11. The bootstrap does not install system runtimes, does not add a provider credential, and never overwrites an existing `.env` file.
+
+From the repository root, run:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\setup-windows.ps1
+```
+
+The bootstrap validates the prerequisites, creates `.env` from `.env.example` only when `.env` is missing, creates `.venv` only when needed, installs the repository dependencies, and runs the no-key readiness check. It makes no billable provider model call.
+
+To validate only the prerequisites and repository files without changing the working tree or installing dependencies:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\setup-windows.ps1 -CheckOnly
+```
+
+After setup, start the API and web app in separate terminals:
+
+```powershell
+.\scripts\dev-api.ps1
+```
+
+```powershell
+.\scripts\dev-web.ps1
+```
+
+Then open `http://localhost:3000`.
+
+## Run only the zero-cost check
+
+If the Python dependencies are already installed, run:
 
 ```bash
 python scripts/release-provider-smoke.py --provider openai --no-key-only
