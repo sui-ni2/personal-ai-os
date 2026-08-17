@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/sui-ni2/personal-ai-os/security
+    about: Report security vulnerabilities privately through GitHub instead of opening a public issue.
