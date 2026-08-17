@@ -19,7 +19,7 @@ under the user's control.
 
 ## Early testers wanted
 
-Personal AI OS is preparing its first stable `v0.2.0` release. **You do not need a paid API key to help test it.**
+Personal AI OS `v0.2.0` is now the first stable tagged release. **You do not need a paid API key to help test it.**
 
 - **No API key:** follow [Try without an API key](docs/try-without-api.md) or run `python scripts/release-provider-smoke.py --provider openai --no-key-only` after installing the Python dependencies. This makes no billable model call.
 - **Have your own provider credential:** use [Issue #7](https://github.com/sui-ni2/personal-ai-os/issues/7) for the full provider → first chat → restart-persistence path. OpenAI and Anthropic are supported remote adapters; Ollama is supported as an explicitly enabled local adapter.
@@ -28,7 +28,7 @@ Personal AI OS is preparing its first stable `v0.2.0` release. **You do not need
 - Never post API keys, `.env` files, authorization headers, cookies, private conversations,
   runtime databases, logs containing secrets, uploads/backups, or private project data.
 
-The zero-cost path verifies safe startup, runtime version, unconfigured-provider behavior, and secret redaction. It does **not** substitute for the real-provider release gate. Release-branch CI can execute that gate with a pinned local Ollama runtime and a small real model when no maintainer-owned OpenAI or Anthropic secret is configured; model response text is not printed by the smoke runner.
+The zero-cost path verifies safe startup, runtime version, unconfigured-provider behavior, and secret redaction. For future `release/*` candidates, CI can execute the real-inference gate with a pinned local Ollama runtime and a small real model when no maintainer-owned OpenAI or Anthropic secret is configured; model response text is not printed by the smoke runner.
 
 ## Maintenance and security
 
@@ -39,7 +39,7 @@ Repository maintenance is executable rather than release-note-only:
 - CodeQL analyzes Python and JavaScript/TypeScript on pull requests, `main`, and a weekly schedule;
 - Dependency Review fails closed on newly introduced high-severity dependency risk;
 - Dependabot checks JavaScript, Python, GitHub Actions, and Docker dependencies weekly; production Docker runtime major jumps remain deliberate compatibility work rather than automatic version updates;
-- `release/*` pull requests run an isolated real-provider smoke before `v0.2.0` can be published.
+- `release/*` pull requests run an isolated real-provider smoke before a future stable release is published.
 
 Repository-admin settings that source-controlled CI cannot replace are tracked honestly in [`docs/repository-admin-checklist.md`](docs/repository-admin-checklist.md).
 
@@ -177,7 +177,7 @@ registry; this does not restrict use of the source code under Apache-2.0. See
 security issue. The initial problem statement and honest first-party usage case are
 documented in `docs/dogfooding.md`.
 
-The focused path from the current release candidate to a usable public product is in
+The focused path from the current stable release to a usable public product is in
 `ROADMAP.md`.
 The positioning, delivery-mode, terminology, capability, and tenant contracts are in
 `docs/product-contract.md`.
