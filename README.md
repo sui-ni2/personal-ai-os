@@ -21,7 +21,7 @@ under the user's control.
 
 Personal AI OS `v0.2.0` is now the first stable tagged release. **You do not need a paid API key to help test it.**
 
-- **No API key:** follow [Try without an API key](docs/try-without-api.md) or run `python scripts/release-provider-smoke.py --provider openai --no-key-only` after installing the Python dependencies. This makes no billable model call.
+- **No API key:** the lowest-friction current-`main` path is `docker compose up --build -d` if Docker is installed. On Windows without Docker, run `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\setup-windows.ps1`. See [Try without an API key](docs/try-without-api.md) for both verified paths and the manual smoke command. These paths make no billable model call on a fresh no-key checkout.
 - **Have your own provider credential:** use [Issue #7](https://github.com/sui-ni2/personal-ai-os/issues/7) for the full provider → first chat → restart-persistence path. OpenAI and Anthropic are supported remote adapters; Ollama is supported as an explicitly enabled local adapter.
 - **New contributor:** [Issue #15](https://github.com/sui-ni2/personal-ai-os/issues/15) is a concrete Windows fresh-install verification task labeled `good first issue`.
 - Focused documentation fixes, bug fixes, and small pull requests are welcome.
@@ -35,7 +35,7 @@ The zero-cost path verifies safe startup, runtime version, unconfigured-provider
 Repository maintenance is executable rather than release-note-only:
 
 - normal pull requests run backend tests, Python compilation, frontend type checks/builds, and the no-key startup gate;
-- Platform Readiness runs the no-key smoke on a real Windows runner and builds, starts, and health-checks the production Docker image;
+- Platform Readiness exercises the Windows first-run bootstrap end to end and validates, builds, starts, health-checks, and mobile/PWA-checks the localhost-only Docker Compose path;
 - CodeQL analyzes Python and JavaScript/TypeScript on pull requests, `main`, and a weekly schedule;
 - Dependency Review fails closed on newly introduced high-severity dependency risk;
 - Dependabot checks JavaScript, Python, GitHub Actions, and Docker dependencies weekly; production Docker runtime major jumps remain deliberate compatibility work rather than automatic version updates;
@@ -88,14 +88,36 @@ they cannot submit a command or shell string.
 
 ## Start locally
 
-Prerequisites: Node.js 20+ with pnpm, and Python 3.11+.
+### Fastest path with Docker
+
+If Docker Desktop (or Docker Engine with Compose) is already installed, no local Python, Node.js,
+or pnpm setup is required:
+
+```bash
+docker compose up --build -d
+```
+
+Open `http://127.0.0.1:8080`. The default Compose profile is bound to localhost only and keeps
+runtime data in a named Docker volume. Stop it without deleting the data volume with:
+
+```bash
+docker compose down
+```
+
+Use `docker compose down -v` only when you intentionally want to delete the local Compose data
+volume. Do not change the port binding to a public interface while authentication is disabled.
+
+### Windows source checkout
+
+Prerequisites: Node.js 20+ with pnpm 11, and Python 3.11+.
 
 ```powershell
-Copy-Item .env.example .env
-py -3.12 -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
-pnpm install
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\setup-windows.ps1
 ```
+
+The bootstrap preserves an existing `.env` and `.venv`, installs repository dependencies, and runs
+the no-key readiness gate. It does not add provider credentials. Use `-CheckOnly` to validate only
+prerequisites and repository files without changing the checkout or installing dependencies.
 
 In terminal 1:
 
@@ -111,6 +133,19 @@ In terminal 2:
 
 Open `http://localhost:3000`. The API health endpoint is `http://localhost:8000/health`.
 
+### Manual source setup
+
+For contributors who want granular control:
+
+```powershell
+Copy-Item .env.example .env
+py -3.12 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
+pnpm install --frozen-lockfile
+```
+
+Then start the API and web app with the two scripts above.
+
 ### Optional local Ollama
 
 Install and start Ollama separately, pull a model that appears in `PERSONAL_AI_OS_OLLAMA_MODELS`, then set:
@@ -119,6 +154,9 @@ Install and start Ollama separately, pull a model that appears in `PERSONAL_AI_O
 PERSONAL_AI_OS_OLLAMA_ENABLED=true
 PERSONAL_AI_OS_OLLAMA_ENDPOINT=http://127.0.0.1:11434/v1/chat/completions
 ```
+
+When using the Docker Compose path, the default container-to-host Ollama endpoint is
+`http://host.docker.internal:11434/v1/chat/completions`.
 
 Ollama's local API does not require a provider credential. Keep it bound to a trusted local environment unless you deliberately secure and expose it.
 
