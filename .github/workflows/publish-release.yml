@@ -1,6 +1,9 @@
 name: Publish GitHub Release
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
     inputs:
       tag:
@@ -22,45 +25,65 @@ jobs:
           fetch-depth: 0
           persist-credentials: true
 
-      - name: Validate release tag
+      - name: Resolve and validate release tag
+        id: release
         env:
-          TAG: ${{ inputs.tag }}
+          EVENT_NAME: ${{ github.event_name }}
+          REQUESTED_TAG: ${{ inputs.tag }}
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
+
+          git fetch origin main --tags --force --quiet
+
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            TAG="$REQUESTED_TAG"
+          else
+            TAG="$(
+              git tag --merged origin/main --list 'v*.*.*' \
+                | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' \
+                | sort -V \
+                | tail -n 1 \
+                || true
+            )"
+            if [[ -z "$TAG" ]]; then
+              echo "No stable version tag reachable from main; nothing to publish."
+              echo "publish=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          fi
 
           if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
             echo "::error title=Invalid release tag::Expected a version tag such as v0.2.0."
             exit 1
           fi
 
-          git fetch origin main --tags --force --quiet
           git rev-parse "refs/tags/$TAG^{commit}" >/dev/null
-
           TAG_COMMIT="$(git rev-parse "refs/tags/$TAG^{commit}")"
+
           if ! git merge-base --is-ancestor "$TAG_COMMIT" origin/main; then
             echo "::error title=Untrusted release tag::The tag commit is not reachable from origin/main."
             exit 1
           fi
 
-          echo "Validated $TAG at $TAG_COMMIT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "tag_commit=$TAG_COMMIT" >> "$GITHUB_OUTPUT"
 
-      - name: Refuse duplicate publication
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TAG: ${{ inputs.tag }}
-        shell: bash
-        run: |
-          set -euo pipefail
           if gh release view "$TAG" >/dev/null 2>&1; then
-            echo "::error title=Release already exists::A GitHub Release already exists for $TAG."
-            exit 1
+            echo "GitHub Release already exists for $TAG; nothing to publish."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
 
+          echo "Validated missing GitHub Release for $TAG at $TAG_COMMIT."
+          echo "publish=true" >> "$GITHUB_OUTPUT"
+
       - name: Publish verified tag as GitHub Release
+        if: steps.release.outputs.publish == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ inputs.tag }}
+          TAG: ${{ steps.release.outputs.tag }}
         shell: bash
         run: |
           set -euo pipefail
