@@ -1,8 +1,8 @@
 # Product roadmap
 
-Personal AI OS is currently a `v0.2.0` release candidate. The core first-use loop now exists: the community edition can start safely without credentials, connect a supported AI service, persist a default provider/model, complete text conversations, retain project/conversation state across restart, and expose tools and reviewed memory without binding that state to one model provider.
+Personal AI OS has published its first stable community/self-hosted release, `v0.2.0`. The core first-use loop is verified: the community edition can start safely without credentials, connect a supported AI service, persist a default provider/model, complete text conversations, retain project/conversation state across restart, and expose tools and reviewed memory without binding that state to one model provider.
 
-The release remains fail-closed until the final real-inference and privacy/artifact gates pass. A release candidate is not treated as a stable release merely because the feature set exists.
+The stable release was published only after the documented real-inference, restart/persistence, CI, security, Windows/container/mobile, and privacy/artifact gates passed. Future releases remain fail-closed against the same evidence standard.
 
 ## Current product contract
 
