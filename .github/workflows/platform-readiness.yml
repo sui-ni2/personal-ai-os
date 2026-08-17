@@ -13,6 +13,7 @@ on:
       - "packages/**"
       - "scripts/release-provider-smoke.py"
       - "scripts/check-mobile-readiness.ps1"
+      - "scripts/setup-windows.ps1"
       - ".github/workflows/platform-readiness.yml"
   push:
     branches: [main]
@@ -26,6 +27,7 @@ on:
       - "packages/**"
       - "scripts/release-provider-smoke.py"
       - "scripts/check-mobile-readiness.ps1"
+      - "scripts/setup-windows.ps1"
       - ".github/workflows/platform-readiness.yml"
   workflow_dispatch:
 
@@ -45,10 +47,17 @@ jobs:
           python-version: "3.12"
           cache: pip
           cache-dependency-path: requirements-dev.txt
-      - name: Install Python dependencies
-        run: python -m pip install -r requirements-dev.txt
-      - name: Verify fresh no-key readiness on Windows
-        run: python scripts/release-provider-smoke.py --provider openai --no-key-only
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 11.16.0
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: pnpm
+      - name: Verify Windows first-run bootstrap end to end
+        run: ./scripts/setup-windows.ps1
 
   container:
     name: Container build, health, and mobile shell
