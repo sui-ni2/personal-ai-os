@@ -4,7 +4,9 @@ These settings live in GitHub repository administration rather than the source t
 
 ## Discoverability
 
-Add focused repository topics after confirming they accurately describe the project. Recommended starting set:
+- [ ] Add focused repository topics. The repository API currently reports no topics.
+
+Recommended starting set:
 
 - `personal-ai`
 - `ai-workbench`
@@ -20,17 +22,17 @@ Avoid broad or misleading tags that imply integrations or production capabilitie
 
 ## Main branch protection
 
-Protect `main` (or use a repository ruleset) so that normal changes go through pull requests and required CI.
+- [ ] Protect `main` (or use a repository ruleset) so that normal changes go through pull requests and required CI. The repository API currently reports `main` as unprotected.
 
 Target policy:
 
 - require a pull request before merge;
-- require the existing backend and frontend CI checks to pass;
+- require the existing backend/frontend CI and security checks to pass;
 - block force pushes and branch deletion;
 - keep maintainer bypass exceptional rather than routine;
 - do not require an external approval while the project has only one maintainer, unless a second trusted maintainer is added.
 
-The connected GitHub integration cannot read the branch-protection endpoint for this repository, so this setting remains an explicit repository-admin verification item rather than source-controlled evidence.
+The connected GitHub integration does not expose a branch-protection write action, so this remains a repository-admin task rather than source-controlled evidence.
 
 ## Security analysis settings
 
@@ -44,6 +46,11 @@ The connected GitHub integration cannot read the branch-protection endpoint for 
 
 Enable GitHub Discussions when there is enough external traffic to justify a lower-friction Q&A/ideas channel. Keep reproducible bugs and release blockers in Issues so they remain actionable.
 
-## Release gate
+## Release evidence
 
-Do not weaken the real-provider release gate merely because repository-level settings are incomplete. `v0.2.0` remains blocked until the required real-inference smoke test completes successfully. The fallback local Ollama path is valid only when the workflow installs a real runtime, loads a real model, and completes the application-level connection/chat/restart loop; mocks or a successful model download alone do not satisfy the gate.
+- [x] `v0.2.0` is a stable tag on the verified release commit.
+- [x] The release candidate passed CI, CodeQL, Dependency Review, Platform Readiness, and the application-level real-inference release smoke before tagging.
+- [x] `.github/workflows/publish-release.yml` provides a fail-closed publication path that only accepts an existing version tag reachable from `main` and refuses duplicate publication.
+- [ ] Publish the GitHub Release object for `v0.2.0`. The connected GitHub integration can merge the workflow but does not expose `workflow_dispatch`, so this final repository-admin action cannot be triggered from the integration.
+
+Future stable releases must keep the same evidence standard: real application-level inference, restart/persistence verification, normal CI/security/platform checks, and an auditable release publication path. A successful model download or mock alone does not satisfy the release gate.

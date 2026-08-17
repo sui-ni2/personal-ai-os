@@ -2,8 +2,10 @@
 
 ## Supported versions
 
-Security fixes currently target the latest code on the default branch. A formal
-multi-version support policy will be published with the first stable release.
+Security fixes target the latest stable `v0.2.x` release line and the current `main` branch.
+Versions older than `v0.2.0` are pre-stable historical builds and are not supported.
+When a fix affects the current stable release, maintainers will decide whether a focused
+backport is safer than requiring users to move to the next stable release.
 
 ## Reporting a vulnerability
 
