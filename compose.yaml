@@ -1,0 +1,28 @@
+services:
+  personal-ai-os:
+    build:
+      context: .
+    init: true
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      PERSONAL_AI_OS_DATA_DIR: /data
+      PERSONAL_AI_OS_DEPLOYMENT_MODE: community
+      PERSONAL_AI_OS_PLAN: community
+      PERSONAL_AI_OS_TENANT_ID: local
+      PERSONAL_AI_OS_ACTOR_ID: local-owner
+      PERSONAL_AI_OS_REQUIRE_AUTH: "false"
+      PERSONAL_AI_OS_OPENAI_API_KEY: "${PERSONAL_AI_OS_OPENAI_API_KEY:-}"
+      PERSONAL_AI_OS_ANTHROPIC_API_KEY: "${PERSONAL_AI_OS_ANTHROPIC_API_KEY:-}"
+      PERSONAL_AI_OS_REALTIME_API_KEY: "${PERSONAL_AI_OS_REALTIME_API_KEY:-}"
+      PERSONAL_AI_OS_OLLAMA_ENABLED: "${PERSONAL_AI_OS_OLLAMA_ENABLED:-false}"
+      PERSONAL_AI_OS_OLLAMA_ENDPOINT: "${PERSONAL_AI_OS_OLLAMA_ENDPOINT:-http://host.docker.internal:11434/v1/chat/completions}"
+      PERSONAL_AI_OS_DEFAULT_PROVIDER: "${PERSONAL_AI_OS_DEFAULT_PROVIDER:-openai}"
+      PERSONAL_AI_OS_DEFAULT_MODEL: "${PERSONAL_AI_OS_DEFAULT_MODEL:-gpt-5.1}"
+    volumes:
+      - personal_ai_os_data:/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  personal_ai_os_data:
