@@ -9,19 +9,19 @@ backport is safer than requiring users to move to the next stable release.
 
 ## Reporting a vulnerability
 
-Do not report vulnerabilities that contain credentials, private user data, exploit
-details, or sensitive deployment information in a public issue.
-
-GitHub private vulnerability reporting is not currently enabled for this repository.
-Until it is enabled, contact the maintainer through the public GitHub profile without
-including sensitive details and request a private channel. Do not paste a proof of
-concept, credential, private conversation, deployment secret, or sensitive log into a
-public issue or discussion.
+Please use GitHub's private vulnerability reporting flow for this repository to report
+potential security vulnerabilities. Do not open a public issue or discussion for a report
+that contains exploit details, credentials, private user data, deployment secrets, private
+conversations, sensitive logs, or other confidential information.
 
 Include the affected version or commit, impact, reproduction conditions, and a minimal
-proof of concept only after a private reporting channel is established, with all secrets
-and personal data removed. Please allow reasonable time for confirmation and remediation
-before public disclosure.
+proof of concept only in the private report, with all unrelated secrets and personal data
+removed. Please allow reasonable time for confirmation and remediation before public
+disclosure.
+
+If GitHub's private reporting flow is temporarily unavailable, contact the maintainer
+through the public GitHub profile without including sensitive details and request a private
+channel. Do not paste sensitive material into a public issue, discussion, or profile message.
 
 ## Security boundaries
 
