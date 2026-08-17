@@ -6,7 +6,7 @@ labels:
 body:
   - type: markdown
     attributes:
-      value: Do not include `.env` contents, credentials, conversations, logs, or private project data.
+      value: Security vulnerabilities must be reported privately from the repository Security page. Do not include `.env` contents, credentials, conversations, logs, exploit details, or private project data in a public issue.
   - type: input
     id: version
     attributes:
