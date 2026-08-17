@@ -56,12 +56,8 @@ jobs:
         with:
           node-version: "24"
           cache: pnpm
-      - name: Verify Windows first-run bootstrap prerequisites
-        run: ./scripts/setup-windows.ps1 -CheckOnly
-      - name: Install Python dependencies
-        run: python -m pip install -r requirements-dev.txt
-      - name: Verify fresh no-key readiness on Windows
-        run: python scripts/release-provider-smoke.py --provider openai --no-key-only
+      - name: Verify Windows first-run bootstrap end to end
+        run: ./scripts/setup-windows.ps1
 
   container:
     name: Container build, health, and mobile shell
