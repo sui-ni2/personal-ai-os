@@ -10,8 +10,35 @@ real setup or first-chat friction in [Issue #7](https://github.com/sui-ni2/perso
 Small documentation corrections and focused bug fixes are also welcome. Please do not create
 synthetic feedback or test data that could be mistaken for real user adoption.
 
-You do **not** need a paid provider API key to verify the safe first-run path. After installing the
-Python dependencies, run:
+You do **not** need a paid provider API key to verify the safe first-run path.
+
+### Lowest-friction runtime check with Docker
+
+If Docker Desktop (or Docker Engine with Compose) is already installed:
+
+```bash
+docker compose up --build -d
+```
+
+Open `http://127.0.0.1:8080`. The default Compose profile is loopback-only and stores runtime data
+in a named Docker volume. Stop it with `docker compose down`; add `-v` only when you intentionally
+want to delete that local data volume.
+
+### Windows source checkout
+
+On Windows with Python 3.11+, Node.js 20+, and pnpm 11 installed:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\setup-windows.ps1
+```
+
+The bootstrap preserves an existing `.env` and `.venv`, installs repository dependencies, and runs
+the isolated no-key readiness check. It adds no provider credential and makes no billable model
+call. Use `-CheckOnly` when you only want to validate prerequisites without changing the checkout.
+
+### Manual no-key gate
+
+If the Python dependencies are already installed, run:
 
 ```powershell
 .\.venv\Scripts\python.exe scripts\release-provider-smoke.py --provider openai --no-key-only
@@ -31,15 +58,17 @@ runtime data when complete.
   uploads, backups, browser data, or private project artifacts.
 - Discuss persistent-data migrations and security-boundary changes before implementation.
 
-## Local setup
+## Local source setup
 
-Prerequisites are Node.js 20 or newer with pnpm and Python 3.11 or newer.
+Prerequisites are Node.js 20 or newer with pnpm 11 and Python 3.11 or newer.
+
+On Windows, prefer the verified bootstrap above. For a manual setup:
 
 ```powershell
 Copy-Item .env.example .env
 py -3.12 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
-pnpm install
+pnpm install --frozen-lockfile
 ```
 
 Use only placeholder values in `.env.example`. Never attach a real `.env` file to an
@@ -57,6 +86,10 @@ request:
 pnpm check:web
 pnpm build:web
 ```
+
+Changes to `Dockerfile`, `compose.yaml`, Windows setup, application packages, or platform-readiness
+workflows also run the repository's Platform Readiness workflow, which exercises the Docker Compose
+path and the Windows bootstrap end to end.
 
 ## Pull requests
 
