@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - "Dockerfile"
+      - "compose.yaml"
       - "package.json"
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
@@ -19,6 +20,7 @@ on:
     branches: [main]
     paths:
       - "Dockerfile"
+      - "compose.yaml"
       - "package.json"
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
@@ -65,32 +67,31 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
-      - name: Build production image
-        run: docker build --tag personal-ai-os:ci .
-      - name: Start production image and verify health
+      - name: Validate Compose configuration
+        run: docker compose config
+      - name: Build Compose application
+        run: docker compose build
+      - name: Start Compose application and verify health
         shell: bash
         run: |
-          docker run -d \
-            --name personal-ai-os-ci \
-            -p 127.0.0.1:18080:8080 \
-            -e PERSONAL_AI_OS_REQUIRE_AUTH=false \
-            personal-ai-os:ci
+          docker compose up -d
 
           for attempt in $(seq 1 40); do
-            if curl --fail --silent --show-error http://127.0.0.1:18080/health; then
+            if curl --fail --silent --show-error http://127.0.0.1:8080/health; then
               echo
               exit 0
             fi
             sleep 2
           done
 
-          echo "Container did not become healthy" >&2
-          docker logs personal-ai-os-ci >&2 || true
+          echo "Compose application did not become healthy" >&2
+          docker compose ps >&2 || true
+          docker compose logs >&2 || true
           exit 1
       - name: Verify production mobile/PWA readiness
         shell: pwsh
         run: |
-          ./scripts/check-mobile-readiness.ps1 -BaseUrl "http://127.0.0.1:18080" -AllowInsecureLocalhost
-      - name: Clean up container
+          ./scripts/check-mobile-readiness.ps1 -BaseUrl "http://127.0.0.1:8080" -AllowInsecureLocalhost
+      - name: Clean up Compose application
         if: always()
-        run: docker rm -f personal-ai-os-ci >/dev/null 2>&1 || true
+        run: docker compose down -v --remove-orphans
