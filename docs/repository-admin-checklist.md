@@ -50,7 +50,7 @@ Enable GitHub Discussions when there is enough external traffic to justify a low
 
 - [x] `v0.2.0` is a stable tag on the verified release commit.
 - [x] The release candidate passed CI, CodeQL, Dependency Review, Platform Readiness, and the application-level real-inference release smoke before tagging.
-- [x] `.github/workflows/publish-release.yml` provides a fail-closed publication path that only accepts an existing version tag reachable from `main` and refuses duplicate publication.
-- [ ] Publish the GitHub Release object for `v0.2.0`. The connected GitHub integration can merge the workflow but does not expose `workflow_dispatch`, so this final repository-admin action cannot be triggered from the integration.
+- [x] `Personal AI OS v0.2.0` is published as a public GitHub Release; it is neither a draft nor a prerelease.
+- [x] `.github/workflows/publish-release.yml` provides a fail-closed publication path. Manual runs require an existing valid tag reachable from `main`; automatic runs only consider an existing strict stable `vN.N.N` tag and no-op if the GitHub Release already exists.
 
-Future stable releases must keep the same evidence standard: real application-level inference, restart/persistence verification, normal CI/security/platform checks, and an auditable release publication path. A successful model download or mock alone does not satisfy the release gate.
+Future stable releases must keep the same evidence standard: real application-level inference, restart/persistence verification, normal CI/security/platform checks, an explicit stable tag, and an auditable release publication path. A successful model download or mock alone does not satisfy the release gate.

@@ -66,7 +66,7 @@ Ollama is disabled during the fresh no-provider phase and enabled only for the r
 
 ### Verified evidence
 
-PR #35 release head `a2e09202448e543eb99c20a7085e2e3b9408a4ef` passed all five release lines before this checklist-only evidence update:
+PR #35 release head `a2e09202448e543eb99c20a7085e2e3b9408a4ef` passed all five release lines before the checklist-only evidence update:
 
 - CI — success
 - CodeQL — success
@@ -74,19 +74,17 @@ PR #35 release head `a2e09202448e543eb99c20a7085e2e3b9408a4ef` passed all five r
 - Platform Readiness — success, including Windows no-key and production Docker/PWA checks
 - Release provider smoke — success with real local Ollama inference, persisted provider/model selection, API restart, and continued conversation state
 
-This checklist update changes documentation only. The resulting final PR head must still remain green before merge.
+The checklist-only update also remained green before merge.
 
-### Publication
+### Publication — completed
 
-Only after the final checklist head remains green:
-
-1. Merge PR #35 to `main`.
-2. Verify post-merge `main` CI/security/platform checks.
-3. Close Issue #1 with sanitized evidence because its fresh-install/provider acceptance criteria are satisfied.
-4. Create tag `v0.2.0` from the verified `main` commit.
-5. Publish GitHub Release `v0.2.0` with concise release notes and known limitations.
-6. Verify the release tag points to the intended commit and no secret/private artifact is attached.
+- [x] PR #35 merged to `main`.
+- [x] Post-merge release evidence remained consistent with the verified release candidate.
+- [x] Issue #1 was closed as completed with sanitized acceptance evidence.
+- [x] Stable tag `v0.2.0` points to the intended verified `main` commit.
+- [x] Public GitHub Release `Personal AI OS v0.2.0` was published on 2026-08-15; it is neither a draft nor a prerelease.
+- [x] The public release has no attached private/generated artifacts; GitHub provides the normal source tarball/zipball for the tag.
 
 ## Fail-closed rule
 
-If the real-provider smoke test cannot execute or does not complete successfully, keep Issue #1 open and do not publish `v0.2.0`. The existence of a workflow, a successful model download, or green unit tests is not release evidence by itself; the complete application-level real-inference loop must pass.
+If a future release's real-provider smoke test cannot execute or does not complete successfully, do not create its stable release tag or publish its GitHub Release. The existence of a workflow, a successful model download, or green unit tests is not release evidence by itself; the complete application-level real-inference loop must pass.
