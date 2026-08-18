@@ -22,7 +22,18 @@ Public repository activity shows responsibility for:
 - contributor and tester intake;
 - issue triage and follow-up fixes.
 
-Repository-admin hardening is tracked in Issue #39 and `docs/repository-admin-checklist.md`. Maintenance automation work is tracked separately and does not replace required checks or human review.
+Repository-admin hardening is tracked in Issue #39 and `docs/repository-admin-checklist.md`.
+
+## Executable maintainer automation
+
+The repository already contains deterministic, tested helpers for four recurring maintenance tasks:
+
+- CI failure classification: `scripts/ci_failure_classifier.py`;
+- dependency-update risk summary: `scripts/dependency_risk_summary.py`;
+- release evidence verification: `scripts/release_evidence_verifier.py`;
+- external tester feedback triage: `scripts/tester_feedback_triage.py`.
+
+Focused tests for all four live in `apps/api/tests/`. These tools are fail-closed: they do not approve or merge pull requests, bypass required checks, create releases, or convert tester text into verified adoption. See `docs/maintainer-automation.md` for the command-line contracts and safety boundary.
 
 ## Release, security, and CI evidence
 
