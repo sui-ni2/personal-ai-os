@@ -74,11 +74,11 @@ def _update_level(current: ParsedVersion, new: ParsedVersion) -> str:
         if current.prerelease is not None or new.prerelease is not None:
             return "prerelease"
         return "same"
-    if new.major != current.major:
+    if new.core.major != current.core.major:
         return "major"
-    if new.minor != current.minor:
+    if new.core.minor != current.core.minor:
         return "minor"
-    if new.patch != current.patch:
+    if new.core.patch != current.core.patch:
         return "patch"
     return "prerelease"
 
