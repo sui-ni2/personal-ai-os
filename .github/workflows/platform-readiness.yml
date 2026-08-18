@@ -12,6 +12,7 @@ on:
       - "requirements-*.txt"
       - "apps/**"
       - "packages/**"
+      - "scripts/build-hosted.mjs"
       - "scripts/release-provider-smoke.py"
       - "scripts/check-mobile-readiness.ps1"
       - "scripts/setup-windows.ps1"
@@ -27,6 +28,7 @@ on:
       - "requirements-*.txt"
       - "apps/**"
       - "packages/**"
+      - "scripts/build-hosted.mjs"
       - "scripts/release-provider-smoke.py"
       - "scripts/check-mobile-readiness.ps1"
       - "scripts/setup-windows.ps1"
@@ -60,6 +62,31 @@ jobs:
           cache: pnpm
       - name: Verify Windows first-run bootstrap end to end
         run: ./scripts/setup-windows.ps1
+
+  hosted-build:
+    name: Hosted vinext build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 11.16.0
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: pnpm
+      - name: Install JavaScript dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build hosted vinext output
+        run: pnpm build
+      - name: Verify hosted output contract
+        shell: bash
+        run: |
+          test -f dist/server/index.js
+          test -f dist/.openai/hosting.json
 
   container:
     name: Container build, health, and mobile shell
