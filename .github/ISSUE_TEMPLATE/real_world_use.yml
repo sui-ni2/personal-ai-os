@@ -1,0 +1,83 @@
+name: Real-world use
+about: Share a genuine Personal AI OS workflow, including failed or partial adoption
+labels: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form only for genuine first-hand use. Successful use, failed attempts, partial adoption, and reasons you stopped are all useful. Do not submit synthetic testimonials, reciprocal promotion, or maintainer-authored adoption claims.
+
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, architecture, and Docker/source checkout as applicable.
+      placeholder: Windows 11 x64, Docker Desktop 4.x
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      description: Tag, branch, or commit you actually tried.
+      placeholder: v0.2.0 or commit SHA
+    validations:
+      required: true
+
+  - type: textarea
+    id: workflow
+    attributes:
+      label: Workflow you tried
+      description: What persistent AI work were you trying to do, and why did you try Personal AI OS for it?
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: surfaces
+    attributes:
+      label: Product surfaces actually used
+      options:
+        - label: Chat / provider adapters
+        - label: Projects / persistent project state
+        - label: Reviewed Memory
+        - label: MCP tools / connectors
+        - label: Execution history / audit views
+        - label: Local Ollama
+        - label: Mobile / PWA shell
+
+  - type: textarea
+    id: outcome
+    attributes:
+      label: What worked and what blocked continued use?
+      description: Negative feedback is valid. Please separate what worked from what did not.
+    validations:
+      required: true
+
+  - type: textarea
+    id: next_change
+    attributes:
+      label: Highest-value next change
+      description: What single improvement would most increase the chance you keep using or contributing to the project?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: contribution
+    attributes:
+      label: Would you consider a focused contribution?
+      options:
+        - Yes, a documentation fix
+        - Yes, a bug report or code PR
+        - Maybe
+        - No
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Privacy acknowledgement
+      options:
+        - label: I have not included API keys, .env contents, authorization headers, cookies, private conversations, runtime databases, secret-bearing logs, uploads/backups, or private project data.
+          required: true
