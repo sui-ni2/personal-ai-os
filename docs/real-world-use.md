@@ -2,6 +2,8 @@
 
 Personal AI OS is looking for first-hand evidence about whether the project is useful outside the maintainer's own workflow. The purpose of this page is to make that evidence easy to submit and difficult to misrepresent.
 
+The current verified state is summarized in [`docs/evidence-ledger.md`](evidence-ledger.md). That ledger deliberately separates maintenance/repository reach from independently attributable adoption evidence.
+
 ## Useful evidence
 
 The strongest public evidence is reproducible and attributable to an independent user or contributor. Examples include:
@@ -43,4 +45,4 @@ Never post API keys, `.env` contents, authorization headers, cookies, private co
 
 ## Maintainer handling
 
-Maintainers should preserve unfavorable but good-faith reports, distinguish independent evidence from first-party dogfooding, and link fixes back to the original external report when possible. Public metrics may be summarized later, but only from verifiable repository evidence and with the observation date stated.
+Maintainers should preserve unfavorable but good-faith reports, distinguish independent evidence from first-party dogfooding, and link fixes back to the original external report when possible. Public metrics may be summarized later, but only from verifiable repository evidence and with the observation date stated. Update the evidence ledger only when the public source supports the claim.
