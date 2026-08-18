@@ -1,0 +1,49 @@
+name: Refresh paired dependency lockfile
+
+on:
+  push:
+    branches:
+      - deps/align-peer-dependency-pairs
+    paths:
+      - apps/web/package.json
+      - .github/workflows/refresh-lockfile-temp.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  refresh-lockfile:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v7
+        with:
+          ref: deps/align-peer-dependency-pairs
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 11.16.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Regenerate lockfile
+        run: pnpm install --lockfile-only
+
+      - name: Commit lockfile if changed
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pnpm-lock.yaml
+          if git diff --cached --quiet; then
+            echo "Lockfile already matches manifests."
+            exit 0
+          fi
+          git commit -m "chore(deps): refresh paired dependency lockfile"
+          git push origin HEAD:deps/align-peer-dependency-pairs
