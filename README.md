@@ -43,6 +43,12 @@ Repository maintenance is executable rather than release-note-only:
 
 Repository-admin settings that source-controlled CI cannot replace are tracked honestly in [`docs/repository-admin-checklist.md`](docs/repository-admin-checklist.md).
 
+## Verify the project quickly
+
+A reviewer can verify the no-key startup and privacy boundary without configuring a paid provider by following [Try Personal AI OS without an API key](docs/try-without-api.md). That proof is deliberately narrow: it covers clean startup, the expected runtime version, unconfigured-provider behavior, and secret redaction; it does not claim a real model response without a provider.
+
+For an auditable view of what has and has not been verified, see the [verification support matrix](docs/support-matrix.md), [maintainer evidence summary](docs/maintainer-evidence-summary.md), and [project evidence ledger](docs/evidence-ledger.md). CI, maintainer dogfooding, stars, and forks are kept separate from genuinely independent user evidence.
+
 ## What is runnable now
 
 - Next.js App Shell with Chat, Memory, Repository, Projects, and Settings views.
