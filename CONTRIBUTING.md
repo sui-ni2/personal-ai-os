@@ -3,12 +3,25 @@
 Thank you for helping improve Personal AI OS. Contributions should keep the core
 general-purpose, local-first, auditable, and safe for private user data.
 
+## Share genuine use
+
+Independent first-hand use is useful even when the outcome is negative. If you tried Personal AI OS
+for a real workflow, use [Issue #55](https://github.com/sui-ni2/personal-ai-os/issues/55) or the
+`Real-world use` issue form to describe what you attempted, what worked, and what blocked continued
+use. See [Real-world use and external evidence](docs/real-world-use.md) for the evidence and privacy
+boundary.
+
+Do not create synthetic testimonials, duplicate accounts, reciprocal engagement, or generated
+feedback. CI activity, repository settings, and maintainer dogfooding are maintenance evidence, not
+independent adoption.
+
 ## Good first contributions
 
 If you are new to the project, the highest-value contribution is to try a fresh install and report
 real setup or first-chat friction in [Issue #7](https://github.com/sui-ni2/personal-ai-os/issues/7).
-Small documentation corrections and focused bug fixes are also welcome. Please do not create
-synthetic feedback or test data that could be mistaken for real user adoption.
+Windows testers can use [Issue #15](https://github.com/sui-ni2/personal-ai-os/issues/15); macOS/Linux
+Docker testers can use [Issue #56](https://github.com/sui-ni2/personal-ai-os/issues/56). Small
+documentation corrections and focused bug fixes are also welcome.
 
 You do **not** need a paid provider API key to verify the safe first-run path.
 
