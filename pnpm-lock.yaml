@@ -14,8 +14,8 @@ importers:
         specifier: 1.0.0-beta.5
         version: 1.0.0-beta.5(vinext@1.0.0-beta.8(@vitejs/plugin-react@6.0.5(vite@8.2.1(@types/node@24.13.3)(esbuild@0.28.1)(jiti@1.21.7)(terser@5.49.2)))(@vitejs/plugin-rsc@0.5.34(react-dom@19.2.8(react@19.2.8))(react-server-dom-webpack@19.2.8(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(webpack@5.109.2(esbuild@0.28.1)(lightningcss@1.33.0)(postcss@8.5.26)))(react@19.2.8)(vite@8.2.1(@types/node@24.13.3)(esbuild@0.28.1)(jiti@1.21.7)(terser@5.49.2)))(next@16.3.0(@types/node@24.13.3)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react-server-dom-webpack@19.2.8(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(webpack@5.109.2(esbuild@0.28.1)(lightningcss@1.33.0)(postcss@8.5.26)))(react@19.2.8)(vite@8.2.1(@types/node@24.13.3)(esbuild@0.28.1)(jiti@1.21.7)(terser@5.49.2)))
       lucide-react:
-        specifier: ^1.31.0
-        version: 1.31.0(react@19.2.8)
+        specifier: ^1.33.0
+        version: 1.33.0(react@19.2.8)
       next:
         specifier: 16.3.0
         version: 16.3.0(@types/node@24.13.3)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -1320,8 +1320,8 @@ packages:
   lines-and-columns@1.2.4:
     resolution: {integrity: sha512-7ylylesZQ/PV29jhEDl3Ufjo6ZX7gCqJr5F7PKrqc93v7fzSymt1BpwEU8nAUXs8qzzvqhbjhK5QZg6Mt/HkBg==}
 
-  lucide-react@1.31.0:
-    resolution: {integrity: sha512-G8u2eEtoHUnUa9f8lbvqDhCiORMnYLdUEo06EEG9MQvHQrInKcX3Pa2TH39MM5qyzRcWETxB0+aOwAPI1g1kEg==}
+  lucide-react@1.33.0:
+    resolution: {integrity: sha512-MTRwMy0ZlL8Ur/vOAiJ9XGHE+kFPC7brq6MxAm0GiGXEBj0qy0jA/pG4N675oSzciO/UCdX8T+5yUQdmDeTLxg==}
     peerDependencies:
       react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
 
@@ -2800,7 +2800,7 @@ snapshots:
 
   lines-and-columns@1.2.4: {}
 
-  lucide-react@1.31.0(react@19.2.8):
+  lucide-react@1.33.0(react@19.2.8):
     dependencies:
       react: 19.2.8
 
