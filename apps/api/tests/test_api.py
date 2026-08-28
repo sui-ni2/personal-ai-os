@@ -81,7 +81,7 @@ def _sse_data(body: str) -> list[dict[str, object]]:
 
 
 def test_health_and_secret_redaction(client: TestClient, runtime) -> None:
-    assert client.get("/health").json() == {"status": "ok", "version": "0.2.0"}
+    assert client.get("/health").json() == {"status": "ok", "version": "0.3.0"}
     settings = client.get("/api/settings").json()
     assert settings["secrets"] == {"storage": "environment", "values_exposed": False}
     assert "api_key" not in json.dumps(settings).lower()
