@@ -114,7 +114,7 @@ export function ProjectHandoffPanel({ projectId, projectName }: Props) {
         </p>
       )}
 
-      <pre className="mt-3 max-h-64 overflow-auto rounded-control border border-line bg-canvas p-3 text-[11px] leading-5 text-text-secondary">
+      <pre className="mt-3 max-h-64 overflow-auto rounded-control border border-line bg-surface-subtle p-3 text-[11px] leading-5 text-text-secondary">
         {JSON.stringify(snapshot, null, 2)}
       </pre>
 
