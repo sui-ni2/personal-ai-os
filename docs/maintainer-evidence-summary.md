@@ -1,6 +1,6 @@
 # Maintainer evidence summary
 
-**Observation date:** 2026-08-18
+**Observation date:** 2026-08-28
 
 Personal AI OS is a local-first, provider-neutral workspace for long-running AI work. Its core premise is that project state — conversations, reviewed memory, tools, execution history, and project context — should remain under the user's control while model providers remain replaceable execution engines.
 
@@ -26,7 +26,7 @@ Repository-admin hardening is tracked in Issue #39 and `docs/repository-admin-ch
 
 ## Executable maintainer automation
 
-The repository already contains deterministic, tested helpers for four recurring maintenance tasks:
+The repository contains deterministic, tested helpers for four recurring maintenance tasks:
 
 - CI failure classification: `scripts/ci_failure_classifier.py`;
 - dependency-update risk summary: `scripts/dependency_risk_summary.py`;
@@ -37,7 +37,9 @@ Focused tests for all four live in `apps/api/tests/`. These tools are fail-close
 
 ## Release, security, and CI evidence
 
-The repository has a published `v0.2.0` release line and protected-main workflow. Normal pull requests run backend and frontend checks; CodeQL analyzes Python and JavaScript/TypeScript; Dependency Review fails closed on newly introduced high-severity dependency risk; Platform Readiness exercises the documented first-run paths; release candidates have an isolated provider-smoke gate.
+The repository has a published `v0.2.0` GitHub Release and a protected-main governance path. Normal pull requests run backend and frontend checks; CodeQL analyzes Python and JavaScript/TypeScript; Dependency Review fails closed on newly introduced high-severity dependency risk; Platform Readiness exercises the documented first-run paths; release candidates have an isolated provider-smoke gate.
+
+The latest observed `main` commit includes merged dependency maintenance from PRs #77 and #78, and the latest observed scheduled CodeQL run on that commit completed successfully.
 
 The project keeps secrets server-side, redacts secret-bearing audit fields, restricts MCP tool execution through allowlists, and documents private vulnerability reporting and privacy boundaries.
 
@@ -45,7 +47,9 @@ The project keeps secrets server-side, redacts secret-bearing audit fields, rest
 
 Independent adoption is intentionally reported separately from maintainer activity and repository reach metrics.
 
-As of the observation date, the public evidence ledger does **not** claim a qualifying independent installation report, real-world-use report, or external pull request unless it can be linked directly to a public repository artifact. Stars and forks are recorded as reach signals only and are not treated as proof of successful use.
+As of 2026-08-28, the repository has **59 stars and 14 forks**, but those remain reach signals rather than proof of successful use. The public evidence ledger still does **not** claim a qualifying independent installation report, real-world-use report, or external pull request.
+
+External interest has appeared in Issues #55 and #56, but expressions of interest without an environment-and-result report or a concrete external contribution are kept unverified. This distinction is deliberate.
 
 See `docs/evidence-ledger.md`, `docs/real-world-use.md`, and `docs/support-matrix.md` for the current evidence state.
 
@@ -53,7 +57,7 @@ See `docs/evidence-ledger.md`, `docs/real-world-use.md`, and `docs/support-matri
 
 The most important remaining gaps are external rather than architectural:
 
-1. an independent fresh-install report with OS/runtime details;
+1. an independent fresh-install report with OS/runtime details and an explicit result;
 2. an independent real workflow report, including failed or partial adoption;
 3. an external bug fix, documentation fix, or focused pull request;
 4. independent verification of Windows and macOS/Linux setup paths;
