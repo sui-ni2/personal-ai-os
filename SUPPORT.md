@@ -5,8 +5,10 @@ Personal AI OS is an early open-source project. Support is provided through publ
 ## Where to ask
 
 - Reproducible software problem: open a Bug report.
-- Fresh-install or first-run feedback: use Issue #7.
-- Newcomer Windows no-key validation: see Issue #15.
+- Provider-backed first chat and restart-persistence feedback: use Issue #7.
+- Windows fresh-install / no-key validation: use Issue #15.
+- macOS/Linux Docker fresh-install validation: use Issue #56.
+- Genuine real-world workflow use or attempted use: use Issue #55.
 - Feature proposal: use the Feature request form.
 - Security or credential exposure: follow `SECURITY.md` and do not post sensitive details in a public issue.
 
