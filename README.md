@@ -22,9 +22,12 @@ under the user's control.
 Personal AI OS `v0.2.0` is now the first stable tagged release. **You do not need a paid API key to help test it.**
 
 - **No API key:** the lowest-friction current-`main` path is `docker compose up --build -d` if Docker is installed. On Windows without Docker, run `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\setup-windows.ps1`. See [Try without an API key](docs/try-without-api.md) for both verified paths and the manual smoke command. These paths make no billable model call on a fresh no-key checkout.
+- **Windows fresh install:** use [Issue #15](https://github.com/sui-ni2/personal-ai-os/issues/15) to report a fresh Windows source-checkout result, including failures or setup friction.
+- **macOS/Linux Docker:** use [Issue #56](https://github.com/sui-ni2/personal-ai-os/issues/56) to verify the zero-cost Docker Compose path from a genuinely fresh checkout.
 - **Have your own provider credential:** use [Issue #7](https://github.com/sui-ni2/personal-ai-os/issues/7) for the full provider → first chat → restart-persistence path. OpenAI and Anthropic are supported remote adapters; Ollama is supported as an explicitly enabled local adapter.
-- **New contributor:** [Issue #15](https://github.com/sui-ni2/personal-ai-os/issues/15) is a concrete Windows fresh-install verification task labeled `good first issue`.
-- Focused documentation fixes, bug fixes, and small pull requests are welcome.
+- **Tried it for real work:** use [Issue #55](https://github.com/sui-ni2/personal-ai-os/issues/55) to report a genuine workflow attempt, including partial adoption, blockers, or reasons you stopped.
+- **Want to contribute code/docs:** start with [CONTRIBUTING.md](CONTRIBUTING.md). Focused documentation fixes, bug fixes, tests, and small pull requests are welcome.
+- An expression of interest is not counted as independent verification until a concrete test result or focused contribution is posted.
 - Never post API keys, `.env` files, authorization headers, cookies, private conversations,
   runtime databases, logs containing secrets, uploads/backups, or private project data.
 
