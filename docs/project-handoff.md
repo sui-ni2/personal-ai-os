@@ -36,6 +36,18 @@ The response includes total record counts and `truncated=true` when any limit is
 
 `full` means richer current-state detail; it does **not** mean an unbounded export.
 
+## Projects UI
+
+The Projects screen exposes continuity on each active project card. It does not fetch a handoff snapshot during ordinary page load.
+
+- `Continuity` is an explicit user action and loads the compact snapshot first.
+- The snapshot is previewed before any clipboard copy action.
+- Full details require a second explicit action and keep the same server-side bounds.
+- The UI surfaces total counts and whether the response was truncated.
+- Closing the preview discards the client-side snapshot; the UI does not persist a second handoff copy.
+
+This makes persisted project state and workflow position inspectable again after an application restart without reconstructing missing facts from chat history.
+
 ## Deliberate exclusions
 
 Neither handoff mode includes:
@@ -57,4 +69,4 @@ The handoff feature does not automate third-party account switching or authentic
 
 ## Remaining roadmap work
 
-This API provides the data contract for compact/full handoff snapshots. A dedicated UI handoff form, explicit crash/restart recovery workflow, and any external-client adapter remain separate work and must preserve the same project-isolation and privacy boundaries.
+The API and explicit Projects-screen preview cover bounded handoff inspection and manual recovery visibility. Automatic crash detection, a guided restart-recovery workflow, and any external-client adapter remain separate work and must preserve the same project-isolation and privacy boundaries.
