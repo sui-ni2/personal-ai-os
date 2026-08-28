@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState, type ComponentType } from "react";
 import { ArrowRight, CircleDot, Code2, Dices, FolderKanban, Microscope, Sparkles } from "lucide-react";
 import { apiJson } from "@/lib/api";
+import { ProjectHandoffPanel } from "@/components/project-handoff-panel";
 import { EmptyState, ErrorState, LoadingState } from "@/components/ui-states";
 
 type Project = { id: string; name: string; description: string; icon: string; status: string };
@@ -84,6 +85,7 @@ export function ProjectsGrid() {
                   <span className="min-w-0 text-xs text-text-tertiary"><span className="block">Last activity</span><span className="mt-0.5 block truncate text-text-secondary" title={activity?.summary}>{activity ? timeAgo(activity.created_at) : "No activity yet"}</span></span>
                   <Link href={item.id === "p5" ? "/projects/p5" : `/chat?project=${encodeURIComponent(item.id)}`} className="button-quiet px-2 text-accent-hover">Open <ArrowRight aria-hidden size={15} /></Link>
                 </div>
+                <ProjectHandoffPanel projectId={item.id} projectName={item.name} />
               </article>
             );
           })}
