@@ -1,6 +1,6 @@
 # Maintainers
 
-Personal AI OS is currently maintained by a small maintainer group.
+Personal AI OS is currently maintainer-led with one primary maintainer and public contribution paths for future maintainers.
 
 ## Primary maintainer
 
