@@ -28,7 +28,7 @@ The stable release was published only after the documented real-inference, resta
    - External issue/PR feedback instead of synthetic adoption signals.
 2. **Strengthen Project Continuity**
    - Make Tasks, Conversations, Files, Outcomes, decisions, changed files, blockers, and reviewed Project Memory first-class project state.
-   - Compact/full read-only handoff snapshots are now implemented at the API layer with bounded payloads and no provider-session copying; dedicated UI handoff forms and explicit crash/restart recovery remain to be completed.
+   - Compact/full read-only handoff snapshots and an explicit Projects-screen preview are implemented with bounded payloads and no provider-session copying; automatic crash detection and guided restart recovery remain to be completed.
 3. **Finish the Settings center**
    - Unify AI services, default models, voice, memory/privacy, appearance, data controls, MCP, and diagnostics.
    - Keep credential values server-side and never return them to the browser.
