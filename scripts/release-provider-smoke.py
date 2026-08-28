@@ -216,8 +216,8 @@ def run(provider: str, requested_model: str | None, *, no_key_only: bool = False
         try:
             with httpx.Client(base_url=base_url, timeout=20) as client:
                 health = _json(client, "GET", "/health")
-                if health.get("version") != "0.2.0":
-                    _fail("Runtime health version is not aligned to v0.2.0")
+                if health.get("version") != "0.3.0":
+                    _fail("Runtime health version is not aligned to v0.3.0")
                 item = _provider(client, provider)
                 if item.get("configured") is not False:
                     _fail("Fresh no-provider startup unexpectedly reports the provider as configured")
@@ -292,7 +292,7 @@ def run(provider: str, requested_model: str | None, *, no_key_only: bool = False
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Fail-closed v0.2.0 readiness smoke test. Never prints provider credentials or response text."
+        description="Fail-closed v0.3.0 readiness smoke test. Never prints provider credentials or response text."
     )
     parser.add_argument("--provider", choices=sorted(PROVIDER_SECRET_ENV), default="openai")
     parser.add_argument("--model", default=None, help="Optional allowlisted model override")
