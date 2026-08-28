@@ -10,6 +10,11 @@ This project follows Semantic Versioning for public releases.
 
 - A guarded one-command Windows first-run bootstrap that validates Python/Node/pnpm prerequisites, preserves existing local configuration, installs repository dependencies, and runs the no-key readiness gate without a billable provider model call.
 - A localhost-only Docker Compose first-run path with a named persistent data volume and optional host Ollama connectivity.
+- Bounded compact/full project handoff snapshots backed by the existing project-scoped continuity stores, with explicit record limits, truncation reporting, project isolation, and deliberate exclusion of state history, workflow transition evidence, provider sessions, and credentials.
+- An explicit Projects-screen continuity preview that loads compact handoff data only after a user action, requires a second explicit action for full details, previews snapshots before clipboard copy, and does not persist a second client-side handoff copy.
+- Deterministic maintainer helpers for CI-failure classification, dependency-risk summaries, release-evidence verification, and external tester-feedback triage, with focused fail-closed tests.
+- Public evidence/support documentation and issue forms that separate repository reach, maintainer activity, genuine external validation, and real-world-use reports instead of treating them as interchangeable adoption signals.
+- A GitHub Release publishing workflow that validates stable tags reachable from `main` before publishing a missing release.
 - A private security-reporting entry in the GitHub issue chooser so vulnerability details are routed away from public issues.
 
 ### Security and maintenance
@@ -17,7 +22,9 @@ This project follows Semantic Versioning for public releases.
 - The default branch is protected by an active repository ruleset requiring pull requests, independent CI/CodeQL/Dependency Review checks, resolved review conversations, and blocking force pushes and deletion.
 - GitHub private vulnerability reporting is enabled and `SECURITY.md` directs sensitive reports to the private flow.
 - Platform Readiness now exercises both the Windows bootstrap and Docker Compose startup paths end to end, including health and mobile/PWA verification.
-- Contributor and tester documentation now surfaces the verified low-friction first-run paths while retaining a manual source setup for advanced contributors.
+- Contributor, support, and tester documentation now exposes distinct Windows, macOS/Linux Docker, provider-backed first-chat/restart, and genuine real-world-use validation paths while retaining a manual source setup for advanced contributors.
+- Public maintainer/evidence claims are kept aligned with verifiable repository state; expressions of interest, stars, forks, CI, and maintainer-authored activity are not promoted to verified third-party adoption.
+- Project handoff remains protected by the existing application access boundary and physically isolated per-project state stores; the UI does not fetch handoff data during ordinary Projects page load.
 
 ## [0.2.0] - 2026-08-15
 
