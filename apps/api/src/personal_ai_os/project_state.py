@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 import sqlite3
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -25,14 +24,9 @@ def _now() -> str:
 
 
 def _safe_project_id(project_id: str) -> str:
-    basename = os.path.basename(project_id)
-    if (
-        basename != project_id
-        or basename in {"", ".", ".."}
-        or any(ch not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.-" for ch in basename)
-    ):
+    if not project_id or any(ch not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.-" for ch in project_id):
         raise ValueError("project_id contains unsupported path characters")
-    return basename
+    return project_id
 
 
 def _tenant_scope(tenant_id: str) -> str:

@@ -13,22 +13,26 @@ from .schemas import (
 router = APIRouter(prefix="/api/projects/{project_id}/recovery", tags=["project-recovery"])
 
 
-def _service(project_id: str, request: Request) -> ProjectRecoveryService:
+def _service(project_id: str, request: Request) -> tuple[ProjectRecoveryService, str]:
     runtime = request.app.state.runtime
     try:
-        runtime.projects.get(project_id)
+        canonical_project_id = runtime.projects.get(project_id).metadata.id
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    return ProjectRecoveryService(
-        runtime.database,
-        data_dir=runtime.settings.data_dir,
-        tenant_id=runtime.settings.tenant_id,
+    return (
+        ProjectRecoveryService(
+            runtime.database,
+            data_dir=runtime.settings.data_dir,
+            tenant_id=runtime.settings.tenant_id,
+        ),
+        canonical_project_id,
     )
 
 
 @router.get("")
 def inspect_project_recovery(project_id: str, request: Request) -> dict[str, object]:
-    return _service(project_id, request).inspect(project_id)
+    service, canonical_project_id = _service(project_id, request)
+    return service.inspect(canonical_project_id)
 
 
 @router.post("/sessions", status_code=201)
@@ -36,7 +40,8 @@ def start_project_recovery_session(
     project_id: str,
     request: Request,
 ) -> dict[str, object]:
-    return _service(project_id, request).start_session(project_id)
+    service, canonical_project_id = _service(project_id, request)
+    return service.start_session(canonical_project_id)
 
 
 @router.post("/sessions/{session_id}/checkpoint")
@@ -47,8 +52,9 @@ def checkpoint_project_recovery(
     request: Request,
 ) -> dict[str, object]:
     try:
-        return _service(project_id, request).checkpoint(
-            project_id,
+        service, canonical_project_id = _service(project_id, request)
+        return service.checkpoint(
+            canonical_project_id,
             session_id,
             expected_version=payload.expected_version,
         )
@@ -63,7 +69,8 @@ def preview_project_recovery(
     request: Request,
 ) -> dict[str, object]:
     try:
-        return _service(project_id, request).preview(project_id, session_id)
+        service, canonical_project_id = _service(project_id, request)
+        return service.preview(canonical_project_id, session_id)
     except ProjectRecoveryConflict as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 
@@ -76,8 +83,9 @@ def close_project_recovery_session(
     request: Request,
 ) -> dict[str, object]:
     try:
-        return _service(project_id, request).close_session(
-            project_id,
+        service, canonical_project_id = _service(project_id, request)
+        return service.close_session(
+            canonical_project_id,
             session_id,
             expected_version=payload.expected_version,
         )
@@ -93,8 +101,9 @@ def confirm_project_recovery(
     request: Request,
 ) -> dict[str, object]:
     try:
-        return _service(project_id, request).confirm_restore(
-            project_id,
+        service, canonical_project_id = _service(project_id, request)
+        return service.confirm_restore(
+            canonical_project_id,
             session_id,
             expected_version=payload.expected_version,
         )
