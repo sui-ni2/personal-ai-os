@@ -71,7 +71,7 @@ The handoff feature does not automate third-party account switching or authentic
 
 Project Continuity now records metadata-only recovery sessions while a user opens a project in Chat. A checkpoint contains a fingerprint and counts for persisted state, reviewed Memory, and workflow position; it never stores a provider session, chat text, state value, transition receipt, credential, or private reasoning.
 
-The first recovery-schema migration snapshots an existing private project database under the runtime data directory’s append-only `backups/project-recovery` area before adding recovery tables. This avoids Windows deep-path limits while preserving a recoverable copy; normal recovery never deletes or rewrites historical project state.
+Recovery metadata is stored in a physically separate, tenant/project-scoped private SQLite database whose filename is derived from fixed-format scopes rather than a project ID. The authoritative project-state database is never migrated or rewritten by recovery; normal recovery never deletes or rewrites historical project state.
 
 On restart, the detection state is exactly one of `clean`, `possibly_interrupted`, `recovery_available`, or `insufficient_evidence`. An active browser session is not called a crash: a normal window close that failed to report completion remains only `possibly_interrupted` until persisted checkpoint evidence and authoritative records are present.
 

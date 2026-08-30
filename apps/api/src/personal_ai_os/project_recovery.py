@@ -75,26 +75,36 @@ class ProjectRecoveryService:
 
     @contextmanager
     def _connect(self, project_id: str) -> Iterator[sqlite3.Connection]:
-        path = self.state.storage_path(project_id)
-        existed_before = path.exists() and path.stat().st_size > 0
-        backup_dir = self.state.data_dir / "backups" / "project-recovery"
-        with self.state._connect(project_id) as connection:
-            self._migrate(
-                connection,
-                path=path,
-                backup_dir=backup_dir,
-                existed_before=existed_before,
-            )
+        path = self._storage_path(project_id)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        connection = sqlite3.connect(path, timeout=10)
+        connection.row_factory = sqlite3.Row
+        try:
+            self._migrate(connection)
             yield connection
+            connection.commit()
+        finally:
+            connection.close()
+
+    def _storage_path(self, project_id: str) -> Path:
+        """Return a fixed-format recovery metadata path without embedding a project ID.
+
+        Recovery sessions are separate from the authoritative project-state database. The
+        registry check at the route boundary authorizes the project; the one-way scope keeps
+        an untrusted identifier out of every filesystem path while preserving physical
+        tenant/project isolation.
+        """
+
+        tenant_scope = hashlib.sha256(self.state.tenant_id.encode("utf-8")).hexdigest()[:12]
+        project_scope = hashlib.sha256(project_id.encode("utf-8")).hexdigest()[:16]
+        return (
+            self.state.data_dir
+            / "recovery"
+            / f"{tenant_scope}-{project_scope}.sqlite3"
+        )
 
     @staticmethod
-    def _migrate(
-        connection: sqlite3.Connection,
-        *,
-        path: Path,
-        backup_dir: Path,
-        existed_before: bool,
-    ) -> None:
+    def _migrate(connection: sqlite3.Connection) -> None:
         connection.execute(
             "CREATE TABLE IF NOT EXISTS project_recovery_schema_migrations "
             "(version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL)"
@@ -107,13 +117,6 @@ class ProjectRecoveryService:
         }
         if 1 in applied:
             return
-        if existed_before:
-            timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-            backup_dir.mkdir(parents=True, exist_ok=True)
-            path_id = hashlib.sha256(str(path).encode("utf-8")).hexdigest()[:12]
-            backup_path = backup_dir / f"recovery-v1-{path_id}-{timestamp}.sqlite3"
-            with sqlite3.connect(backup_path) as target:
-                connection.backup(target)
         connection.executescript(
             """
             CREATE TABLE IF NOT EXISTS recovery_sessions (

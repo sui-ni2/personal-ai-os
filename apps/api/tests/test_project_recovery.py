@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sqlite3
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -161,19 +162,39 @@ def test_missing_or_empty_persisted_state_is_insufficient_evidence(client: TestC
     assert preview.status_code == 409
 
 
-def test_recovery_schema_migration_keeps_a_private_project_backup(client: TestClient, runtime) -> None:
+def test_recovery_metadata_is_physically_separate_from_project_state(
+    client: TestClient, runtime
+) -> None:
     _seed_continuity(client)
     service = ProjectRecoveryService(
         runtime.database,
         data_dir=runtime.settings.data_dir,
         tenant_id=runtime.settings.tenant_id,
     )
-    backup_dir = runtime.settings.data_dir / "backups" / "project-recovery"
-    assert list(backup_dir.glob("recovery-v1-*.sqlite3")) == []
+    state_path = service.state.storage_path("general")
+    recovery_path = service._storage_path("general")
+    assert recovery_path != state_path
+    assert not recovery_path.exists()
 
     _checkpoint(client)
 
-    assert len(list(backup_dir.glob("recovery-v1-*.sqlite3"))) == 1
+    assert recovery_path.exists()
+    with sqlite3.connect(state_path) as state_connection:
+        state_tables = {
+            row[0]
+            for row in state_connection.execute(
+                "SELECT name FROM sqlite_master WHERE type = 'table'"
+            )
+        }
+    with sqlite3.connect(recovery_path) as recovery_connection:
+        recovery_tables = {
+            row[0]
+            for row in recovery_connection.execute(
+                "SELECT name FROM sqlite_master WHERE type = 'table'"
+            )
+        }
+    assert "recovery_sessions" not in state_tables
+    assert "recovery_sessions" in recovery_tables
 
 
 def test_stale_checkpoint_keeps_current_persisted_state_authoritative(client: TestClient) -> None:
@@ -255,8 +276,8 @@ def test_recovery_is_project_and_tenant_isolated(client: TestClient, runtime, tm
         tenant_id="tenant-other",
     )
     assert other_service.inspect("general")["status"] == "clean"
-    assert other_service.state.storage_path("general") != ProjectRecoveryService(
+    assert other_service._storage_path("general") != ProjectRecoveryService(
         runtime.database,
         data_dir=runtime.settings.data_dir,
         tenant_id=runtime.settings.tenant_id,
-    ).state.storage_path("general")
+    )._storage_path("general")
