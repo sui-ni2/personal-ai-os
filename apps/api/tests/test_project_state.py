@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 
+import pytest
 from fastapi.testclient import TestClient
 from personal_ai_os_core import Message
 
@@ -56,6 +57,12 @@ def test_project_state_uses_separate_private_database_per_project(runtime) -> No
     assert general_path.name == "state.sqlite3"
     assert p5_path.name == "state.sqlite3"
     assert soccer_path.name == "state.sqlite3"
+
+
+@pytest.mark.parametrize("project_id", ["../general", "general/other", ".", ""])
+def test_project_state_rejects_path_like_project_ids(runtime, project_id: str) -> None:
+    with pytest.raises(ValueError, match="unsupported path characters"):
+        ProjectStateService(runtime.database).storage_path(project_id)
 
 
 def test_project_state_upsert_keeps_one_current_value_and_history(client: TestClient) -> None:
