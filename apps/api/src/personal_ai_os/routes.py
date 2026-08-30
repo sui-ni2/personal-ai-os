@@ -3,12 +3,15 @@ from __future__ import annotations
 import asyncio
 from contextlib import aclosing
 import json
+import re
+import sqlite3
 from typing import Annotated
 
 import httpx
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import Response, StreamingResponse
-from personal_ai_os_core import Capability, Message, MessageRole
+from personal_ai_os_core import Capability, Message, MessageRole, ProjectMetadata
+from personal_ai_os_projects import UserProject
 from personal_ai_os_providers import ProviderError, ProviderRateLimited
 
 from .chat import conversation_title, stream_chat
@@ -24,6 +27,7 @@ from .schemas import (
     MemoryUpdate,
     RealtimeTranscriptCreate,
     SettingsUpdate,
+    UserProjectCreate,
 )
 
 router = APIRouter(prefix="/api")
@@ -231,6 +235,44 @@ async def realtime_session(
 def projects(request: Request) -> dict[str, object]:
     runtime = runtime_from(request)
     return {"items": [item.model_dump() for item in runtime.projects.list()]}
+
+
+def _project_id_from_name(name: str) -> str:
+    normalized = re.sub(r"[^a-z0-9]+", "-", name.strip().lower()).strip("-")
+    return normalized or "project"
+
+
+@router.post("/projects", status_code=201)
+def create_user_project(payload: UserProjectCreate, request: Request) -> dict[str, object]:
+    runtime = runtime_from(request)
+    base_id = payload.project_id or _project_id_from_name(payload.name)
+    candidate = base_id
+    for suffix in range(1, 1000):
+        try:
+            runtime.projects.get(candidate)
+        except KeyError:
+            break
+        candidate = f"{base_id}-{suffix + 1}"
+    else:
+        raise HTTPException(status_code=409, detail="Could not allocate a unique project ID")
+    metadata = ProjectMetadata(
+        id=candidate,
+        name=payload.name.strip(),
+        description=payload.description.strip(),
+        icon="folder",
+    )
+    try:
+        runtime.database.create_user_project(metadata)
+    except sqlite3.IntegrityError as exc:
+        raise HTTPException(status_code=409, detail="Project ID already exists") from exc
+    runtime.projects.register(UserProject(metadata))
+    runtime.database.add_repository_event(
+        event_type="project.created",
+        summary="Created tenant-scoped user project",
+        project_id=metadata.id,
+        details={"project_id": metadata.id},
+    )
+    return metadata.model_dump()
 
 
 @router.get("/projects/{project_id}")

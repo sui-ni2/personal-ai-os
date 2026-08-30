@@ -17,6 +17,10 @@ under the user's control.
 
 ![Personal AI OS flow](apps/web/public/assets/personal-ai-flow.png)
 
+## Evaluate in five minutes
+
+Follow [5-minute evaluation](docs/5-minute-evaluation.md) to start with no key, create a generic Project, add non-sensitive Task/Decision/Outcome/reviewed-Memory state, inspect continuity, and verify restart recovery. It does not require understanding MCP or provider adapters.
+
 ## Early testers wanted
 
 Personal AI OS `v0.2.0` is now the first stable tagged release. **You do not need a paid API key to help test it.**
@@ -50,7 +54,7 @@ Repository-admin settings that source-controlled CI cannot replace are tracked h
 
 A reviewer can verify the no-key startup and privacy boundary without configuring a paid provider by following [Try Personal AI OS without an API key](docs/try-without-api.md). That proof is deliberately narrow: it covers clean startup, the expected runtime version, unconfigured-provider behavior, and secret redaction; it does not claim a real model response without a provider.
 
-For an auditable view of what has and has not been verified, see the [verification support matrix](docs/support-matrix.md), [maintainer evidence summary](docs/maintainer-evidence-summary.md), and [project evidence ledger](docs/evidence-ledger.md). CI, maintainer dogfooding, stars, and forks are kept separate from genuinely independent user evidence.
+For an auditable view of what has and has not been verified, see the [verification support matrix](docs/support-matrix.md), [maintainer evidence summary](docs/maintainer-evidence-summary.md), [project evidence ledger](docs/evidence-ledger.md), and [application readiness audit](docs/application-readiness-audit.md). CI, maintainer dogfooding, stars, and forks are kept separate from genuinely independent user evidence.
 
 ## What is runnable now
 

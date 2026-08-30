@@ -58,7 +58,7 @@ If the Python dependencies are already installed, run:
 ```
 
 This starts an isolated temporary API runtime with provider credentials stripped, verifies the
-`v0.2.0` health contract, confirms the selected provider remains unconfigured, and confirms secret
+`v0.3.0` release-candidate health contract, confirms the selected provider remains unconfigured, and confirms secret
 values are not exposed through Settings. It makes no billable model call and deletes its temporary
 runtime data when complete.
 

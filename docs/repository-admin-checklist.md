@@ -53,7 +53,7 @@ Enable GitHub Discussions when there is enough external traffic to justify a low
 
 - [x] `v0.2.0` is a stable tag on the verified release commit.
 - [x] The release candidate passed CI, CodeQL, Dependency Review, Platform Readiness, and the application-level real-inference release smoke before tagging.
-- [x] `Personal AI OS v0.2.0` is published as a public GitHub Release; it is neither a draft nor a prerelease.
+- [x] Live GitHub verification on 2026-08-30 found `v0.2.0` as a tag and **zero GitHub Releases**. Do not claim a public v0.2.0 Release, release notes, or assets until the formal publication action succeeds and is re-verified.
 - [x] `.github/workflows/publish-release.yml` provides a fail-closed publication path. Manual runs require an existing valid tag reachable from `main`; automatic runs only consider an existing strict stable `vN.N.N` tag and no-op if the GitHub Release already exists.
 
 Future stable releases must keep the same evidence standard: real application-level inference, restart/persistence verification, normal CI/security/platform checks, an explicit stable tag, and an auditable release publication path. A successful model download or mock alone does not satisfy the release gate.

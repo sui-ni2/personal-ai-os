@@ -7,7 +7,7 @@ You can validate the current first-run and privacy-safe startup path without pay
 The zero-cost readiness check starts the API against a temporary data directory and verifies that:
 
 - the application starts cleanly on a fresh runtime;
-- `/health` reports the expected `v0.2.0` runtime version;
+- `/health` reports the expected `v0.3.0` release-candidate runtime version;
 - a supported provider is reported as **not configured** when no credential is present;
 - Settings keeps secret values hidden;
 - no provider model call is made;

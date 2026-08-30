@@ -5,6 +5,7 @@ import { useEffect, useState, type ComponentType } from "react";
 import { ArrowRight, CircleDot, Code2, Dices, FolderKanban, Microscope, Sparkles } from "lucide-react";
 import { apiJson } from "@/lib/api";
 import { ProjectHandoffPanel } from "@/components/project-handoff-panel";
+import { ProjectRecoveryPanel } from "@/components/project-recovery-panel";
 import { EmptyState, ErrorState, LoadingState } from "@/components/ui-states";
 
 type Project = { id: string; name: string; description: string; icon: string; status: string };
@@ -37,6 +38,10 @@ export function ProjectsGrid() {
   const [lastActivity, setLastActivity] = useState<Record<string, RepositoryEvent>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [newProjectName, setNewProjectName] = useState("");
+  const [newProjectDescription, setNewProjectDescription] = useState("");
+  const [createError, setCreateError] = useState<string | null>(null);
 
   useEffect(() => {
     void apiJson<{ items: Project[] }>("/api/projects")
@@ -59,6 +64,25 @@ export function ProjectsGrid() {
   if (error) return <ErrorState title="Projects are unavailable" detail="The project registry could not be reached. Refresh after the API is running." />;
   if (!items.length) return <EmptyState title="No projects registered" description="Projects will appear here when they are registered through the project contract." />;
 
+  async function createProject() {
+    if (!newProjectName.trim() || !newProjectDescription.trim() || creating) return;
+    setCreating(true);
+    setCreateError(null);
+    try {
+      const created = await apiJson<Project>("/api/projects", {
+        method: "POST",
+        body: JSON.stringify({ name: newProjectName.trim(), description: newProjectDescription.trim() }),
+      });
+      setItems((current) => [...current, created]);
+      setNewProjectName("");
+      setNewProjectDescription("");
+    } catch {
+      setCreateError("The project could not be created. Confirm the local API is running and try again.");
+    } finally {
+      setCreating(false);
+    }
+  }
+
   return (
     <div className="space-y-9 sm:space-y-12">
       <section aria-labelledby="active-projects">
@@ -69,6 +93,12 @@ export function ProjectsGrid() {
           </div>
           <span className="text-sm text-text-tertiary">{items.length} active</span>
         </div>
+        <form className="mb-4 grid gap-2 rounded-card border border-line bg-surface/45 p-3 sm:grid-cols-[minmax(0,0.7fr)_minmax(0,1fr)_auto]" onSubmit={(event) => { event.preventDefault(); void createProject(); }}>
+          <label><span className="sr-only">New project name</span><input className="field w-full" value={newProjectName} onChange={(event) => setNewProjectName(event.target.value)} placeholder="Project name" maxLength={120} required /></label>
+          <label><span className="sr-only">New project description</span><input className="field w-full" value={newProjectDescription} onChange={(event) => setNewProjectDescription(event.target.value)} placeholder="What are you working on?" maxLength={500} required /></label>
+          <button className="button-secondary min-h-10" disabled={creating}>{creating ? "Creating…" : "Create project"}</button>
+          {createError ? <p className="sm:col-span-3 text-xs leading-5 text-danger">{createError}</p> : null}
+        </form>
         <div className="grid gap-4 sm:grid-cols-2">
           {items.map((item) => {
             const Icon = iconMap[item.icon] || FolderKanban;
@@ -86,6 +116,7 @@ export function ProjectsGrid() {
                   <Link href={item.id === "p5" ? "/projects/p5" : `/chat?project=${encodeURIComponent(item.id)}`} className="button-quiet px-2 text-accent-hover">Open <ArrowRight aria-hidden size={15} /></Link>
                 </div>
                 <ProjectHandoffPanel projectId={item.id} projectName={item.name} />
+                <ProjectRecoveryPanel projectId={item.id} projectName={item.name} />
               </article>
             );
           })}

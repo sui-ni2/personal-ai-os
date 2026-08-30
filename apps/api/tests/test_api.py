@@ -382,7 +382,7 @@ def test_database_migrations_are_current(client: TestClient, runtime) -> None:
                 "SELECT version FROM schema_migrations ORDER BY version"
             )
         ]
-    assert versions == [1, 2, 3, 4]
+    assert versions == [1, 2, 3, 4, 5]
 
 
 def test_memory_and_repository_persist(client: TestClient) -> None:

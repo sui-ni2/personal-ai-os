@@ -2,24 +2,30 @@
 
 This page records public evidence about Personal AI OS without treating repository activity as proof of independent adoption. Mutable metrics are dated, and external-use claims require a public source that can be inspected independently.
 
-## Snapshot — 2026-08-28
+## Snapshot — 2026-08-30
 
-### Project and maintenance evidence
+## Reach
+
+- Public repository snapshot observed on 2026-08-30: **59 stars, 14 forks, and 2 subscribers/watchers**.
+- These are public reach signals only. They are not independent-adoption evidence.
+
+## Maintenance
 
 - Public Apache-2.0 repository: `sui-ni2/personal-ai-os`.
-- First stable tagged release: `v0.2.0`; the corresponding public GitHub Release remains available.
+- First stable tagged release: `v0.2.0` at `934efa959d2487c6942951d90bb543b4104369f6`. A live GitHub Releases query returned **zero releases** on 2026-08-30, so this repository does not claim a published v0.2.0 GitHub Release, release notes, or release assets.
 - Runnable local-first application with Chat, Projects, reviewed Memory, execution history, MCP tooling, OpenAI/Anthropic adapters, and optional local Ollama support; the runnable surface is documented in `README.md`.
 - Repository CI covers backend tests, frontend checks/builds, platform readiness, CodeQL, and dependency review; repository-admin hardening is tracked in Issue #39.
 - Executable maintainer helpers cover CI failure classification, dependency-update risk summaries, release-evidence verification, and external tester-feedback triage. Their fail-closed contracts and focused tests are documented in `docs/maintainer-automation.md`.
 - PR #74 remains a concrete dependency-maintenance example: Platform Readiness prevented two incomplete Dependabot upgrades from merging, the peer dependencies were aligned together, and the replacement passed the repository's required verification before merge.
 - Current `main` includes the merged dependency maintenance from PRs #77 and #78. The latest observed scheduled CodeQL run on that `main` commit completed successfully.
-- Public repository snapshot observed on 2026-08-28: **59 stars, 14 forks, and 4 open issues**. The four open issues are the external validation paths listed below; there are no open pull requests at this snapshot.
+- `release/v0.3.0` at `493717f091c8e0c427e473c35c1db01dc7392d2f` has a successful CI run, but lacks fresh exact-SHA CodeQL, Dependency Review, Platform Readiness, and Release provider smoke evidence. It remains release-blocked.
+- Five open issues are the external validation and continuity paths listed below; there are no open pull requests at this snapshot.
 
 These are project-health and reach signals. They are **not** counted here as proof that an independent user successfully adopted the software.
 
-### Independent adoption evidence
+## Independent adoption
 
-**No qualifying independent installation report, real-world-use report, or external pull request has been verified in this repository yet.**
+**INDEPENDENT_ADOPTION_VERIFIED = 0.** No qualifying independent installation report, real-world-use report, or external pull request has been verified in this repository yet.
 
 There is genuine external interest, but the evidence boundary remains strict:
 
@@ -46,7 +52,7 @@ Negative results are valid evidence. A reproducible report explaining why setup 
 | --- | --- | --- |
 | Release maturity | Public tagged release and runnable documented paths | Verified (`v0.2.0`) |
 | Maintenance | CI/security/repository governance and tested maintainer workflows with public evidence | Verified |
-| Reach | Stars/forks observed on a stated date | 59 stars / 14 forks on 2026-08-28 |
+| Reach | Stars/forks observed on a stated date | 59 stars / 14 forks on 2026-08-30 |
 | Independent install | First-hand report from a non-maintainer with environment/version and result | None verified yet |
 | Independent workflow use | First-hand real workflow report from a non-maintainer | None verified yet |
 | External contribution | Non-maintainer issue/PR tied to genuine use or a focused improvement | None verified yet |
