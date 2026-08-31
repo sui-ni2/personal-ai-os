@@ -4,7 +4,7 @@ Personal AI OS includes small, deterministic maintainer tools for repetitive rev
 
 ## Safety contract
 
-All four tools are deliberately fail-closed:
+All maintainer tools are deliberately fail-closed:
 
 - they return `needs_review`, `blocked`, or equivalent evidence states rather than approving a pull request;
 - none of them merges a pull request, changes branch protection, creates a release, or consumes provider credentials;
@@ -86,8 +86,42 @@ python scripts/tester_feedback_triage.py feedback.txt \
 
 Tests: `apps/api/tests/test_tester_feedback_triage.py`.
 
+## 5. CI evidence collector
+
+`scripts/ci_evidence_collector.py` accepts explicit workflow/job metadata plus an optional decoded log, runs the existing deterministic classifier for non-success conclusions, and emits only bounded/redacted classification evidence. It records `needs_review` for every result, including a green job; green metadata is not merge authorization.
+
+```bash
+python scripts/ci_evidence_collector.py ci-metadata.json --log decoded-job.log
+```
+
+Tests: `apps/api/tests/test_ci_evidence_collector.py`.
+
+## 6. Release evidence assembler
+
+`scripts/release_evidence_assembler.py` normalizes supplied check metadata for one explicit 40-character SHA. It retains only the verifier-required fields and does not invent missing checks, successful conclusions, timestamps, URLs, or commit associations. `scripts/release_evidence_verifier.py` remains the release authority.
+
+```bash
+python scripts/release_evidence_assembler.py source-checks.json --expected-sha FULL_40_CHARACTER_SHA
+```
+
+Tests: `apps/api/tests/test_release_evidence_assembler.py`.
+
+## 7. Dependency review assistant contract
+
+The existing dependency summary is the deterministic input for human/Codex review. A reviewer may add release-note context and affected-surface analysis, but the final recommendation must remain one of `low-risk candidate`, `needs_review`, `blocked`, or `inconclusive`; automatic merge is prohibited. The source tool emits `needs_review` and `auto_merge_allowed=false` today, so a missing human conclusion is never promoted to low risk.
+
+## 8. Tester-feedback traceability
+
+`scripts/tester_feedback_traceability.py` records the real public chain `report → triage → reproduction → fix PR → external re-test` as HTTPS references. It reports missing steps and keeps both `adoption_evidence=false` and `ledger_eligible=false`, even after an external-retest URL is recorded. A maintainer must still inspect the source before updating the ledger.
+
+```bash
+python scripts/tester_feedback_traceability.py feedback-trace.json
+```
+
+Tests: `apps/api/tests/test_tester_feedback_traceability.py`.
+
 ## Intended use with coding/API assistance
 
 These deterministic tools establish the non-negotiable policy boundary. Coding assistants or API-backed maintainer automation can operate around them to fetch source evidence, summarize context, propose fixes, and prepare review notes, while the repository-owned scripts remain the auditable gate for classification and release evidence.
 
-Useful future extensions include automatically collecting GitHub job metadata into the existing CI classifier, assembling release evidence bundles from required checks, and linking a genuine tester report to the fix that resolved it. Any such automation must preserve the same fail-closed rules and may not manufacture usage, approval, or adoption signals.
+Coding assistance can fetch source evidence, summarize context, propose fixes, and prepare review notes around these deterministic gates. It may not manufacture usage, approval, or adoption signals.

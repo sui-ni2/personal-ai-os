@@ -77,11 +77,34 @@ class ProjectStatePut(BaseModel):
     supersede_locked: bool = False
 
 
+class UserProjectCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    description: str = Field(min_length=1, max_length=500)
+    project_id: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=80,
+        pattern=r"^[A-Za-z0-9_.-]+$",
+    )
+
+
 class ProjectExperienceAppend(BaseModel):
     namespace: str = Field(min_length=1, max_length=80, pattern=r"^[A-Za-z0-9_.-]+$")
     text: str = Field(min_length=1, max_length=50_000)
     source: str = Field(min_length=1, max_length=500)
     confidence: float = Field(default=1, ge=0, le=1)
+
+
+class ProjectRecoveryCheckpoint(BaseModel):
+    expected_version: int = Field(ge=1)
+
+
+class ProjectRecoverySessionClose(BaseModel):
+    expected_version: int = Field(ge=1)
+
+
+class ProjectRecoveryConfirm(BaseModel):
+    expected_version: int = Field(ge=1)
 
 
 class ProjectWorkflowCreate(BaseModel):

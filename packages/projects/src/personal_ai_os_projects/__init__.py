@@ -2,6 +2,7 @@ from .general import GeneralProject
 from .p5 import MODEL_VERSION, WORKFLOW_VERSION, P5Project, P5Store
 from .registry import create_project_registry
 from .soccer import SoccerProject
+from .user_project import UserProject
 
 __all__ = [
     "GeneralProject",
@@ -9,6 +10,7 @@ __all__ = [
     "P5Project",
     "P5Store",
     "SoccerProject",
+    "UserProject",
     "WORKFLOW_VERSION",
     "create_project_registry",
 ]

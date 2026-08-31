@@ -16,6 +16,7 @@ from personal_ai_os_core import (
     Message,
     MessageRole,
     RepositoryEvent,
+    ProjectMetadata,
 )
 from personal_ai_os_mcp import ConnectionStatus, ConnectorDefinition
 
@@ -142,6 +143,21 @@ MIGRATIONS: list[tuple[int, str]] = [
             ON mcp_connectors(tenant_id, updated_at DESC);
         """,
     ),
+    (
+        5,
+        """
+        CREATE TABLE IF NOT EXISTS user_projects (
+            tenant_id TEXT NOT NULL REFERENCES tenants(id),
+            id TEXT NOT NULL,
+            name TEXT NOT NULL,
+            description TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            PRIMARY KEY (tenant_id, id)
+        );
+        CREATE INDEX IF NOT EXISTS user_projects_tenant_created
+            ON user_projects(tenant_id, created_at DESC);
+        """,
+    ),
 ]
 
 
@@ -232,6 +248,36 @@ class Database:
                 ),
             )
         return record
+
+    def create_user_project(self, metadata: ProjectMetadata) -> ProjectMetadata:
+        with self.connect() as connection:
+            connection.execute(
+                "INSERT INTO user_projects(tenant_id, id, name, description, created_at) VALUES (?, ?, ?, ?, ?)",
+                (
+                    self.tenant_id,
+                    metadata.id,
+                    metadata.name,
+                    metadata.description,
+                    _now(),
+                ),
+            )
+        return metadata
+
+    def list_user_projects(self) -> list[ProjectMetadata]:
+        with self.connect() as connection:
+            rows = connection.execute(
+                "SELECT id, name, description FROM user_projects WHERE tenant_id = ? ORDER BY created_at ASC, id ASC",
+                (self.tenant_id,),
+            ).fetchall()
+        return [
+            ProjectMetadata(
+                id=row["id"],
+                name=row["name"],
+                description=row["description"],
+                icon="folder",
+            )
+            for row in rows
+        ]
 
     def get_conversation(self, conversation_id: str) -> Conversation | None:
         with self.connect() as connection:

@@ -41,6 +41,8 @@ type RealtimeStatus = { configured: boolean; provider: "openai" | "compatible"; 
 type LiveState = "idle" | "connecting" | "listening" | "error";
 type MemoryKind = "fact" | "preference" | "rule" | "project";
 type MemoryTarget = UiMessage & { index: number };
+type RecoverySession = { session_id: string; recovery_version: number };
+type RecoveryInspection = { status: "clean" | "possibly_interrupted" | "recovery_available" | "insufficient_evidence" };
 
 const ACTIVE_CONVERSATION_KEY = "personal-ai-os.active-conversation";
 const mobilePreview = process.env.NEXT_PUBLIC_PERSONAL_AI_OS_MOBILE_PREVIEW === "true";
@@ -82,6 +84,7 @@ export function ChatWorkspace() {
   const [memoryKind, setMemoryKind] = useState<MemoryKind>("fact");
   const [memoryText, setMemoryText] = useState("");
   const [memoryState, setMemoryState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [recoveryNotice, setRecoveryNotice] = useState("");
   const conversationRef = useRef<HTMLDivElement>(null);
   const historyDialogRef = useRef<HTMLElement>(null);
   const historyTriggerRef = useRef<HTMLButtonElement>(null);
@@ -175,6 +178,55 @@ export function ChatWorkspace() {
       });
     return () => { cancelled = true; stopLive(false); };
   }, []);
+
+  useEffect(() => {
+    if (mobilePreview || !projects.some((item) => item.id === project)) return;
+    let cancelled = false;
+    let session: RecoverySession | null = null;
+
+    const closeSession = () => {
+      if (!session) return;
+      void fetch(`/api/projects/${encodeURIComponent(project)}/recovery/sessions/${encodeURIComponent(session.session_id)}/close`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ expected_version: session.recovery_version }),
+        keepalive: true,
+      });
+    };
+
+    async function beginRecoverySession() {
+      try {
+        const inspection = await apiJson<RecoveryInspection>(`/api/projects/${encodeURIComponent(project)}/recovery`);
+        if (cancelled) return;
+        if (inspection.status === "recovery_available") {
+          setRecoveryNotice("A previous session has recoverable project state. Review it in Projects before continuing; nothing has been restored automatically.");
+          return;
+        }
+        const started = await apiJson<RecoverySession>(`/api/projects/${encodeURIComponent(project)}/recovery/sessions`, { method: "POST" });
+        session = started;
+        const checkpoint = await apiJson<RecoverySession>(
+          `/api/projects/${encodeURIComponent(project)}/recovery/sessions/${encodeURIComponent(started.session_id)}/checkpoint`,
+          { method: "POST", body: JSON.stringify({ expected_version: started.recovery_version }) },
+        );
+        session = checkpoint;
+        if (cancelled) {
+          closeSession();
+          return;
+        }
+        setRecoveryNotice("");
+      } catch {
+        if (!cancelled) setRecoveryNotice("Project recovery metadata could not be prepared. Existing project state remains unchanged.");
+      }
+    }
+
+    void beginRecoverySession();
+    window.addEventListener("pagehide", closeSession);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("pagehide", closeSession);
+      closeSession();
+    };
+  }, [project, projects]);
 
   useEffect(() => { conversationRef.current?.scrollTo({ top: conversationRef.current.scrollHeight, behavior: running ? "auto" : "smooth" }); }, [messages, running]);
 
@@ -530,6 +582,8 @@ export function ChatWorkspace() {
             <button onClick={() => changeMode("live")} className={`flex h-10 items-center justify-center gap-1.5 rounded-full px-3 text-xs font-medium ${mode === "live" ? "bg-surface-elevated shadow-soft" : "text-text-secondary"}`} aria-pressed={mode === "live"}><Mic2 aria-hidden size={14} />Live</button>
           </div>
         </div>
+
+        {recoveryNotice ? <p className="border-b border-warning/20 bg-warning/10 px-4 py-2 text-xs leading-5 text-text-secondary">{recoveryNotice} <Link href="/projects" className="font-medium underline underline-offset-2">Open Projects</Link></p> : null}
 
         {mode === "text" ? (
           <>

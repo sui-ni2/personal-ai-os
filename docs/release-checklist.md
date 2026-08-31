@@ -76,14 +76,19 @@ PR #35 release head `a2e09202448e543eb99c20a7085e2e3b9408a4ef` passed all five r
 
 The checklist-only update also remained green before merge.
 
-### Publication — completed
+### Publication — tag fact
 
 - [x] PR #35 merged to `main`.
-- [x] Post-merge release evidence remained consistent with the verified release candidate.
+- [x] Historical release-gate evidence is recorded above for the tag decision.
 - [x] Issue #1 was closed as completed with sanitized acceptance evidence.
 - [x] Stable tag `v0.2.0` points to the intended verified `main` commit.
-- [x] Public GitHub Release `Personal AI OS v0.2.0` was published on 2026-08-15; it is neither a draft nor a prerelease.
-- [x] The public release has no attached private/generated artifacts; GitHub provides the normal source tarball/zipball for the tag.
+- [x] Live GitHub evidence check on 2026-08-30 found the `v0.2.0` tag but **zero GitHub Releases**. This is a tagged release line only; no GitHub Release, notes, or assets are claimed.
+
+## v0.3.0 release candidate
+
+**Remote base candidate:** `493717f091c8e0c427e473c35c1db01dc7392d2f`. Its CI backend and frontend jobs succeeded, but exact-SHA CodeQL, Dependency Review, Platform Readiness, and Release provider smoke evidence are missing. The candidate is **RELEASE_BLOCKED**.
+
+Before a `release/v0.3.0 -> main` PR can be called release-ready, freeze a new exact SHA and produce a fresh evidence bundle with exactly one successful result each for CI, CodeQL, Dependency Review, Platform Readiness, and Release provider smoke. Run `scripts/release_evidence_verifier.py` against that bundle; its only passing result is the authorization to enter normal release review, not to bypass review or publish a Release automatically.
 
 ## Fail-closed rule
 

@@ -81,7 +81,7 @@ def _sse_data(body: str) -> list[dict[str, object]]:
 
 
 def test_health_and_secret_redaction(client: TestClient, runtime) -> None:
-    assert client.get("/health").json() == {"status": "ok", "version": "0.2.0"}
+    assert client.get("/health").json() == {"status": "ok", "version": "0.3.0"}
     settings = client.get("/api/settings").json()
     assert settings["secrets"] == {"storage": "environment", "values_exposed": False}
     assert "api_key" not in json.dumps(settings).lower()
@@ -382,7 +382,7 @@ def test_database_migrations_are_current(client: TestClient, runtime) -> None:
                 "SELECT version FROM schema_migrations ORDER BY version"
             )
         ]
-    assert versions == [1, 2, 3, 4]
+    assert versions == [1, 2, 3, 4, 5]
 
 
 def test_memory_and_repository_persist(client: TestClient) -> None:

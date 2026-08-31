@@ -16,6 +16,9 @@ This project follows Semantic Versioning for public releases.
 - Public evidence/support documentation and issue forms that separate repository reach, maintainer activity, genuine external validation, and real-world-use reports instead of treating them as interchangeable adoption signals.
 - A GitHub Release publishing workflow that validates stable tags reachable from `main` before publishing a missing release.
 - A private security-reporting entry in the GitHub issue chooser so vulnerability details are routed away from public issues.
+- Tenant-scoped generic Project creation for provider-neutral long-running research or build work, without adding domain-specific core fields.
+- Explicit crash/restart recovery metadata and user-confirmed project recovery from bounded persisted state; it never copies provider sessions, chat history, transition receipts, or private reasoning.
+- Deterministic CI evidence collection, release-evidence assembly, and tester-feedback traceability around the existing fail-closed classifier/verifier gates.
 
 ### Security and maintenance
 
@@ -57,4 +60,4 @@ This stable release continues the version line established by the historical `v0
 
 ### Release verification
 
-The `v0.2.0` release was gated by `docs/release-checklist.md`. The tagged release commit passed the complete application-level real-inference loop—including provider connection, one text-chat turn, restart, and continued persisted conversation state—plus the normal CI/security/platform checks before the GitHub Release was published.
+The `v0.2.0` tag was gated by `docs/release-checklist.md`. A live GitHub Releases query on 2026-08-30 found no published GitHub Release, so this changelog does not claim GitHub Release publication, release notes, or assets for the tag.

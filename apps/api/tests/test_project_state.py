@@ -57,7 +57,6 @@ def test_project_state_uses_separate_private_database_per_project(runtime) -> No
     assert p5_path.name == "state.sqlite3"
     assert soccer_path.name == "state.sqlite3"
 
-
 def test_project_state_upsert_keeps_one_current_value_and_history(client: TestClient) -> None:
     first = client.put(
         "/api/projects/general/state/records",
