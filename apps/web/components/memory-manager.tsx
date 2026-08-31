@@ -1,9 +1,11 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { Archive, Check, ChevronDown, Plus, Search } from "lucide-react";
+import { Archive, Check, ChevronDown, Pencil, Plus, Search, XCircle } from "lucide-react";
 import { apiJson } from "@/lib/api";
 import { EmptyState, ErrorState, LoadingState } from "@/components/ui-states";
+
+type MemoryStatus = "proposed" | "active" | "inactive" | "rejected" | "stale" | "expired" | "superseded" | "conflict_review_required";
 
 type Memory = {
   id: string;
@@ -11,13 +13,19 @@ type Memory = {
   text: string;
   source: string;
   confidence: number;
-  status: "active" | "inactive";
+  status: MemoryStatus;
   project_id?: string;
+  provenance?: Record<string, unknown>;
+  source_reference?: string;
+  conflict_key?: string;
+  created_at: string;
+  last_used_at?: string;
+  why_used?: string;
   updated_at: string;
 };
 
 const filters = ["all", "rule", "preference", "project", "fact"] as const;
-const statusFilters = ["active", "archived", "all"] as const;
+const statusFilters = ["active", "review", "inactive", "all"] as const;
 
 export function MemoryManager() {
   const [items, setItems] = useState<Memory[]>([]);
@@ -32,6 +40,8 @@ export function MemoryManager() {
   const [mutationError, setMutationError] = useState("");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [draftText, setDraftText] = useState("");
 
   async function load() {
     try {
@@ -51,7 +61,10 @@ export function MemoryManager() {
     const normalized = query.trim().toLowerCase();
     return items.filter((item) => {
       const typeMatches = filter === "all" || item.type.toLowerCase() === filter || (filter === "project" && Boolean(item.project_id));
-      const statusMatches = statusFilter === "all" || (statusFilter === "active" ? item.status === "active" : item.status === "inactive");
+      const statusMatches = statusFilter === "all"
+        || (statusFilter === "active" && item.status === "active")
+        || (statusFilter === "review" && ["proposed", "conflict_review_required"].includes(item.status))
+        || (statusFilter === "inactive" && ["inactive", "rejected", "stale", "expired", "superseded"].includes(item.status));
       const textMatches = !normalized || `${item.text} ${item.source} ${item.project_id || ""}`.toLowerCase().includes(normalized);
       return typeMatches && statusMatches && textMatches;
     });
@@ -65,11 +78,11 @@ export function MemoryManager() {
     try {
       await apiJson("/api/memory", {
         method: "POST",
-        body: JSON.stringify({ type, text: text.trim(), source, confidence: 1, project_id: "general" }),
+        body: JSON.stringify({ type, text: text.trim(), source, confidence: 1, project_id: "general", status: "proposed", provenance: { kind: "user_entry" } }),
       });
       setText("");
       setSaved(true);
-      setStatusFilter("active");
+      setStatusFilter("review");
       window.setTimeout(() => setSaved(false), 1600);
       await load();
     } catch {
@@ -79,16 +92,29 @@ export function MemoryManager() {
     }
   }
 
-  async function toggle(item: Memory) {
+  async function update(item: Memory, values: Record<string, unknown>) {
     setMutationError("");
     try {
       await apiJson(`/api/memory/${item.id}`, {
         method: "PATCH",
-        body: JSON.stringify({ status: item.status === "active" ? "inactive" : "active" }),
+        body: JSON.stringify(values),
       });
       await load();
     } catch {
-      setMutationError("The memory status could not be changed. Try again after the API reconnects.");
+      setMutationError("The memory could not be updated. Try again after the API reconnects.");
+    }
+  }
+
+  async function resolve(item: Memory, action: "keep_existing" | "replace" | "merge" | "keep_both") {
+    setMutationError("");
+    try {
+      await apiJson(`/api/memory/${item.id}/resolve`, {
+        method: "POST",
+        body: JSON.stringify(action === "keep_both" ? { action, scope_project_id: "general" } : { action }),
+      });
+      await load();
+    } catch {
+      setMutationError("That conflict could not be resolved safely. Review its scope and try again.");
     }
   }
 
@@ -148,24 +174,33 @@ export function MemoryManager() {
       {!loading && !error && visibleItems.length > 0 && (
         <section className="grid gap-3 md:grid-cols-2" aria-label="Saved memories">
           {visibleItems.map((item) => (
-            <article key={item.id} className={`panel flex flex-col p-4 sm:p-5 md:min-h-48 ${item.status === "inactive" ? "bg-surface/55" : ""}`}>
+            <article key={item.id} className={`panel flex flex-col p-4 sm:p-5 md:min-h-48 ${item.status === "active" ? "" : "bg-surface/55"}`}>
               <div className="flex items-center justify-between gap-3">
                 <div className="flex flex-wrap gap-2">
                   <span className="chip capitalize">{item.type}</span>
-                  <span className={`chip ${item.status === "active" ? "bg-success/10 text-success" : ""}`}>{item.status === "active" ? "Active" : "Archived"}</span>
+                  <span className={`chip ${item.status === "active" ? "bg-success/10 text-success" : item.status === "conflict_review_required" ? "bg-warning/10 text-warning" : ""}`}>{item.status.replaceAll("_", " ")}</span>
                 </div>
-                {item.status === "inactive" && <Archive aria-label="Archived" size={16} className="text-text-tertiary" />}
+                {item.status !== "active" && <Archive aria-label={item.status} size={16} className="text-text-tertiary" />}
               </div>
-              <p className="mt-4 flex-1 text-[15px] leading-7 sm:mt-5">{item.text}</p>
+              {editingId === item.id ? (
+                <div className="mt-4 space-y-2"><textarea aria-label="Edit memory" className="textarea-field min-h-28 w-full" value={draftText} onChange={(event) => setDraftText(event.target.value)} /><div className="flex gap-2"><button className="button-secondary text-xs" onClick={() => { void update(item, { text: draftText.trim() }); setEditingId(null); }}>Save edit</button><button className="button-quiet text-xs" onClick={() => setEditingId(null)}>Cancel</button></div></div>
+              ) : <p className="mt-4 flex-1 text-[15px] leading-7 sm:mt-5">{item.text}</p>}
               <div className="mt-5 flex items-center justify-between gap-4 border-t border-line pt-4">
                 <p className="truncate text-xs text-text-tertiary">{item.project_id || "General"} · {item.source}</p>
-                <button className="button-quiet shrink-0 px-2 text-xs" onClick={() => void toggle(item)}>{item.status === "active" ? "Archive" : "Restore"}</button>
+                <div className="flex shrink-0 gap-1"><button className="button-quiet px-2 text-xs" aria-label="Edit memory" onClick={() => { setEditingId(item.id); setDraftText(item.text); }}><Pencil aria-hidden size={14} /></button>{item.status === "active" ? <button className="button-quiet px-2 text-xs" onClick={() => void update(item, { status: "inactive" })}>Pause</button> : <button className="button-quiet px-2 text-xs" onClick={() => void update(item, { status: "active" })}>{item.status === "inactive" ? "Activate" : "Accept"}</button>}</div>
               </div>
+              {["proposed", "conflict_review_required"].includes(item.status) && <div className="mt-3 flex flex-wrap gap-2 rounded-small bg-surface-subtle p-3"><p className="w-full text-xs text-text-secondary">Review before this memory can affect future context.</p><button className="button-secondary text-xs" onClick={() => void update(item, { status: "active" })}>Accept</button><button className="button-quiet text-xs" onClick={() => void update(item, { status: "rejected" })}><XCircle aria-hidden size={14} />Reject</button>{item.status === "conflict_review_required" && <><button className="button-quiet text-xs" onClick={() => void resolve(item, "replace")}>Replace existing</button><button className="button-quiet text-xs" onClick={() => void resolve(item, "merge")}>Use edited merge</button><button className="button-quiet text-xs" onClick={() => void resolve(item, "keep_existing")}>Keep existing</button><button className="button-quiet text-xs" onClick={() => void resolve(item, "keep_both")}>Keep both in General</button></>}</div>}
               <details className="mt-2">
                 <summary className="cursor-pointer text-xs text-text-tertiary">Details</summary>
                 <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 rounded-small bg-surface-subtle p-3 font-mono text-[11px] text-text-secondary">
                   <dt>ID</dt><dd className="truncate">{item.id}</dd>
                   <dt>Confidence</dt><dd>{item.confidence}</dd>
+                  <dt>Scope</dt><dd>{item.project_id || "global"}</dd>
+                  <dt>Source</dt><dd>{item.source_reference || item.source}</dd>
+                  <dt>Provenance</dt><dd className="truncate">{JSON.stringify(item.provenance || {})}</dd>
+                  <dt>Created</dt><dd>{new Date(item.created_at).toLocaleString()}</dd>
+                  <dt>Last used</dt><dd>{item.last_used_at ? new Date(item.last_used_at).toLocaleString() : "Never"}</dd>
+                  <dt>Why used</dt><dd>{item.why_used || "Not used yet"}</dd>
                   <dt>Updated</dt><dd>{new Date(item.updated_at).toLocaleString()}</dd>
                 </dl>
               </details>

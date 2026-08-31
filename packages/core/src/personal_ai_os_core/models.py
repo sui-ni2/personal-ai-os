@@ -19,8 +19,14 @@ class MessageRole(StrEnum):
 
 
 class MemoryStatus(StrEnum):
+    PROPOSED = "proposed"
     ACTIVE = "active"
     INACTIVE = "inactive"
+    REJECTED = "rejected"
+    STALE = "stale"
+    EXPIRED = "expired"
+    SUPERSEDED = "superseded"
+    CONFLICT_REVIEW_REQUIRED = "conflict_review_required"
 
 
 class ProjectStateStatus(StrEnum):
@@ -57,6 +63,11 @@ class MemoryRecord(BaseModel):
     valid_from: datetime | None = None
     status: MemoryStatus = MemoryStatus.ACTIVE
     project_id: str | None = None
+    provenance: dict[str, Any] = Field(default_factory=dict)
+    source_reference: str | None = None
+    conflict_key: str | None = None
+    last_used_at: datetime | None = None
+    why_used: str | None = None
     created_at: datetime = Field(default_factory=utc_now)
     updated_at: datetime = Field(default_factory=utc_now)
 

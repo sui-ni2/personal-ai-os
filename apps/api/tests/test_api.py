@@ -382,7 +382,7 @@ def test_database_migrations_are_current(client: TestClient, runtime) -> None:
                 "SELECT version FROM schema_migrations ORDER BY version"
             )
         ]
-    assert versions == [1, 2, 3, 4, 5]
+    assert versions == [1, 2, 3, 4, 5, 6, 7, 8]
 
 
 def test_memory_and_repository_persist(client: TestClient) -> None:
@@ -433,6 +433,13 @@ def test_external_mcp_http_and_stdio_connectors(client: TestClient) -> None:
         discovered = client.post(f"/api/mcp/connectors/{http_id}/discover")
         assert discovered.status_code == 200
         assert discovered.json()["tools"][0]["name"] == "external.echo"
+        http_preview = client.post(
+            "/api/tool-actions/preview",
+            json={"project_id": "general", "connector_id": http_id, "tool_name": "external.echo", "arguments": {"message": "verified"}},
+        ).json()
+        http_confirmation = client.post(
+            f"/api/tool-actions/{http_preview['id']}/confirm", json={"confirmed": True}
+        ).json()
         invoked = client.post(
             "/api/mcp/invoke",
             json={
@@ -440,6 +447,7 @@ def test_external_mcp_http_and_stdio_connectors(client: TestClient) -> None:
                 "connector_id": http_id,
                 "tool_name": "external.echo",
                 "arguments": {"message": "verified"},
+                "confirmation_id": http_confirmation["id"],
             },
         )
         assert invoked.status_code == 200
@@ -459,6 +467,13 @@ def test_external_mcp_http_and_stdio_connectors(client: TestClient) -> None:
     assert stdio.status_code == 201
     stdio_id = stdio.json()["id"]
     assert client.post(f"/api/mcp/connectors/{stdio_id}/discover").status_code == 200
+    stdio_preview = client.post(
+        "/api/tool-actions/preview",
+        json={"project_id": "general", "connector_id": stdio_id, "tool_name": "external.echo", "arguments": {"message": "verified"}},
+    ).json()
+    stdio_confirmation = client.post(
+        f"/api/tool-actions/{stdio_preview['id']}/confirm", json={"confirmed": True}
+    ).json()
     stdio_call = client.post(
         "/api/mcp/invoke",
         json={
@@ -466,6 +481,7 @@ def test_external_mcp_http_and_stdio_connectors(client: TestClient) -> None:
             "connector_id": stdio_id,
             "tool_name": "external.echo",
             "arguments": {"message": "verified"},
+            "confirmation_id": stdio_confirmation["id"],
         },
     )
     assert stdio_call.status_code == 200
@@ -474,6 +490,11 @@ def test_external_mcp_http_and_stdio_connectors(client: TestClient) -> None:
     disabled = client.patch(f"/api/mcp/connectors/{stdio_id}", json={"enabled": False})
     assert disabled.json()["connection_status"] == "disabled"
     assert stdio_call.status_code == 200
+    blocked_preview = client.post(
+        "/api/tool-actions/preview",
+        json={"project_id": "general", "connector_id": stdio_id, "tool_name": "external.echo", "arguments": {}},
+    )
+    assert blocked_preview.status_code == 400
     blocked = client.post(
         "/api/mcp/invoke",
         json={
@@ -483,7 +504,7 @@ def test_external_mcp_http_and_stdio_connectors(client: TestClient) -> None:
             "arguments": {},
         },
     )
-    assert blocked.status_code == 400
+    assert blocked.status_code == 409
 
 
 def test_external_mcp_is_fail_closed_and_failure_isolated(client: TestClient) -> None:
@@ -717,6 +738,18 @@ def test_general_full_external_tool_chain_restores_after_restart(runtime_factory
                 "timeout_seconds": 3,
             },
         ).json()
+        preview = first.post(
+            "/api/tool-actions/preview",
+            json={
+                "project_id": "general",
+                "connector_id": connector["id"],
+                "tool_name": "external.echo",
+                "arguments": {"message": "first-pass"},
+            },
+        ).json()
+        confirmation = first.post(
+            f"/api/tool-actions/{preview['id']}/confirm", json={"confirmed": True}
+        ).json()
         response = first.post(
             "/api/chat/stream",
             json={
@@ -728,20 +761,22 @@ def test_general_full_external_tool_chain_restores_after_restart(runtime_factory
                     "connector_id": connector["id"],
                     "name": "external.echo",
                     "arguments": {"message": "first-pass"},
+                    "confirmation_id": confirmation["id"],
                 },
             },
         )
         assert response.status_code == 200
         events = _sse_data(response.text)
         assert [item["type"] for item in events] == [
+            "context",
             "tool_start",
             "tool_result",
             "message",
             "message",
             "done",
         ]
-        assert events[0]["payload"]["provider_tool_call_id"] == "openai-tool-call"
-        assert events[1]["payload"]["result"]["content"][0]["text"] == "stdio:first-pass"
+        assert events[1]["payload"]["provider_tool_call_id"] == "openai-tool-call"
+        assert events[2]["payload"]["result"]["content"][0]["text"] == "stdio:first-pass"
         conversation_id = events[-1]["payload"]["conversation_id"]
         assert first.post(
             "/api/mcp/invoke",
@@ -751,13 +786,25 @@ def test_general_full_external_tool_chain_restores_after_restart(runtime_factory
                 "tool_name": "external.echo",
                 "arguments": {"message": "blocked"},
             },
-        ).status_code == 400
+        ).status_code == 409
 
     restarted_runtime = runtime_factory()
     with TestClient(create_app(runtime=restarted_runtime)) as restarted:
         restored = restarted.get(f"/api/conversations/{conversation_id}").json()
         assert len(restored["messages"]) == 2
-        assert restored["execution_events"][1]["payload"]["result"]["content"][0]["text"] == "stdio:first-pass"
+        assert restored["execution_events"][2]["payload"]["result"]["content"][0]["text"] == "stdio:first-pass"
+        continued_preview = restarted.post(
+            "/api/tool-actions/preview",
+            json={
+                "project_id": "general",
+                "connector_id": connector["id"],
+                "tool_name": "external.echo",
+                "arguments": {"message": "second-pass"},
+            },
+        ).json()
+        continued_confirmation = restarted.post(
+            f"/api/tool-actions/{continued_preview['id']}/confirm", json={"confirmed": True}
+        ).json()
         continued = restarted.post(
             "/api/chat/stream",
             json={
@@ -770,13 +817,15 @@ def test_general_full_external_tool_chain_restores_after_restart(runtime_factory
                     "connector_id": connector["id"],
                     "name": "external.echo",
                     "arguments": {"message": "second-pass"},
+                    "confirmation_id": continued_confirmation["id"],
                 },
             },
         )
         assert continued.status_code == 200
         continued_events = _sse_data(continued.text)
-        assert continued_events[0]["payload"]["provider_tool_call_id"] == "anthropic-tool-call"
-        assert continued_events[1]["payload"]["result"]["content"][0]["text"] == "stdio:second-pass"
+        assert continued_events[0]["type"] == "context"
+        assert continued_events[1]["payload"]["provider_tool_call_id"] == "anthropic-tool-call"
+        assert continued_events[2]["payload"]["result"]["content"][0]["text"] == "stdio:second-pass"
         final = restarted.get(f"/api/conversations/{conversation_id}").json()
         assert [item["role"] for item in final["messages"]] == [
             "user",
@@ -784,7 +833,7 @@ def test_general_full_external_tool_chain_restores_after_restart(runtime_factory
             "user",
             "assistant",
         ]
-        assert len(final["execution_events"]) == 10
+        assert len(final["execution_events"]) == 12
         assert final["conversation"]["project_id"] == "general"
 
 
@@ -811,8 +860,8 @@ async def test_chat_cancellation_is_normalized_without_assistant_message(runtime
         ]
     )
     events = _sse_data(output)
-    assert events[0]["type"] == "error"
-    assert events[0]["payload"]["code"] == "cancelled"
+    error = next(item for item in events if item["type"] == "error")
+    assert error["payload"]["code"] == "cancelled"
     conversation_id = events[-1]["payload"]["conversation_id"]
     assert [item.role.value for item in runtime.database.list_messages(conversation_id)] == [
         "user"

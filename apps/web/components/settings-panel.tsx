@@ -5,6 +5,7 @@ import { Cable, Check, ChevronDown, Database, Gauge, Mic2, Palette, Plus, Refres
 import { apiJson } from "@/lib/api";
 import { setExperienceMode, useExperienceMode } from "@/lib/experience-mode";
 import { ErrorState, LoadingState } from "@/components/ui-states";
+import { SettingsGovernancePanel } from "@/components/settings-governance-panel";
 
 type Provider = { id: string; configured: boolean; models: string[] };
 type ProviderCheck = {
@@ -196,7 +197,7 @@ export function SettingsPanel() {
     <div className="space-y-8 sm:space-y-10">
       {interfaceModeCard}
       <nav className="scrollbar-subtle -mx-1 flex gap-2 overflow-x-auto px-1 pb-1" aria-label="Settings sections">
-        {[{ href: "#models-settings", label: "AI service" }, ...(experienceMode === "advanced" ? [{ href: "#mcp-settings", label: "Tool connections" }] : []), { href: "#appearance-settings", label: "Appearance" }, { href: "#data-settings", label: "Data & privacy" }].map((item) => <a key={item.href} href={item.href} className="chip min-h-11 shrink-0 hover:bg-accent-soft hover:text-accent-hover">{item.label}</a>)}
+        {[{ href: "#models-settings", label: "AI services & models" }, { href: "#privacy-usage-settings", label: "Memory, privacy & budget" }, ...(experienceMode === "advanced" ? [{ href: "#mcp-settings", label: "Advanced tools" }] : []), { href: "#appearance-settings", label: "Appearance" }, { href: "#mobile-settings", label: "Voice & mobile" }].map((item) => <a key={item.href} href={item.href} className="chip min-h-11 shrink-0 hover:bg-accent-soft hover:text-accent-hover">{item.label}</a>)}
       </nav>
       <section className="scroll-mt-6" aria-labelledby="models-settings">
         <div className="mb-4 flex items-center gap-2"><Server aria-hidden size={18} className="text-text-tertiary" /><h2 id="models-settings" className="section-title">AI service</h2></div>
@@ -318,6 +319,8 @@ export function SettingsPanel() {
           ))}
         </div>
       </section>}
+
+      <SettingsGovernancePanel providers={settings.providers} />
 
       <div className="grid gap-4 sm:grid-cols-2">
         <section className="panel scroll-mt-6 p-4 sm:p-5" aria-labelledby="appearance-settings">

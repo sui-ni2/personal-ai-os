@@ -15,6 +15,7 @@ from personal_ai_os_projects import UserProject
 from personal_ai_os_providers import ProviderError, ProviderRateLimited
 
 from .chat import conversation_title, stream_chat
+from .governance import GovernanceService
 from .runtime import Runtime
 from .schemas import (
     ArtifactCreate,
@@ -23,6 +24,7 @@ from .schemas import (
     MCPConnectorCreate,
     MCPConnectorUpdate,
     MCPInvokeRequest,
+    MemoryConflictResolution,
     MemoryCreate,
     MemoryUpdate,
     RealtimeTranscriptCreate,
@@ -386,7 +388,10 @@ def chat_stream(payload: ChatRequest, request: Request) -> StreamingResponse:
 @router.get("/memory")
 def list_memory(
     request: Request,
-    status: Annotated[str | None, Query(pattern="^(active|inactive)$")] = None,
+    status: Annotated[
+        str | None,
+        Query(pattern="^(proposed|active|inactive|rejected|stale|expired|superseded|conflict_review_required)$"),
+    ] = None,
 ) -> dict[str, object]:
     return {
         "items": [
@@ -405,21 +410,71 @@ def create_memory(payload: MemoryCreate, request: Request) -> dict[str, object]:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
     item = runtime.database.create_memory(payload.model_dump())
     runtime.database.add_repository_event(
-        event_type="memory.created",
-        summary=f"Created {item.type} memory",
+        event_type="memory.created" if item.status.value == "active" else "memory.review_required",
+        summary=(
+            f"Created reviewed {item.type} memory"
+            if item.status.value == "active"
+            else f"Created {item.type} memory requiring review"
+        ),
         project_id=item.project_id,
-        details={"memory_id": item.id, "source": item.source},
+        details={"memory_id": item.id, "source": item.source, "status": item.status.value},
     )
     return item.model_dump(mode="json")
 
 
 @router.patch("/memory/{memory_id}")
 def update_memory(memory_id: str, payload: MemoryUpdate, request: Request) -> dict[str, object]:
-    item = runtime_from(request).database.update_memory(
+    runtime = runtime_from(request)
+    item = runtime.database.update_memory(
         memory_id, payload.model_dump(exclude_unset=True)
     )
     if item is None:
         raise HTTPException(status_code=404, detail="Memory not found")
+    runtime.database.add_repository_event(
+        event_type="memory.reviewed",
+        summary=f"Updated memory lifecycle to {item.status.value}",
+        project_id=item.project_id,
+        details={"memory_id": item.id, "status": item.status.value},
+    )
+    return item.model_dump(mode="json")
+
+
+@router.get("/memory/{memory_id}/conflicts")
+def memory_conflicts(memory_id: str, request: Request) -> dict[str, object]:
+    runtime = runtime_from(request)
+    if runtime.database.get_memory(memory_id) is None:
+        raise HTTPException(status_code=404, detail="Memory not found")
+    return {"items": [item.model_dump(mode="json") for item in runtime.database.list_memory_conflicts(memory_id)]}
+
+
+@router.post("/memory/{memory_id}/resolve")
+def resolve_memory_conflict(
+    memory_id: str,
+    payload: MemoryConflictResolution,
+    request: Request,
+) -> dict[str, object]:
+    runtime = runtime_from(request)
+    if payload.scope_project_id:
+        try:
+            runtime.projects.get(payload.scope_project_id)
+        except KeyError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+    try:
+        item = runtime.database.resolve_memory_conflict(
+            memory_id,
+            action=payload.action,
+            scope_project_id=payload.scope_project_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    if item is None:
+        raise HTTPException(status_code=404, detail="Memory not found")
+    runtime.database.add_repository_event(
+        event_type="memory.conflict_resolved",
+        summary=f"Resolved memory conflict with {payload.action}",
+        project_id=item.project_id,
+        details={"memory_id": item.id, "action": payload.action, "status": item.status.value},
+    )
     return item.model_dump(mode="json")
 
 
@@ -477,6 +532,17 @@ async def list_mcp_tools(
 async def invoke_mcp(payload: MCPInvokeRequest, request: Request) -> dict[str, object]:
     runtime = runtime_from(request)
     require_capability(runtime, Capability.MCP)
+    if payload.connector_id and not GovernanceService(runtime.database).consume_tool_confirmation(
+        confirmation_id=payload.confirmation_id,
+        project_id=payload.project_id,
+        connector_id=payload.connector_id,
+        tool_name=payload.tool_name,
+        arguments=payload.arguments,
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail="External tool actions require a current preview and explicit confirmation",
+        )
     try:
         if payload.connector_id:
             result = await runtime.external_mcp.invoke(
@@ -599,4 +665,9 @@ def update_settings(payload: SettingsUpdate, request: Request) -> dict[str, obje
         raise HTTPException(status_code=400, detail="Model is not allowlisted for provider")
     runtime.database.set_setting("default_provider", provider_id)
     runtime.database.set_setting("default_model", model_id)
+    runtime.database.add_repository_event(
+        event_type="settings.updated",
+        summary="Updated default AI service settings",
+        details={"default_provider": provider_id, "default_model": model_id},
+    )
     return get_settings(request)

@@ -23,7 +23,7 @@ Follow [5-minute evaluation](docs/5-minute-evaluation.md) to start with no key, 
 
 ## Early testers wanted
 
-Personal AI OS `v0.2.0` is now the first stable tagged release. **You do not need a paid API key to help test it.**
+Personal AI OS `v0.3.0` is the current stable tagged release. **You do not need a paid API key to help test it.**
 
 - **No API key:** the lowest-friction current-`main` path is `docker compose up --build -d` if Docker is installed. On Windows without Docker, run `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\setup-windows.ps1`. See [Try without an API key](docs/try-without-api.md) for both verified paths and the manual smoke command. These paths make no billable model call on a fresh no-key checkout.
 - **Windows fresh install:** use [Issue #15](https://github.com/sui-ni2/personal-ai-os/issues/15) to report a fresh Windows source-checkout result, including failures or setup friction.
@@ -131,6 +131,10 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\setup-windows.ps1
 The bootstrap preserves an existing `.env` and `.venv`, installs repository dependencies, and runs
 the no-key readiness gate. It does not add provider credentials. Use `-CheckOnly` to validate only
 prerequisites and repository files without changing the checkout or installing dependencies.
+
+For a Docker Desktop-based Windows package that does not require a source checkout,
+see [Windows distribution, update, and rollback](docs/windows-distribution.md). It is
+hash-verified and rollback-capable; Windows signing remains explicitly external.
 
 In terminal 1:
 
@@ -241,3 +245,6 @@ Copyright 2026 Personal AI OS contributors. Licensed under the Apache License, V
 See `docs/implementation-decisions.md` for the quick specification consistency check and `docs/architecture.md` for the package boundaries.
 See `docs/p5-project-plugin.md` for the P5 daily contract, API, tools, storage, and views.
 See `docs/transfer-and-backup.md` for verified backups, safe restore, and moving the app to another computer.
+See `docs/product-maturity-audit.md` for the dated product-closure baseline and named external verification gaps.
+
+For a redacted diagnostic report suitable for support, run `python scripts/doctor.py --json`. It reports only health states and never emits credentials, conversation text, memory text, headers, or hidden reasoning.

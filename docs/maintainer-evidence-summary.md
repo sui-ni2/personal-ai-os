@@ -6,7 +6,7 @@ Personal AI OS is a local-first, provider-neutral workspace for long-running AI 
 
 ## What is runnable now
 
-The public community edition includes a Next.js application shell, FastAPI API, SQLite persistence, provider adapters for OpenAI and Anthropic plus an optional local Ollama adapter, restart-safe conversation history, an allowlisted MCP gateway, auditable execution events, project plugins, and an installable PWA shell. The current stable release line is `v0.2.0`.
+The public community edition includes a Next.js application shell, FastAPI API, SQLite persistence, provider adapters for OpenAI and Anthropic plus an optional local Ollama adapter, restart-safe conversation history, an allowlisted MCP gateway, auditable execution events, project plugins, and an installable PWA shell. The current stable release line is `v0.3.0`.
 
 The repository also provides a zero-cost verification path that requires no paid provider key. That path verifies clean startup, the expected runtime version, unconfigured-provider behavior, and secret redaction without making a billable model call. See `docs/try-without-api.md`.
 

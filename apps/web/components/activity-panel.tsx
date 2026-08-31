@@ -5,11 +5,14 @@ import {
   ChevronDown,
   Cpu,
   FileText,
+  ShieldCheck,
   Wrench,
 } from "lucide-react";
 import type { SseEvent } from "@/lib/api";
 
 const iconMap = {
+  context: ShieldCheck,
+  routing: Cpu,
   message: Cpu,
   tool_start: Wrench,
   tool_result: Cable,
@@ -18,6 +21,8 @@ const iconMap = {
 };
 
 function actionLabel(item: SseEvent) {
+  if (item.type === "context") return "Send scope recorded";
+  if (item.type === "routing") return "AI service routing updated";
   if (item.type === "tool_start") return item.tool ? `Using ${item.tool}` : "Tool started";
   if (item.type === "tool_result") return item.tool ? `${item.tool} finished` : "Tool finished";
   if (item.type === "error") return "Action needs attention";

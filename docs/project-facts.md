@@ -6,7 +6,7 @@ This page is a compact map of claims that reviewers, users, and contributors can
 
 - Personal AI OS is an open-source, local-first, provider-neutral workspace for long-running AI work.
 - The repository is licensed under Apache-2.0.
-- The documented stable line is `v0.2.x`; the README identifies `v0.2.0` as the first stable tagged release.
+- The documented current stable line is `v0.3.x`; the README identifies `v0.3.0` as the current stable tagged release. `v0.2.0` remains historical release evidence.
 - The community edition is runnable locally. Managed-cloud accounts, billing, and device sync remain outside the currently live product boundary.
 
 Primary sources: [`README.md`](../README.md), [`LICENSE`](../LICENSE), and [`docs/product-contract.md`](product-contract.md).

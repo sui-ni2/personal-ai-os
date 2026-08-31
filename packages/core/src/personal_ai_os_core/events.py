@@ -97,6 +97,8 @@ def _sanitize_audit_value(value: Any, depth: int = 0) -> Any:
 
 
 class EventType(StrEnum):
+    CONTEXT = "context"
+    ROUTING = "routing"
     MESSAGE = "message"
     TOOL_START = "tool_start"
     TOOL_RESULT = "tool_result"
@@ -107,7 +109,17 @@ class EventType(StrEnum):
 class ExecutionEvent(BaseModel):
     id: str
     type: EventType
-    status: Literal["started", "running", "succeeded", "failed"]
+    status: Literal[
+        "started",
+        "running",
+        "succeeded",
+        "failed",
+        "cancelled",
+        "interrupted",
+        "outcome_unknown",
+        "retry_safe",
+        "retry_requires_confirmation",
+    ]
     conversation_id: str | None = None
     tool: str | None = None
     duration_ms: int | None = Field(default=None, ge=0)

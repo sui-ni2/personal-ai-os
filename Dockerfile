@@ -22,6 +22,7 @@ WORKDIR /app
 COPY requirements-runtime.txt ./
 COPY packages packages
 COPY apps/api apps/api
+COPY scripts/backup-data.py scripts/restore-data.py scripts/doctor.py ./scripts/
 RUN python -m pip install --no-cache-dir -r requirements-runtime.txt
 
 COPY --from=web-build /app/apps/web/out /app/web

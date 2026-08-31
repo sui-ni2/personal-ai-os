@@ -16,6 +16,13 @@ on:
       - "scripts/release-provider-smoke.py"
       - "scripts/check-mobile-readiness.ps1"
       - "scripts/setup-windows.ps1"
+      - "scripts/build-windows-distribution.ps1"
+      - "scripts/install-windows-distribution.ps1"
+      - "scripts/doctor.py"
+      - "scripts/e2e-api.py"
+      - "e2e/**"
+      - "playwright.config.ts"
+      - ".github/workflows/hardening-gates.yml"
       - ".github/workflows/platform-readiness.yml"
   push:
     branches: [main]
@@ -32,6 +39,13 @@ on:
       - "scripts/release-provider-smoke.py"
       - "scripts/check-mobile-readiness.ps1"
       - "scripts/setup-windows.ps1"
+      - "scripts/build-windows-distribution.ps1"
+      - "scripts/install-windows-distribution.ps1"
+      - "scripts/doctor.py"
+      - "scripts/e2e-api.py"
+      - "e2e/**"
+      - "playwright.config.ts"
+      - ".github/workflows/hardening-gates.yml"
       - ".github/workflows/platform-readiness.yml"
   workflow_dispatch:
 

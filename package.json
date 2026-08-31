@@ -8,6 +8,11 @@
     "build": "node scripts/build-hosted.mjs",
     "build:web": "pnpm --filter @personal-ai-os/web build",
     "build:static": "node scripts/build-static.mjs",
-    "check:web": "pnpm --filter @personal-ai-os/web typecheck"
+    "check:web": "pnpm --filter @personal-ai-os/web typecheck",
+    "test:e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "4.11.1",
+    "@playwright/test": "1.58.2"
   }
 }

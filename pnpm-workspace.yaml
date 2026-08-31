@@ -1,6 +1,9 @@
 packages:
   - "apps/web"
 
+overrides:
+  fsevents: 2.3.3
+
 allowBuilds:
   esbuild: true
   sharp: true
