@@ -2,24 +2,25 @@
 
 This page records public evidence about Personal AI OS without treating repository activity as proof of independent adoption. Mutable metrics are dated, and external-use claims require a public source that can be inspected independently.
 
-## Snapshot — 2026-08-30
+## Snapshot — 2026-08-31
 
 ## Reach
 
-- Public repository snapshot observed on 2026-08-30: **59 stars, 14 forks, and 2 subscribers/watchers**.
+- Public repository snapshot observed on 2026-08-31: **59 stars, 14 forks, and 2 subscribers/watchers**.
 - These are public reach signals only. They are not independent-adoption evidence.
 
 ## Maintenance
 
 - Public Apache-2.0 repository: `sui-ni2/personal-ai-os`.
 - First stable tagged release: `v0.2.0` at `934efa959d2487c6942951d90bb543b4104369f6`. A live GitHub Releases query returned **zero releases** on 2026-08-30, so this repository does not claim a published v0.2.0 GitHub Release, release notes, or release assets.
+- Stable `v0.3.0` is an annotated tag resolving to `8e14e857ffbae642268ea069c9b9d1f0c72f5cdd` and has a published [GitHub Release](https://github.com/sui-ni2/personal-ai-os/releases/tag/v0.3.0). PR #90 merged its release preparation to `main` as `e5275ef24d5154974c324121db41bb870bac049c` after five exact-SHA gates and a `ready_to_tag` verifier result.
 - Runnable local-first application with Chat, Projects, reviewed Memory, execution history, MCP tooling, OpenAI/Anthropic adapters, and optional local Ollama support; the runnable surface is documented in `README.md`.
 - Repository CI covers backend tests, frontend checks/builds, platform readiness, CodeQL, and dependency review; repository-admin hardening is tracked in Issue #39.
 - Executable maintainer helpers cover CI failure classification, dependency-update risk summaries, release-evidence verification, and external tester-feedback triage. Their fail-closed contracts and focused tests are documented in `docs/maintainer-automation.md`.
 - PR #74 remains a concrete dependency-maintenance example: Platform Readiness prevented two incomplete Dependabot upgrades from merging, the peer dependencies were aligned together, and the replacement passed the repository's required verification before merge.
 - Current `main` includes the merged dependency maintenance from PRs #77 and #78. The latest observed scheduled CodeQL run on that `main` commit completed successfully.
-- `release/v0.3.0` at `493717f091c8e0c427e473c35c1db01dc7392d2f` has a successful CI run, but lacks fresh exact-SHA CodeQL, Dependency Review, Platform Readiness, and Release provider smoke evidence. It remains release-blocked.
-- Five open issues are the external validation and continuity paths listed below; there are no open pull requests at this snapshot.
+- Dependabot alert #3 (`GHSA-2v37-7h3g-55p8` / `CVE-2026-67213`) was remediated by PR #89 and is recorded by GitHub as fixed on 2026-08-31; there are no open high-severity Dependabot alerts in this snapshot.
+- Four open issues are the external validation paths listed below; there are no open pull requests at this snapshot.
 
 These are project-health and reach signals. They are **not** counted here as proof that an independent user successfully adopted the software.
 
@@ -50,9 +51,9 @@ Negative results are valid evidence. A reproducible report explaining why setup 
 
 | Category | What qualifies | Current state |
 | --- | --- | --- |
-| Release maturity | Public tagged release and runnable documented paths | Verified (`v0.2.0`) |
+| Release maturity | Public tagged release and runnable documented paths | Verified (`v0.2.0`, `v0.3.0`) |
 | Maintenance | CI/security/repository governance and tested maintainer workflows with public evidence | Verified |
-| Reach | Stars/forks observed on a stated date | 59 stars / 14 forks on 2026-08-30 |
+| Reach | Stars/forks observed on a stated date | 59 stars / 14 forks on 2026-08-31 |
 | Independent install | First-hand report from a non-maintainer with environment/version and result | None verified yet |
 | Independent workflow use | First-hand real workflow report from a non-maintainer | None verified yet |
 | External contribution | Non-maintainer issue/PR tied to genuine use or a focused improvement | None verified yet |
