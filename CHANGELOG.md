@@ -6,6 +6,8 @@ This project follows Semantic Versioning for public releases.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-08-31
+
 ### Added
 
 - A guarded one-command Windows first-run bootstrap that validates Python/Node/pnpm prerequisites, preserves existing local configuration, installs repository dependencies, and runs the no-key readiness gate without a billable provider model call.
