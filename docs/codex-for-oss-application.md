@@ -1,6 +1,6 @@
 # Codex for Open Source application evidence
 
-**Observed 2026-08-30:** Personal AI OS is Apache-2.0 and publicly maintained. GitHub showed 59 stars, 14 forks, five open validation issues, and no open pull requests. `v0.2.0` is a tag, not a published GitHub Release. `release/v0.3.0` remains blocked pending fresh exact-SHA release gates. `INDEPENDENT_ADOPTION_VERIFIED = 0`.
+**Observed 2026-08-31:** Personal AI OS is Apache-2.0 and publicly maintained. GitHub showed 59 stars, 14 forks, four open validation issues, and no open pull requests. `v0.3.0` is an annotated tag with a published GitHub Release after five exact-SHA gates. `INDEPENDENT_ADOPTION_VERIFIED = 0`.
 
 ## Maintainer role
 
@@ -10,7 +10,7 @@ The primary maintainer performs architecture and boundary design, focused PR rev
 
 ### Reach
 
-59 stars and 14 forks are public reach signals as observed on 2026-08-30. They are not counted as adoption.
+59 stars and 14 forks are public reach signals as observed on 2026-08-31. They are not counted as adoption.
 
 ### Active maintenance
 
@@ -24,7 +24,7 @@ Providers are replaceable execution engines, while long-running work is commonly
 
 ### WHY_REPOSITORY_QUALIFIES
 
-Personal AI OS is an Apache-2.0, local-first, provider-neutral workspace for durable AI project state. As observed on 2026-08-30 it has 59 stars and 14 forks, plus active public CI, security, release-readiness, and privacy maintenance. It keeps Projects, reviewed Memory, tasks, decisions, outcomes, and work history user-controlled while providers remain replaceable. Independent adoption is not claimed.
+Personal AI OS is an Apache-2.0, local-first, provider-neutral workspace for durable AI project state. As observed on 2026-08-31 it has 59 stars, 14 forks, a published v0.3.0 Release, and active public CI, security, and privacy maintenance. It keeps Projects, reviewed Memory, tasks, decisions, outcomes, and work history user-controlled while providers remain replaceable. Independent adoption is not claimed.
 
 ### HOW_API_CREDITS_WILL_BE_USED
 

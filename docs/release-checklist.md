@@ -84,11 +84,21 @@ The checklist-only update also remained green before merge.
 - [x] Stable tag `v0.2.0` points to the intended verified `main` commit.
 - [x] Live GitHub evidence check on 2026-08-30 found the `v0.2.0` tag but **zero GitHub Releases**. This is a tagged release line only; no GitHub Release, notes, or assets are claimed.
 
-## v0.3.0 release candidate
+## v0.3.0 release
 
-**Remote base candidate:** `493717f091c8e0c427e473c35c1db01dc7392d2f`. Its CI backend and frontend jobs succeeded, but exact-SHA CodeQL, Dependency Review, Platform Readiness, and Release provider smoke evidence are missing. The candidate is **RELEASE_BLOCKED**.
+**Verified release candidate:** `8e14e857ffbae642268ea069c9b9d1f0c72f5cdd`.
 
-Before a `release/v0.3.0 -> main` PR can be called release-ready, freeze a new exact SHA and produce a fresh evidence bundle with exactly one successful result each for CI, CodeQL, Dependency Review, Platform Readiness, and Release provider smoke. Run `scripts/release_evidence_verifier.py` against that bundle; its only passing result is the authorization to enter normal release review, not to bypass review or publish a Release automatically.
+- [x] CI — success: [run 33351296808](https://github.com/sui-ni2/personal-ai-os/actions/runs/33351296808).
+- [x] CodeQL — success: [run 33351296814](https://github.com/sui-ni2/personal-ai-os/actions/runs/33351296814).
+- [x] Dependency Review — success: [run 33351296818](https://github.com/sui-ni2/personal-ai-os/actions/runs/33351296818).
+- [x] Platform Readiness — success: [run 33351296833](https://github.com/sui-ni2/personal-ai-os/actions/runs/33351296833).
+- [x] Release provider smoke — success: [run 33351296811](https://github.com/sui-ni2/personal-ai-os/actions/runs/33351296811). This is the release-branch real-provider gate, not an ordinary PR skip.
+- [x] `scripts/release_evidence_verifier.py` returned `ready_to_tag` with no blockers using GitHub's server time.
+- [x] Release PR [#90](https://github.com/sui-ni2/personal-ai-os/pull/90) merged to `main` as `e5275ef24d5154974c324121db41bb870bac049c`.
+- [x] Annotated tag `v0.3.0` resolves to the verified candidate SHA above and is reachable from `main`.
+- [x] [GitHub Release v0.3.0](https://github.com/sui-ni2/personal-ai-os/releases/tag/v0.3.0) was published on 2026-08-31.
+
+The verifier allowed normal release review; it did not replace the repository ruleset, release-PR merge, tag validation, or publication workflow.
 
 ## Fail-closed rule
 
