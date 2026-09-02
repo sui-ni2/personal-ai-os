@@ -41,6 +41,7 @@ test("daily Project, Memory, send scope, budget hard stop, execution, and reload
   await page.getByText("Add memory", { exact: true }).click();
   await page.getByLabel("Memory", { exact: true }).fill("daily-use-e2e=approved");
   await page.getByRole("button", { name: "Save memory" }).click();
+  await page.getByText("Add memory", { exact: true }).click();
   await page.getByRole("button", { name: "review" }).click();
   await expect(page.getByText("daily-use-e2e=approved")).toBeVisible();
   await page.getByRole("button", { name: "Accept" }).first().click();
@@ -61,6 +62,7 @@ test("daily Project, Memory, send scope, budget hard stop, execution, and reload
   await expect(memoryDialog).toBeHidden();
   await expect(saveMemory).toBeFocused();
 
+  await page.goto("/chat");
   await page.reload();
   await expect(page.getByText("Deterministic E2E response from openai")).toBeVisible();
 
