@@ -39,7 +39,7 @@ test("daily Project, Memory, send scope, budget hard stop, execution, and reload
 
   await page.goto("/memory");
   await page.getByText("Add memory", { exact: true }).click();
-  await page.getByLabel("Memory").fill("daily-use-e2e=approved");
+  await page.getByLabel("Memory", { exact: true }).fill("daily-use-e2e=approved");
   await page.getByRole("button", { name: "Save memory" }).click();
   await page.getByRole("button", { name: "review" }).click();
   await expect(page.getByText("daily-use-e2e=approved")).toBeVisible();
@@ -89,7 +89,12 @@ test("fallback consent, external confirmation, and recovery resume stay explicit
   await expect(page.getByText("Deterministic E2E response from anthropic")).toBeVisible();
 
   await page.getByRole("button", { name: "Use an advanced tool" }).click();
-  await page.getByLabel("Connector").selectOption({ label: /Deterministic external confirmation/ });
+  const connector = page.getByLabel("Connector");
+  const externalConnector = connector.getByRole("option", { name: /Deterministic external confirmation/ });
+  await expect(externalConnector).toBeAttached();
+  const connectorId = await externalConnector.getAttribute("value");
+  expect(connectorId).toBeTruthy();
+  await connector.selectOption(connectorId!);
   await composer.fill("Run the confirmed deterministic external fixture.");
   page.once("dialog", async (dialog) => {
     expect(dialog.message()).toContain("External tool action: external.echo");
@@ -124,8 +129,12 @@ test("keyboard, focus restoration, axe, and mobile viewport cover daily surfaces
     await page.goto(route);
     const results = await new AxeBuilder({ page }).include("main").analyze();
     expect(results.violations).toEqual([]);
+    const main = page.getByRole("main");
+    const initialFocusable = main.locator("a, button, input, select, textarea").first();
+    await initialFocusable.focus();
+    await expect(initialFocusable).toBeFocused();
     await page.keyboard.press("Tab");
-    await expect(page.locator(":focus")).toBeVisible();
+    await expect(main.locator(":focus")).toBeVisible();
   }
 
   await page.goto("/chat?new=1");
