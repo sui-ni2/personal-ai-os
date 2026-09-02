@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import base64
+import hashlib
 from collections.abc import AsyncIterator
 
 from fastapi.testclient import TestClient
@@ -130,8 +132,12 @@ def test_workflow_storage_is_physically_project_scoped(runtime) -> None:
         tenant_id=runtime.settings.tenant_id,
     )
     assert service.storage_path("soccer") != service.storage_path("p5")
-    assert service.storage_path("soccer").parent.name == "soccer"
-    assert service.storage_path("p5").parent.name == "p5"
+    assert service.storage_path("soccer").parent.name == base64.urlsafe_b64encode(
+        hashlib.sha256(b"soccer").digest()[:16]
+    ).decode("ascii").rstrip("=")
+    assert service.storage_path("p5").parent.name == base64.urlsafe_b64encode(
+        hashlib.sha256(b"p5").digest()[:16]
+    ).decode("ascii").rstrip("=")
 
 
 def test_workflow_does_not_leak_into_generic_memory(client: TestClient) -> None:

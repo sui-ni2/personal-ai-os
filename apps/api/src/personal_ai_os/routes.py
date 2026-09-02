@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 from contextlib import aclosing
 import json
+import os
 import re
 import sqlite3
 from typing import Annotated
@@ -20,6 +21,7 @@ from .runtime import Runtime
 from .schemas import (
     ArtifactCreate,
     ChatRequest,
+    CoreDataEraseRequest,
     ConversationCreate,
     MCPConnectorCreate,
     MCPConnectorUpdate,
@@ -283,6 +285,74 @@ def project_detail(project_id: str, request: Request) -> dict[str, object]:
         return runtime_from(request).projects.describe(project_id)
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.get("/doctor")
+def doctor_report(request: Request) -> dict[str, object]:
+    """Produce a support-safe browser report without exposing runtime values or paths."""
+    runtime = runtime_from(request)
+    try:
+        with runtime.database.connect() as connection:
+            integrity = connection.execute("PRAGMA integrity_check").fetchone()[0]
+            migration_version = int(
+                connection.execute("SELECT COALESCE(MAX(version), 0) FROM schema_migrations").fetchone()[0]
+            )
+        database = {
+            "status": "ok" if integrity == "ok" else "attention",
+            "integrity": integrity if integrity == "ok" else "attention",
+            "migration_version": migration_version,
+        }
+    except sqlite3.Error:
+        database = {"status": "attention", "integrity": "unavailable", "migration_version": None}
+
+    data_dir = runtime.settings.data_dir
+    recovery_dir = data_dir / "recovery"
+    return {
+        "report": "personal-ai-os-doctor-browser-v1",
+        "safe_to_share": True,
+        "redaction": "Credential values, headers, cookies, paths, conversations, memory text, project state, and provider responses are excluded.",
+        "database": database,
+        "data_directory": {
+            "exists": data_dir.is_dir(),
+            "writable": os.access(data_dir if data_dir.exists() else data_dir.parent, os.W_OK),
+        },
+        "providers": {
+            "configured": {item["id"]: bool(item["configured"]) for item in runtime.providers.describe()},
+            "values_exposed": False,
+        },
+        "projects": {"registered_count": len(runtime.projects.list()), "names_exposed": False},
+        "recovery": {
+            "metadata_file_count": len(list(recovery_dir.glob("*.sqlite3"))) if recovery_dir.is_dir() else 0,
+            "details_exposed": False,
+        },
+        "limitations": [
+            "This browser report does not validate a live provider request.",
+            "Windows signing, Docker Desktop, physical devices, and screen readers require separate external validation.",
+        ],
+    }
+
+
+@router.get("/data/core-export")
+def export_core_data(request: Request) -> dict[str, object]:
+    return runtime_from(request).database.export_core_tenant_data()
+
+
+@router.post("/data/core-erase")
+def erase_core_data(payload: CoreDataEraseRequest, request: Request) -> dict[str, object]:
+    runtime = runtime_from(request)
+    user_project_ids = [item.id for item in runtime.database.list_user_projects()]
+    deleted = runtime.database.erase_core_tenant_data()
+    for project_id in user_project_ids:
+        runtime.projects.unregister(project_id)
+    return {
+        "status": "core_data_erased",
+        "deleted": deleted,
+        "retained_scopes": [
+            "private project-state databases and recovery metadata",
+            "project-native data stores, workspace files, and backup archives",
+            "server-side provider credentials and access-control configuration",
+        ],
+    }
 
 
 @router.get("/conversations")

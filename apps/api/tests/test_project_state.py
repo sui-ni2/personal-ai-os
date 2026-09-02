@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import base64
+import hashlib
+import sqlite3
 from collections.abc import AsyncIterator
 
 from fastapi.testclient import TestClient
@@ -53,9 +56,61 @@ def test_project_state_uses_separate_private_database_per_project(runtime) -> No
 
     assert general_path != p5_path != soccer_path
     assert "private" in general_path.parts
-    assert general_path.name == "state.sqlite3"
-    assert p5_path.name == "state.sqlite3"
-    assert soccer_path.name == "state.sqlite3"
+    assert general_path.name == "s.db"
+    assert p5_path.name == "s.db"
+    assert soccer_path.name == "s.db"
+    assert general_path.parent.name == base64.urlsafe_b64encode(
+        hashlib.sha256(b"general").digest()[:16]
+    ).decode("ascii").rstrip("=")
+    assert "general" not in general_path.parts
+
+
+def test_project_state_migrates_legacy_raw_directory_without_deleting_it(runtime) -> None:
+    service = ProjectStateService(runtime.database)
+    legacy_path = (
+        runtime.settings.data_dir
+        / "private"
+        / "project-state"
+        / hashlib.sha256(runtime.settings.tenant_id.encode("utf-8")).hexdigest()[:16]
+        / "general"
+        / "state.sqlite3"
+    )
+    legacy_path.parent.mkdir(parents=True)
+    with sqlite3.connect(legacy_path) as connection:
+        service._migrate(connection)
+        connection.execute(
+            "INSERT INTO current_state(namespace, key, value_json, source, confidence, version, status, created_at, updated_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                "workflow",
+                "legacy",
+                '{"preserved":true}',
+                "legacy-fixture",
+                1,
+                1,
+                "active",
+                "2026-09-02T00:00:00+00:00",
+                "2026-09-02T00:00:00+00:00",
+            ),
+        )
+
+    states = service.list_state("general")
+
+    assert states[0]["value"] == {"preserved": True}
+    assert legacy_path.exists()
+    assert service.storage_path("general").exists()
+    assert service.storage_path("general") != legacy_path
+
+
+def test_project_state_rejects_path_segments(runtime) -> None:
+    service = ProjectStateService(runtime.database)
+
+    for project_id in (".", "..", "../general", "general/other"):
+        try:
+            service.storage_path(project_id)
+        except ValueError:
+            continue
+        raise AssertionError(f"{project_id!r} was accepted as a project storage identifier")
 
 def test_project_state_upsert_keeps_one_current_value_and_history(client: TestClient) -> None:
     first = client.put(
