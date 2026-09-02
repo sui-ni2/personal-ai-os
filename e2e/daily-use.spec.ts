@@ -75,7 +75,7 @@ test("daily Project, Memory, send scope, budget hard stop, execution, and reload
   await page.goto("/chat?new=1");
   await composer.fill("This deterministic request must stop at the budget.");
   await page.getByRole("button", { name: /Send/ }).click();
-  await expect(page.getByRole("alert")).toContainText("Budget hard limit reached. No provider request was sent.");
+  await expect(page.locator('article[role="alert"]')).toContainText("Budget hard limit reached. No provider request was sent.");
 });
 
 test("fallback consent, external confirmation, and recovery resume stay explicit", async ({ page, request }, testInfo) => {
