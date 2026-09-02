@@ -10,17 +10,54 @@ from importlib import metadata
 from pathlib import Path
 from typing import Any
 
+try:
+    from personal_ai_os.config import CANONICAL_DATABASE_FILENAME, LEGACY_DATABASE_FILENAMES
+except ModuleNotFoundError:
+    # Keep the support script runnable from an uninstalled source checkout.
+    CANONICAL_DATABASE_FILENAME = "personal_ai_os.db"
+    LEGACY_DATABASE_FILENAMES = ("personal-ai-os.db",)
 
-def _database_health(path: Path) -> dict[str, Any]:
+
+def _database_health(path: Path, *, location: str) -> dict[str, Any]:
     if not path.exists():
-        return {"status": "missing", "integrity": "not_applicable", "migration_version": 0}
+        return {
+            "status": "missing",
+            "integrity": "not_applicable",
+            "migration_version": 0,
+            "location": location,
+        }
     try:
         with sqlite3.connect(path) as connection:
             integrity = connection.execute("PRAGMA integrity_check").fetchone()[0]
             version = connection.execute("SELECT COALESCE(MAX(version), 0) FROM schema_migrations").fetchone()[0]
-        return {"status": "ok" if integrity == "ok" else "attention", "integrity": integrity, "migration_version": int(version)}
+        return {
+            "status": "ok" if integrity == "ok" else "attention",
+            "integrity": integrity,
+            "migration_version": int(version),
+            "location": location,
+        }
     except sqlite3.Error:
-        return {"status": "attention", "integrity": "unavailable", "migration_version": None}
+        return {
+            "status": "attention",
+            "integrity": "unavailable",
+            "migration_version": None,
+            "location": location,
+        }
+
+
+def _database_report(data_dir: Path) -> dict[str, Any]:
+    canonical = data_dir / CANONICAL_DATABASE_FILENAME
+    if canonical.exists():
+        return _database_health(canonical, location="canonical")
+
+    for filename in LEGACY_DATABASE_FILENAMES:
+        legacy = data_dir / filename
+        if legacy.exists():
+            report = _database_health(legacy, location="legacy")
+            report["status"] = "legacy_detected"
+            return report
+
+    return _database_health(canonical, location="canonical")
 
 
 def _port_state(port: int) -> str:
@@ -66,7 +103,6 @@ def _update_state(path: Path) -> dict[str, object]:
 def collect_report(data_dir: Path, install_dir: Path | None = None) -> dict[str, Any]:
     data_dir = data_dir.resolve()
     install_dir = (install_dir or data_dir.parent).resolve()
-    database = data_dir / "personal-ai-os.db"
     free = shutil.disk_usage(data_dir if data_dir.exists() else data_dir.parent).free
     provider_state = {
         "openai": bool(os.getenv("PERSONAL_AI_OS_OPENAI_API_KEY")),
@@ -88,7 +124,7 @@ def collect_report(data_dir: Path, install_dir: Path | None = None) -> dict[str,
             "writable": os.access(data_dir if data_dir.exists() else data_dir.parent, os.W_OK),
             "free_bytes": free,
         },
-        "database": _database_health(database),
+        "database": _database_report(data_dir),
         "providers": {"configured": provider_state, "values_exposed": False},
         "ollama": {"configured": provider_state["ollama_enabled"], "loopback_port": _port_state(11434)},
         "ports": {"api_8000": _port_state(8000), "web_3000": _port_state(3000)},

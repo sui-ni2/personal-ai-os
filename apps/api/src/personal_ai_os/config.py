@@ -11,6 +11,8 @@ from personal_ai_os_core import DeploymentMode, PlanId
 
 DEFAULT_REALTIME_ENDPOINT = "https://api.openai.com/v1/realtime/calls"
 DEFAULT_OLLAMA_ENDPOINT = "http://127.0.0.1:11434/v1/chat/completions"
+CANONICAL_DATABASE_FILENAME = "personal_ai_os.db"
+LEGACY_DATABASE_FILENAMES = ("personal-ai-os.db",)
 
 
 def _csv(value: str) -> tuple[str, ...]:
@@ -222,7 +224,7 @@ class Settings:
 
     @property
     def database_path(self) -> Path:
-        return self.data_dir / "personal_ai_os.db"
+        return self.data_dir / CANONICAL_DATABASE_FILENAME
 
     @property
     def realtime_key(self) -> str | None:
