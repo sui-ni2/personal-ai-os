@@ -951,6 +951,81 @@ class Database:
                 (self.tenant_id, key, value, _now()),
             )
 
+    def export_core_tenant_data(self) -> dict[str, object]:
+        """Return a portable, credential-free view of the current tenant's core database data.
+
+        This deliberately excludes connector endpoints, commands and error details because those
+        strings can contain credentials.  Project-private databases and project-native stores have
+        separate retention lifecycles and are not represented as a complete account export here.
+        """
+        queries = {
+            "user_projects": "SELECT id, name, description, created_at FROM user_projects WHERE tenant_id = ? ORDER BY created_at, id",
+            "conversations": "SELECT id, title, provider, model, project_id, created_at, updated_at FROM conversations WHERE tenant_id = ? ORDER BY created_at, id",
+            "messages": "SELECT messages.id, messages.conversation_id, messages.role, messages.content, messages.tool_refs_json, messages.created_at FROM messages JOIN conversations ON conversations.id = messages.conversation_id WHERE conversations.tenant_id = ? ORDER BY messages.created_at, messages.id",
+            "memories": "SELECT id, type, text, source, confidence, valid_from, status, project_id, created_at, updated_at, provenance_json, source_reference, conflict_key, last_used_at, why_used FROM memories WHERE tenant_id = ? ORDER BY created_at, id",
+            "artifacts": "SELECT id, kind, locator, title, metadata_json, project_id, created_at FROM artifacts WHERE tenant_id = ? ORDER BY created_at, id",
+            "repository_events": "SELECT id, event_type, summary, artifact_id, project_id, details_json, created_at FROM repository_events WHERE tenant_id = ? ORDER BY created_at, id",
+            "execution_events": "SELECT id, conversation_id, type, status, tool, duration_ms, payload_json, created_at FROM execution_events WHERE tenant_id = ? ORDER BY created_at, id",
+            "send_scope_receipts": "SELECT id, conversation_id, project_id, provider, model, selected_files_json, reviewed_memory_ids_json, tool_availability_json, context_categories_json, approximate_context_tokens, context_precision, status, created_at FROM send_scope_receipts WHERE tenant_id = ? ORDER BY created_at, id",
+            "usage_ledger": "SELECT id, conversation_id, project_id, provider, model, status, input_tokens, output_tokens, token_precision, cost_usd, cost_precision, latency_ms, created_at FROM usage_ledger WHERE tenant_id = ? ORDER BY created_at, id",
+            "budget_policies": "SELECT scope_type, scope_id, period, limit_tokens, warn_percent, hard_limit, updated_at FROM budget_policies WHERE tenant_id = ? ORDER BY scope_type, scope_id, period",
+            "budget_reservations": "SELECT id, project_id, reserved_tokens, status, reason, execution_id, expires_at, created_at, settled_at FROM budget_reservations WHERE tenant_id = ? ORDER BY created_at, id",
+            "tool_action_confirmations": "SELECT id, project_id, connector_id, tool_name, arguments_digest, preview_json, status, expires_at, created_at, confirmed_at, consumed_at, actor_id FROM tool_action_confirmations WHERE tenant_id = ? ORDER BY created_at, id",
+            "execution_runs": "SELECT id, conversation_id, project_id, provider, model, status, retry_status, side_effect_status, detail_json, created_at, updated_at FROM execution_runs WHERE tenant_id = ? ORDER BY created_at, id",
+            "settings": "SELECT key, value, updated_at FROM tenant_settings WHERE tenant_id = ? AND key IN ('default_provider', 'default_model', 'routing_policy', 'fallback_provider', 'fallback_model') ORDER BY key",
+            "connector_metadata": "SELECT id, name, transport, enabled, allowed_tools_json, connection_status, timeout_seconds, created_at, updated_at FROM mcp_connectors WHERE tenant_id = ? ORDER BY created_at, id",
+        }
+        with self.connect() as connection:
+            data = {
+                name: [dict(row) for row in connection.execute(query, (self.tenant_id,)).fetchall()]
+                for name, query in queries.items()
+            }
+        return {
+            "format": "personal-ai-os-core-data-export-v1",
+            "credentials_included": False,
+            "excluded_scopes": [
+                "provider credentials and authentication secrets",
+                "connector endpoints, commands, and error details",
+                "private project-state databases and recovery metadata",
+                "project-native data stores, workspace files, and backup archives",
+            ],
+            "data": data,
+        }
+
+    def erase_core_tenant_data(self) -> dict[str, int]:
+        """Atomically remove core database records for the active tenant only.
+
+        The caller is responsible for explicit confirmation and for presenting the excluded
+        filesystem scopes before invoking this operation.
+        """
+        statements = (
+            ("messages", "DELETE FROM messages WHERE conversation_id IN (SELECT id FROM conversations WHERE tenant_id = ? )"),
+            ("execution_events", "DELETE FROM execution_events WHERE tenant_id = ?"),
+            ("send_scope_receipts", "DELETE FROM send_scope_receipts WHERE tenant_id = ?"),
+            ("usage_ledger", "DELETE FROM usage_ledger WHERE tenant_id = ?"),
+            ("budget_reservations", "DELETE FROM budget_reservations WHERE tenant_id = ?"),
+            ("budget_policies", "DELETE FROM budget_policies WHERE tenant_id = ?"),
+            ("tool_action_confirmations", "DELETE FROM tool_action_confirmations WHERE tenant_id = ?"),
+            ("execution_runs", "DELETE FROM execution_runs WHERE tenant_id = ?"),
+            ("mcp_connectors", "DELETE FROM mcp_connectors WHERE tenant_id = ?"),
+            ("memories", "DELETE FROM memories WHERE tenant_id = ?"),
+            ("artifacts", "DELETE FROM artifacts WHERE tenant_id = ?"),
+            ("repository_events", "DELETE FROM repository_events WHERE tenant_id = ?"),
+            ("user_projects", "DELETE FROM user_projects WHERE tenant_id = ?"),
+            ("tenant_settings", "DELETE FROM tenant_settings WHERE tenant_id = ?"),
+            ("tenant_entitlements", "DELETE FROM tenant_entitlements WHERE tenant_id = ?"),
+            ("conversations", "DELETE FROM conversations WHERE tenant_id = ?"),
+        )
+        with self.connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            deleted = {
+                name: connection.execute(statement, (self.tenant_id,)).rowcount
+                for name, statement in statements
+            }
+            if self.tenant_id == "local":
+                deleted["legacy_app_settings"] = connection.execute("DELETE FROM app_settings").rowcount
+        return deleted
+
     def sync_entitlements(self, values: dict[str, bool]) -> None:
         now = _now()
         with self.connect() as connection:

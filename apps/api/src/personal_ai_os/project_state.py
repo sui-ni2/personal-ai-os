@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import base64
 import hashlib
 import json
+import os
 import sqlite3
+import tempfile
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -24,13 +27,30 @@ def _now() -> str:
 
 
 def _safe_project_id(project_id: str) -> str:
-    if not project_id or any(ch not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.-" for ch in project_id):
+    if (
+        not project_id
+        or project_id in {".", ".."}
+        or any(
+            ch not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.-"
+            for ch in project_id
+        )
+    ):
         raise ValueError("project_id contains unsupported path characters")
     return project_id
 
 
 def _tenant_scope(tenant_id: str) -> str:
     return hashlib.sha256(tenant_id.encode("utf-8")).hexdigest()[:16]
+
+
+def _project_storage_key(project_id: str) -> str:
+    """Return a 128-bit opaque on-disk key for a validated project identifier.
+
+    Keeping the key compact avoids exceeding the Windows legacy path limit in deep data roots
+    while retaining a collision space far beyond the supported project-registry cardinality.
+    """
+    digest = hashlib.sha256(project_id.encode("utf-8")).digest()[:16]
+    return base64.urlsafe_b64encode(digest).decode("ascii").rstrip("=")
 
 
 class ProjectStateConflict(RuntimeError):
@@ -57,7 +77,7 @@ class ProjectStateService:
     """Private, project-scoped continuity state with physical project isolation.
 
     Public source code defines the protocol only. Runtime values are stored in a separate SQLite
-    database for each project under ``data/private/project-state``. The main repository database is
+    database for each project under ``data/private/p``. The main repository database is
     used only for audit events, so project state does not leak into the generic Memory listing.
     """
 
@@ -74,18 +94,85 @@ class ProjectStateService:
 
     def storage_path(self, project_id: str) -> Path:
         project = _safe_project_id(project_id)
-        return (
-            self.data_dir
-            / "private"
-            / "project-state"
-            / _tenant_scope(self.tenant_id)
-            / project
-            / "state.sqlite3"
+        return self._storage_root() / _project_storage_key(project) / "s.db"
+
+    def _storage_root(self) -> Path:
+        # Keep the fixed segments compact: SQLite also creates journal/WAL files beside the database,
+        # and deep Windows data roots otherwise exceed the legacy path-length limit.
+        return self.data_dir / "private" / "p" / _tenant_scope(self.tenant_id)
+
+    def _legacy_storage_root(self) -> Path:
+        return self.data_dir / "private" / "project-state" / _tenant_scope(self.tenant_id)
+
+    def _legacy_storage_path(self, project_id: str) -> Path | None:
+        """Find a pre-v0.4 private database without constructing a path from user input.
+
+        Older releases used the project identifier as a directory name.  We inspect only direct
+        children of the fixed tenant root, resolve each candidate, and reject a symlink that
+        escapes that root.  The identifier is used solely as a filename comparison.
+        """
+        root = self._legacy_storage_root()
+        if not root.is_dir():
+            return None
+        resolved_root = root.resolve()
+        for candidate in root.iterdir():
+            if candidate.name != project_id or not candidate.is_dir():
+                continue
+            resolved_candidate = candidate.resolve()
+            if resolved_candidate.parent != resolved_root:
+                return None
+            database = resolved_candidate / "state.sqlite3"
+            if not database.is_file():
+                return None
+            resolved_database = database.resolve()
+            if resolved_database.parent != resolved_candidate:
+                return None
+            return resolved_database
+        return None
+
+    @staticmethod
+    def _copy_database_once(source: Path, target: Path) -> None:
+        """Copy a legacy SQLite database atomically, preserving the original as a rollback source."""
+        target.parent.mkdir(parents=True, exist_ok=True)
+        if target.exists():
+            return
+
+        descriptor, temporary_name = tempfile.mkstemp(
+            prefix="m-", suffix="", dir=target.parent
         )
+        os.close(descriptor)
+        temporary = Path(temporary_name)
+        try:
+            source_connection = sqlite3.connect(source)
+            target_connection = sqlite3.connect(temporary)
+            try:
+                source_connection.backup(target_connection)
+            finally:
+                # sqlite3.Connection's context manager commits but does not close.  Close both
+                # handles before publishing and unlinking on Windows.
+                target_connection.close()
+                source_connection.close()
+            try:
+                # A hard link is an atomic no-overwrite publish on the same volume.  A concurrent
+                # initializer that won the race keeps its database; both copies have the same source.
+                os.link(temporary, target)
+            except FileExistsError:
+                return
+        finally:
+            temporary.unlink(missing_ok=True)
+
+    def _preserve_legacy_storage(self, project_id: str, target: Path) -> None:
+        if target.exists():
+            return
+        legacy = self._legacy_storage_path(project_id)
+        if legacy is not None:
+            self._copy_database_once(legacy, target)
 
     @contextmanager
     def _connect(self, project_id: str) -> Iterator[sqlite3.Connection]:
-        path = self.storage_path(project_id)
+        project = _safe_project_id(project_id)
+        path = self.storage_path(project)
+        self._preserve_legacy_storage(project, path)
         path.parent.mkdir(parents=True, exist_ok=True)
         connection = sqlite3.connect(path, timeout=10)
         connection.row_factory = sqlite3.Row

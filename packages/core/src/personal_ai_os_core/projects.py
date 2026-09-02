@@ -45,6 +45,13 @@ class ProjectRegistry:
             raise ValueError(f"Project already registered: {project_id}")
         self._plugins[project_id] = plugin
 
+    def unregister(self, project_id: str) -> None:
+        """Remove a runtime-only user project after its persisted record was explicitly erased."""
+        try:
+            del self._plugins[project_id]
+        except KeyError as exc:
+            raise KeyError(f"Unknown project: {project_id}") from exc
+
     def get(self, project_id: str) -> ProjectPlugin:
         try:
             return self._plugins[project_id]

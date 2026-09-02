@@ -251,3 +251,8 @@ class MCPConnectorUpdate(BaseModel):
 class SettingsUpdate(BaseModel):
     default_provider: str | None = None
     default_model: str | None = None
+
+
+class CoreDataEraseRequest(BaseModel):
+    confirmation: Literal["ERASE_CORE_DATA"]
+    export_acknowledged: Literal[True]

@@ -25,10 +25,15 @@ The repository ignores SQLite databases and common private-state directories.
 Project state is not stored in the generic Memory table. Each project gets a physically separate private SQLite database under the runtime data directory:
 
 ```text
-data/private/project-state/<tenant-scope>/<project-id>/state.sqlite3
+data/private/p/<tenant-scope>/<opaque-project-key>/s.db
 ```
 
-The public implementation knows only the generic project ID and state protocol. A project database contains only that project's current state, version history, experience ledger, workflow runs, and transition receipts.
+The `opaque-project-key` is a compact one-way key derived from a validated project ID; a raw
+project ID is never embedded in a new storage path. Existing pre-v0.4 databases under
+`data/private/project-state/<tenant-scope>/<project-id>/state.sqlite3` are discovered only inside
+that fixed legacy root, copied into the new private location on first use, and left in place as a
+rollback source. A project database contains only that project's current state, version history,
+experience ledger, workflow runs, and transition receipts.
 
 Sharing the persistence engine does **not** mean sharing project data. For example:
 
