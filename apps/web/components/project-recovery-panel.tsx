@@ -96,7 +96,7 @@ export function ProjectRecoveryPanel({ projectId, projectName }: Props) {
   }
 
   return (
-    <section className="mt-4 border-t border-line pt-4" aria-label={`${projectName} restart recovery`}>
+    <section className="mt-4 border-t border-line pt-4" aria-label={`Restart recovery for ${projectName} (${projectId})`}>
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className="eyebrow">Restart recovery</p>

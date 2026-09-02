@@ -15,6 +15,7 @@ class ToolRequest(BaseModel):
     name: str
     arguments: dict[str, Any] = Field(default_factory=dict)
     connector_id: str | None = None
+    confirmation_id: str | None = Field(default=None, min_length=1, max_length=128)
 
 
 class ChatRequest(BaseModel):
@@ -24,6 +25,43 @@ class ChatRequest(BaseModel):
     project_id: str = "general"
     content: str = Field(min_length=1, max_length=100_000)
     tool: ToolRequest | None = None
+    send_scope_receipt_id: str | None = Field(default=None, min_length=1, max_length=128)
+    allow_fallback: bool = False
+
+
+class SendScopePreviewRequest(BaseModel):
+    provider: str
+    model: str
+    project_id: str = "general"
+    content: str = Field(min_length=1, max_length=100_000)
+    conversation_id: str | None = None
+    tool: ToolRequest | None = None
+
+
+class ToolActionPreviewRequest(BaseModel):
+    project_id: str = "general"
+    connector_id: str = Field(min_length=1, max_length=128)
+    tool_name: str = Field(min_length=1, max_length=200)
+    arguments: dict[str, Any] = Field(default_factory=dict)
+
+
+class ToolActionConfirmation(BaseModel):
+    confirmed: Literal[True]
+
+
+class BudgetPolicyUpdate(BaseModel):
+    scope_type: Literal["tenant", "project"]
+    scope_id: str = Field(min_length=1, max_length=120)
+    period: Literal["daily", "weekly", "monthly"]
+    limit_tokens: int = Field(ge=1, le=10_000_000_000)
+    warn_percent: int = Field(default=80, ge=1, le=100)
+    hard_limit: bool = True
+
+
+class RoutingSettingsUpdate(BaseModel):
+    policy: Literal["STRICT_PROVIDER", "FALLBACK_ALLOWED", "ASK_BEFORE_FALLBACK"]
+    fallback_provider: str | None = Field(default=None, max_length=80)
+    fallback_model: str | None = Field(default=None, max_length=200)
 
 
 class ConversationCreate(BaseModel):
@@ -54,6 +92,9 @@ class MemoryCreate(BaseModel):
     valid_from: datetime | None = None
     status: MemoryStatus = MemoryStatus.ACTIVE
     project_id: str | None = None
+    provenance: dict[str, Any] = Field(default_factory=dict)
+    source_reference: str | None = Field(default=None, max_length=500)
+    conflict_key: str | None = Field(default=None, max_length=160)
 
 
 class MemoryUpdate(BaseModel):
@@ -64,6 +105,15 @@ class MemoryUpdate(BaseModel):
     valid_from: datetime | None = None
     status: MemoryStatus | None = None
     project_id: str | None = None
+    provenance: dict[str, Any] | None = None
+    source_reference: str | None = Field(default=None, max_length=500)
+    conflict_key: str | None = Field(default=None, max_length=160)
+    why_used: str | None = Field(default=None, max_length=500)
+
+
+class MemoryConflictResolution(BaseModel):
+    action: Literal["keep_existing", "replace", "merge", "keep_both"]
+    scope_project_id: str | None = Field(default=None, max_length=80, pattern=r"^[A-Za-z0-9_.-]+$")
 
 
 class ProjectStatePut(BaseModel):
@@ -148,6 +198,7 @@ class MCPInvokeRequest(BaseModel):
     tool_name: str
     arguments: dict[str, Any] = Field(default_factory=dict)
     connector_id: str | None = None
+    confirmation_id: str | None = Field(default=None, min_length=1, max_length=128)
 
 
 class MCPConnectorCreate(BaseModel):

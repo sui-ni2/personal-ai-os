@@ -13,6 +13,8 @@ from personal_ai_os_projects import UserProject
 from . import __version__
 from .auth import AccessProtectionMiddleware, create_auth_router
 from .config import Settings
+from .project_control_routes import router as project_control_router
+from .governance_routes import router as governance_router
 from .p5_routes import router as p5_router
 from .project_handoff_routes import router as project_handoff_router
 from .project_recovery_routes import router as project_recovery_router
@@ -65,7 +67,9 @@ def create_app(settings: Settings | None = None, runtime: Runtime | None = None)
         return {"status": "ok", "version": __version__}
 
     app.include_router(router)
+    app.include_router(governance_router)
     app.include_router(project_state_router)
+    app.include_router(project_control_router)
     app.include_router(project_workflow_router)
     app.include_router(project_handoff_router)
     app.include_router(project_recovery_router)

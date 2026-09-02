@@ -6,6 +6,7 @@ import { ArrowRight, CircleDot, Code2, Dices, FolderKanban, Microscope, Sparkles
 import { apiJson } from "@/lib/api";
 import { ProjectHandoffPanel } from "@/components/project-handoff-panel";
 import { ProjectRecoveryPanel } from "@/components/project-recovery-panel";
+import { ProjectControlCenter } from "@/components/project-control-center";
 import { EmptyState, ErrorState, LoadingState } from "@/components/ui-states";
 
 type Project = { id: string; name: string; description: string; icon: string; status: string };
@@ -42,6 +43,7 @@ export function ProjectsGrid() {
   const [newProjectName, setNewProjectName] = useState("");
   const [newProjectDescription, setNewProjectDescription] = useState("");
   const [createError, setCreateError] = useState<string | null>(null);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
 
   useEffect(() => {
     void apiJson<{ items: Project[] }>("/api/projects")
@@ -113,7 +115,7 @@ export function ProjectsGrid() {
                 <p className="mt-2 flex-1 text-sm leading-6 text-text-secondary">{item.description}</p>
                 <div className="mt-6 flex items-center justify-between gap-4 border-t border-line pt-4 sm:mt-7">
                   <span className="min-w-0 text-xs text-text-tertiary"><span className="block">Last activity</span><span className="mt-0.5 block truncate text-text-secondary" title={activity?.summary}>{activity ? timeAgo(activity.created_at) : "No activity yet"}</span></span>
-                  <Link href={item.id === "p5" ? "/projects/p5" : `/chat?project=${encodeURIComponent(item.id)}`} className="button-quiet px-2 text-accent-hover">Open <ArrowRight aria-hidden size={15} /></Link>
+                  <div className="flex items-center gap-1"><button className="button-quiet px-2 text-accent-hover" onClick={() => setSelectedProjectId(item.id)}>Control</button><Link href={item.id === "p5" ? "/projects/p5" : `/chat?project=${encodeURIComponent(item.id)}`} className="button-quiet px-2 text-accent-hover">Open <ArrowRight aria-hidden size={15} /></Link></div>
                 </div>
                 <ProjectHandoffPanel projectId={item.id} projectName={item.name} />
                 <ProjectRecoveryPanel projectId={item.id} projectName={item.name} />
@@ -121,6 +123,7 @@ export function ProjectsGrid() {
             );
           })}
         </div>
+        {selectedProjectId ? <ProjectControlCenter projectId={selectedProjectId} /> : null}
       </section>
 
       <section aria-labelledby="planned-projects">

@@ -1,7 +1,7 @@
 export type SseEvent = {
   id: string;
-  type: "message" | "tool_start" | "tool_result" | "error" | "done";
-  status: "started" | "running" | "succeeded" | "failed";
+  type: "context" | "routing" | "message" | "tool_start" | "tool_result" | "error" | "done";
+  status: "started" | "running" | "succeeded" | "failed" | "cancelled" | "interrupted" | "outcome_unknown" | "retry_safe" | "retry_requires_confirmation";
   conversation_id?: string;
   tool?: string;
   duration_ms?: number;

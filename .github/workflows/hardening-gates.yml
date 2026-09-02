@@ -1,0 +1,92 @@
+name: v0.4 Hardening Gates
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  migration-and-governance:
+    name: Migration, governance, privacy, recovery
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install Python dependencies
+        run: python -m pip install -r requirements-dev.txt
+      - name: Run migration and governance failure matrix
+        run: >-
+          python -m pytest -q
+          apps/api/tests/test_migration_safety.py
+          apps/api/tests/test_governance.py
+          apps/api/tests/test_governance_adversarial.py
+          apps/api/tests/test_execution_recovery_states.py
+          apps/api/tests/test_provider_faults.py
+          apps/api/tests/test_send_scope_invariant.py
+          apps/api/tests/test_memory_workbench.py
+          apps/api/tests/test_doctor.py
+      - name: Compile production Python sources
+        run: python -m compileall -q apps/api/src packages
+
+  windows-artifact-contract:
+    name: Windows artifact and rollback contract
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install Python dependencies
+        run: python -m pip install -r requirements-dev.txt
+      - name: Parse Windows distribution scripts
+        shell: pwsh
+        run: |
+          $errors = @()
+          foreach ($path in @('scripts/build-windows-distribution.ps1', 'scripts/install-windows-distribution.ps1')) {
+            $tokens = $null
+            $parseErrors = $null
+            [void][System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $path), [ref]$tokens, [ref]$parseErrors)
+            $errors += $parseErrors
+          }
+          if ($errors.Count -ne 0) { $errors | Format-List | Out-String | Write-Error; exit 1 }
+      - name: Run deterministic package/install/rollback fixtures
+        run: python -m pytest -q apps/api/tests/test_windows_distribution_contract.py
+
+  browser-daily-use:
+    name: Chromium daily-use and accessibility
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 11.16.0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: pnpm
+      - name: Install Python dependencies
+        run: python -m pip install -r requirements-dev.txt
+      - name: Install JavaScript dependencies from the frozen lockfile
+        run: pnpm install --frozen-lockfile
+      - name: Install Chromium for Playwright
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Run browser daily-use and axe gates
+        run: pnpm test:e2e
+      - name: Upload browser diagnostics
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: playwright-artifacts-${{ github.sha }}
+          path: output/playwright/
+          if-no-files-found: ignore

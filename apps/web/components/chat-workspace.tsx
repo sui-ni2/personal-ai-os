@@ -43,6 +43,18 @@ type MemoryKind = "fact" | "preference" | "rule" | "project";
 type MemoryTarget = UiMessage & { index: number };
 type RecoverySession = { session_id: string; recovery_version: number };
 type RecoveryInspection = { status: "clean" | "possibly_interrupted" | "recovery_available" | "insufficient_evidence" };
+type SendScope = {
+  id?: string;
+  provider: string;
+  model: string;
+  project_id: string;
+  selected_files: string[];
+  reviewed_memory_ids: string[];
+  tool_availability: { connector_id: string; tool: string; confirmation_required: boolean }[];
+  context_categories: string[];
+  approximate_context_tokens: number;
+  context_precision: "ESTIMATED" | "EXACT" | "UNKNOWN";
+};
 
 const ACTIVE_CONVERSATION_KEY = "personal-ai-os.active-conversation";
 const mobilePreview = process.env.NEXT_PUBLIC_PERSONAL_AI_OS_MOBILE_PREVIEW === "true";
@@ -65,6 +77,7 @@ export function ChatWorkspace() {
   const [conversationId, setConversationId] = useState<string>();
   const [input, setInput] = useState("");
   const [useMcp, setUseMcp] = useState(false);
+  const [allowFallback, setAllowFallback] = useState(false);
   const [connectorId, setConnectorId] = useState("local-reference");
   const [toolName, setToolName] = useState("system.echo");
   const [messages, setMessages] = useState<UiMessage[]>([]);
@@ -85,6 +98,7 @@ export function ChatWorkspace() {
   const [memoryText, setMemoryText] = useState("");
   const [memoryState, setMemoryState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [recoveryNotice, setRecoveryNotice] = useState("");
+  const [sendScope, setSendScope] = useState<SendScope>();
   const conversationRef = useRef<HTMLDivElement>(null);
   const historyDialogRef = useRef<HTMLElement>(null);
   const historyTriggerRef = useRef<HTMLButtonElement>(null);
@@ -296,20 +310,55 @@ export function ChatWorkspace() {
     event.preventDefault();
     const content = input.trim();
     if (!content || !model || running) return;
+    let confirmationId: string | null = null;
+    const requestedTool = useMcp ? { name: toolName, connector_id: connectorId === "local-reference" ? null : connectorId, arguments: { message: content } } : null;
+    try {
+      const preview = await apiJson<SendScope>("/api/send-scope/preview", {
+        method: "POST",
+        body: JSON.stringify({ conversation_id: conversationId, provider, model, project_id: project, content, tool: requestedTool }),
+      });
+      setSendScope(preview);
+      if (requestedTool?.connector_id) {
+        const action = await apiJson<{ id: string; tool_name: string; connector_id: string; risk: string }>("/api/tool-actions/preview", {
+          method: "POST",
+          body: JSON.stringify({ project_id: project, connector_id: requestedTool.connector_id, tool_name: requestedTool.name, arguments: requestedTool.arguments }),
+        });
+        const allowed = window.confirm(`External tool action: ${action.tool_name}\n\nThis action can change remote state or its outcome may be unknown. Run only this confirmed action?`);
+        if (!allowed) return;
+        const confirmation = await apiJson<{ id: string }>(`/api/tool-actions/${encodeURIComponent(action.id)}/confirm`, {
+          method: "POST",
+          body: JSON.stringify({ confirmed: true }),
+        });
+        confirmationId = confirmation.id;
+      }
+    } catch {
+      setMessages((current) => [...current, { role: "system", content: "The send scope or external action confirmation could not be prepared. Nothing was sent." }]);
+      return;
+    }
     setMessages((current) => [...current, { role: "user", content }, { role: "assistant", content: "" }]);
     setInput("");
     setRunning(true);
     try {
       await streamSse("/api/chat/stream", {
-        conversation_id: conversationId, provider, model, project_id: project, content,
-        tool: useMcp ? { name: toolName, connector_id: connectorId === "local-reference" ? null : connectorId, arguments: { message: content } } : null,
+        conversation_id: conversationId, provider, model, project_id: project, content, allow_fallback: allowFallback,
+        tool: requestedTool ? { ...requestedTool, confirmation_id: confirmationId } : null,
       }, (item) => {
         setTrace((current) => [...current, item]);
+        if (item.type === "context" && typeof item.payload.send_scope_receipt_id === "string") {
+          void apiJson<SendScope>(`/api/send-scope/${encodeURIComponent(item.payload.send_scope_receipt_id)}`)
+            .then((scope) => setSendScope(scope))
+            .catch(() => { /* The request is still auditable through Activity. */ });
+        }
         if (item.type === "message") {
           const delta = String(item.payload.delta || "");
           setMessages((current) => current.map((message, index) => index === current.length - 1 ? { ...message, content: message.content + delta } : message));
         }
-        if (item.type === "error") setMessages((current) => current.map((message, index) => index === current.length - 1 ? { role: "system", content: "The request could not be completed. Check your AI service or tool settings, then try again." } : message));
+        if (item.type === "error") {
+          const content = item.payload.code === "budget_hard_limit"
+            ? "Budget hard limit reached. No provider request was sent. Raise the limit or wait for the next budget period."
+            : "The request could not be completed. Check your AI service or tool settings, then try again.";
+          setMessages((current) => current.map((message, index) => index === current.length - 1 ? { role: "system", content } : message));
+        }
         if (item.type === "done" && typeof item.payload.conversation_id === "string") {
           setConversationId(item.payload.conversation_id);
           window.localStorage.setItem(ACTIVE_CONVERSATION_KEY, item.payload.conversation_id);
@@ -609,7 +658,7 @@ export function ChatWorkspace() {
                       {message.content && conversationId && !running && <button type="button" className="mt-1 inline-flex min-h-11 items-center gap-1.5 rounded-control px-2 text-xs font-medium text-text-tertiary hover:bg-surface-subtle hover:text-text-primary" onClick={(event) => openMemoryDialog(message, index, event.currentTarget)}><BookmarkPlus aria-hidden size={14} />Save to Memory</button>}
                     </div>
                   ) : message.role === "system" ? (
-                    <article key={message.id || index} className="rounded-control border border-danger/25 bg-surface px-4 py-3 text-sm leading-6 text-danger">{message.content}</article>
+                    <article key={message.id || index} role="alert" className="rounded-control border border-danger/25 bg-surface px-4 py-3 text-sm leading-6 text-danger">{message.content}</article>
                   ) : (
                     <article key={message.id || index} className="grid grid-cols-[24px_minmax(0,1fr)] gap-3 text-[15px]">
                       <Sparkles aria-hidden className="mt-2 text-accent" size={17} />
@@ -624,7 +673,9 @@ export function ChatWorkspace() {
             </div>
             <ActivityPanel trace={trace} />
             <form onSubmit={submit} className="bg-surface px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-3 sm:px-5 sm:pb-5">
+              {sendScope && <details className="mx-auto mb-2 max-w-[780px] rounded-control border border-line bg-surface-subtle px-3 py-2 text-xs text-text-secondary"><summary className="cursor-pointer font-medium text-text-primary">What left this workspace for the last request</summary><dl className="mt-2 grid gap-1 sm:grid-cols-2"><div><dt className="text-text-tertiary">AI service</dt><dd>{sendScope.provider} / {sendScope.model}</dd></div><div><dt className="text-text-tertiary">Project</dt><dd>{sendScope.project_id}</dd></div><div><dt className="text-text-tertiary">Context</dt><dd>{sendScope.context_categories.join(", ")}</dd></div><div><dt className="text-text-tertiary">Approximate size</dt><dd>{sendScope.approximate_context_tokens} tokens · {sendScope.context_precision.toLowerCase()}</dd></div><div><dt className="text-text-tertiary">Reviewed memory</dt><dd>{sendScope.reviewed_memory_ids.length} references</dd></div><div><dt className="text-text-tertiary">Secrets</dt><dd>Not included</dd></div></dl></details>}
               {useMcp && <div className="mx-auto mb-2 grid max-w-[780px] gap-2 rounded-control bg-surface-subtle p-2 sm:grid-cols-2"><label className="text-xs font-medium text-text-secondary">Connector<select className="field mt-1 w-full" value={connectorId} onChange={(event) => selectConnector(event.target.value)}><option value="local-reference">Built-in reference</option>{connectors.filter((item) => item.enabled).map((item) => <option key={item.id} value={item.id}>{item.name} · {item.connection_status}</option>)}</select></label><label className="text-xs font-medium text-text-secondary">Tool<select className="field mt-1 w-full" value={toolName} onChange={(event) => setToolName(event.target.value)}>{(connectorId === "local-reference" ? ["system.echo"] : selectedConnector?.allowed_tools || []).map((item) => <option key={item} value={item}>{item}</option>)}</select></label></div>}
+              {experienceMode === "advanced" && <label className="mx-auto mb-2 flex max-w-[780px] items-center gap-2 px-2 text-xs text-text-secondary"><input type="checkbox" className="size-4" checked={allowFallback} onChange={(event) => setAllowFallback(event.target.checked)} aria-label="Allow one policy-approved fallback" />Allow one policy-approved fallback for this request. The same scoped context is used; provider sessions and tool approvals are never copied.</label>}
               {providers.length > 0 && !providerReady && <div className="mx-auto mb-2 flex max-w-[780px] items-center justify-between gap-3 rounded-control bg-warning/10 px-3 py-2 text-xs text-warning"><span>{selectedProvider?.id === "anthropic" ? "Anthropic" : "OpenAI"} needs a server-side credential before messages can be sent.</span><Link href="/settings#models-settings" className="shrink-0 font-medium underline underline-offset-2">Open Settings</Link></div>}
               <div className="mx-auto max-w-[780px] rounded-[22px] border border-line-strong bg-surface-elevated p-2 shadow-composer focus-within:border-accent">
                 <textarea className="scrollbar-subtle max-h-40 min-h-[48px] w-full resize-none bg-transparent px-2 py-2 text-[15px] leading-6 outline-none placeholder:text-text-tertiary" placeholder="Ask anything…" aria-label="Message" value={input} rows={1} onChange={(event) => setInput(event.target.value)} />
