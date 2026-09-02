@@ -4,6 +4,11 @@ Personal AI OS keeps runtime state under `PERSONAL_AI_OS_DATA_DIR` (normally `da
 Provider keys and access passwords are host secrets and are deliberately excluded from every
 backup and transfer archive.
 
+The canonical core database is always `PERSONAL_AI_OS_DATA_DIR/personal_ai_os.db`.
+Backup and restore preserve that file together with the rest of the data directory. Doctor reads
+that canonical location; if it finds the former diagnostic-only `personal-ai-os.db` name instead,
+it reports it as legacy without moving or deleting user data.
+
 ## Create a consistent data backup
 
 The backup command uses SQLite's online backup API, so it can snapshot a running local database
