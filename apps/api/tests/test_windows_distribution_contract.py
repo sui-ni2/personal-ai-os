@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import shutil
 import subprocess
 import zipfile
 from pathlib import Path
@@ -11,6 +12,12 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 INSTALLER = REPO_ROOT / "scripts" / "install-windows-distribution.ps1"
+WINDOWS_CONTRACT_AVAILABLE = INSTALLER.exists() and shutil.which("powershell.exe") is not None
+
+pytestmark = pytest.mark.skipif(
+    not WINDOWS_CONTRACT_AVAILABLE,
+    reason="Windows distribution contract requires install-windows-distribution.ps1 and powershell.exe",
+)
 
 
 def _package(path: Path, *, valid_hash: bool = True) -> Path:
@@ -46,7 +53,6 @@ def _run(*arguments: str) -> subprocess.CompletedProcess[str]:
     )
 
 
-@pytest.mark.skipif(not INSTALLER.exists(), reason="Windows distribution script is not present")
 def test_windows_distribution_check_only_accepts_hashed_unicode_and_space_path(tmp_path: Path) -> None:
     package = _package(tmp_path / "release")
     install_path = tmp_path / "安装 空间"
@@ -58,7 +64,6 @@ def test_windows_distribution_check_only_accepts_hashed_unicode_and_space_path(t
     assert not (install_path / "installation.json").exists()
 
 
-@pytest.mark.skipif(not INSTALLER.exists(), reason="Windows distribution script is not present")
 def test_windows_distribution_check_only_rejects_checksum_mismatch_without_creating_installation(tmp_path: Path) -> None:
     package = _package(tmp_path / "mismatch", valid_hash=False)
     install_path = tmp_path / "must remain empty"
@@ -70,7 +75,6 @@ def test_windows_distribution_check_only_rejects_checksum_mismatch_without_creat
     assert not (install_path / "installation.json").exists()
 
 
-@pytest.mark.skipif(not INSTALLER.exists(), reason="Windows distribution script is not present")
 def test_windows_distribution_refuses_rollback_without_snapshot_before_docker_access(tmp_path: Path) -> None:
     install_path = tmp_path / "fixture install"
     completed = _run("-Action", "Rollback", "-InstallPath", str(install_path), "-NoLaunch")
