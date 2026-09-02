@@ -21,6 +21,7 @@ test.afterEach(async ({ request }) => {
 
 test("daily Project, Memory, send scope, budget hard stop, execution, and reload path", async ({ page }, testInfo) => {
   const projectName = `Daily-use E2E ${testInfo.project.name}`;
+  const memoryText = `daily-use-e2e=${testInfo.project.name}`;
   await page.goto("/projects");
   await page.getByLabel("New project name").fill(projectName);
   await page.getByLabel("New project description").fill("Deterministic daily-use validation project");
@@ -39,11 +40,11 @@ test("daily Project, Memory, send scope, budget hard stop, execution, and reload
 
   await page.goto("/memory");
   await page.getByText("Add memory", { exact: true }).click();
-  await page.getByLabel("Memory", { exact: true }).fill("daily-use-e2e=approved");
+  await page.getByLabel("Memory", { exact: true }).fill(memoryText);
   await page.getByRole("button", { name: "Save memory" }).click();
   await page.getByText("Add memory", { exact: true }).click();
   await page.getByRole("button", { name: "review" }).click();
-  await expect(page.getByText("daily-use-e2e=approved")).toBeVisible();
+  await expect(page.getByText(memoryText)).toBeVisible();
   await page.getByRole("button", { name: "Accept" }).first().click();
 
   await page.goto("/chat?new=1");

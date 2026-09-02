@@ -6,6 +6,7 @@ export default defineConfig({
   testDir: "e2e",
   outputDir: "output/playwright/test-results",
   timeout: 45_000,
+  workers: 1,
   fullyParallel: false,
   reporter: process.env.CI ? [["github"], ["html", { outputFolder: "output/playwright/report", open: "never" }]] : "list",
   use: {
