@@ -19,13 +19,14 @@ test.afterEach(async ({ request }) => {
   await setGeneralBudget(request, 100_000);
 });
 
-test("daily Project, Memory, send scope, budget hard stop, execution, and reload path", async ({ page }) => {
+test("daily Project, Memory, send scope, budget hard stop, execution, and reload path", async ({ page }, testInfo) => {
+  const projectName = `Daily-use E2E ${testInfo.project.name}`;
   await page.goto("/projects");
-  await page.getByLabel("New project name").fill("Daily-use E2E");
+  await page.getByLabel("New project name").fill(projectName);
   await page.getByLabel("New project description").fill("Deterministic daily-use validation project");
   await page.getByRole("button", { name: "Create project" }).click();
-  const project = page.locator("article").filter({ hasText: "Daily-use E2E" }).first();
-  await expect(project).toContainText("Daily-use E2E");
+  const project = page.locator("article").filter({ hasText: projectName }).first();
+  await expect(project).toContainText(projectName);
   await project.getByRole("button", { name: "Control" }).click();
   await expect(page.getByText("Project control center")).toBeVisible();
 
@@ -33,7 +34,7 @@ test("daily Project, Memory, send scope, budget hard stop, execution, and reload
     await page.getByLabel("Record type").selectOption(kind);
     await page.getByLabel("Project update").fill(value);
     await page.getByRole("button", { name: "Add" }).click();
-    await expect(page.getByText(value)).toBeVisible();
+    await expect(page.getByRole("listitem").filter({ hasText: value }).last()).toBeVisible();
   }
 
   await page.goto("/memory");
@@ -45,7 +46,7 @@ test("daily Project, Memory, send scope, budget hard stop, execution, and reload
   await page.getByRole("button", { name: "Accept" }).first().click();
 
   await page.goto("/chat?new=1");
-  const composer = page.getByLabel("Message");
+  const composer = page.getByLabel("Message", { exact: true });
   await composer.fill("Run the deterministic daily-use request.");
   await page.getByRole("button", { name: /Send/ }).click();
   await expect(page.getByText("Deterministic E2E response from openai")).toBeVisible();
@@ -82,13 +83,14 @@ test("fallback consent, external confirmation, and recovery resume stay explicit
 
   await page.goto("/chat?new=1");
   await page.getByLabel("Allow one policy-approved fallback").check();
-  await page.getByLabel("Message").fill("force deterministic timeout with explicit fallback consent");
+  const composer = page.getByLabel("Message", { exact: true });
+  await composer.fill("force deterministic timeout with explicit fallback consent");
   await page.getByRole("button", { name: /Send/ }).click();
   await expect(page.getByText("Deterministic E2E response from anthropic")).toBeVisible();
 
   await page.getByRole("button", { name: "Use an advanced tool" }).click();
   await page.getByLabel("Connector").selectOption({ label: /Deterministic external confirmation/ });
-  await page.getByLabel("Message").fill("Run the confirmed deterministic external fixture.");
+  await composer.fill("Run the confirmed deterministic external fixture.");
   page.once("dialog", async (dialog) => {
     expect(dialog.message()).toContain("External tool action: external.echo");
     await dialog.accept();
