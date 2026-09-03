@@ -12,7 +12,7 @@
     "test:e2e": "playwright test"
   },
   "devDependencies": {
-    "@axe-core/playwright": "4.11.1",
+    "@axe-core/playwright": "4.13.0",
     "@playwright/test": "1.62.1"
   }
 }
