@@ -23,7 +23,7 @@
     "@cloudflare/vite-plugin": "^1.52.1",
     "@types/node": "^24.0.0",
     "@types/react": "^19.2.0",
-    "@types/react-dom": "^19.2.0",
+    "@types/react-dom": "^19.2.5",
     "@vitejs/plugin-rsc": "0.5.34",
     "autoprefixer": "^10.4.21",
     "postcss": "^8.5.6",
