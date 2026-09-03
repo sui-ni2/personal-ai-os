@@ -85,7 +85,7 @@ jobs:
         run: pnpm test:e2e
       - name: Upload browser diagnostics
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-artifacts-${{ github.sha }}
           path: output/playwright/
