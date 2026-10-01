@@ -6,7 +6,7 @@ import { apiJson } from "@/lib/api";
 import { ErrorState, LoadingState } from "@/components/ui-states";
 
 type Project = { id: string; name: string; description: string };
-type StateRecord = { namespace: string; key: string; value: Record<string, unknown>; status: string; updated_at: string };
+type StateRecord = { namespace: string; key: string; value: Record<string, unknown>; version: number; status: string; updated_at: string };
 type ControlCenter = {
   project: { metadata: Project };
   state: Record<string, StateRecord[]>;
@@ -22,6 +22,7 @@ const labels: Record<string, string> = {
   goals: "Goal", current_state: "Current state", tasks: "Tasks", decisions: "Decisions", outcomes: "Outcomes",
   blockers: "Blockers", next_actions: "Next action", changed_files: "Changed files",
 };
+const editableNamespaces = new Set(["task", "decision", "outcome"]);
 
 function summary(record: StateRecord) {
   return String(record.value.summary || record.value.title || record.value.text || record.key);
@@ -34,6 +35,7 @@ export function ProjectControlCenter({ projectId }: { projectId: string }) {
   const [kind, setKind] = useState("task");
   const [text, setText] = useState("");
   const [saving, setSaving] = useState(false);
+  const [editing, setEditing] = useState<StateRecord>();
   const sections = useMemo(() => Object.keys(labels), []);
 
   async function load() {
@@ -50,22 +52,41 @@ export function ProjectControlCenter({ projectId }: { projectId: string }) {
 
   useEffect(() => { void load(); }, [projectId]);
 
-  async function addRecord(event: FormEvent) {
+  async function saveRecord(event: FormEvent) {
     event.preventDefault();
     const value = text.trim();
     if (!value || saving) return;
     setSaving(true);
     try {
-      const key = `${kind}-${Date.now()}`;
+      const namespace = editing?.namespace ?? kind;
+      const key = editing?.key ?? `${namespace}-${Date.now()}`;
       await apiJson(`/api/projects/${encodeURIComponent(projectId)}/state/records`, {
         method: "PUT",
-        body: JSON.stringify({ namespace: kind, key, value: { summary: value }, source: "user-control-center" }),
+        body: JSON.stringify({
+          namespace,
+          key,
+          value: { summary: value },
+          source: "user-control-center",
+          ...(editing ? { expected_version: editing.version } : {}),
+        }),
       });
       setText("");
+      setEditing(undefined);
       await load();
     } finally {
       setSaving(false);
     }
+  }
+
+  function beginEdit(record: StateRecord) {
+    setEditing(record);
+    setKind(record.namespace);
+    setText(summary(record));
+  }
+
+  function cancelEdit() {
+    setEditing(undefined);
+    setText("");
   }
 
   if (loading) return <LoadingState label="Loading project control center" />;
@@ -93,17 +114,20 @@ export function ProjectControlCenter({ projectId }: { projectId: string }) {
         <article className="rounded-control border border-line bg-surface/45 p-4"><p className="text-xs text-text-tertiary">Last execution</p><p className="mt-1 text-sm font-medium">{data.recent_execution ? data.recent_execution.status.replaceAll("_", " ") : "No execution yet"}</p></article>
       </div>
 
-      <form className="mt-5 grid gap-2 rounded-control border border-line bg-surface/35 p-3 sm:grid-cols-[10rem_1fr_auto]" onSubmit={addRecord}>
-        <label><span className="sr-only">Record type</span><select className="field w-full" value={kind} onChange={(event) => setKind(event.target.value)}>{["goal", "current_state", "task", "decision", "outcome", "blocker", "next_action"].map((item) => <option key={item} value={item}>{item.replaceAll("_", " ")}</option>)}</select></label>
-        <label><span className="sr-only">Project update</span><input className="field w-full" value={text} onChange={(event) => setText(event.target.value)} placeholder="Add an authoritative project update" maxLength={500} required /></label>
-        <button className="button-secondary min-h-10" disabled={saving}><Plus aria-hidden size={15} />{saving ? "Saving…" : "Add"}</button>
+      <form className="mt-5 grid gap-2 rounded-control border border-line bg-surface/35 p-3 sm:grid-cols-[10rem_1fr_auto]" onSubmit={saveRecord}>
+        <label><span className="sr-only">Record type</span><select className="field w-full" value={kind} onChange={(event) => setKind(event.target.value)} disabled={Boolean(editing)}>{["goal", "current_state", "task", "decision", "outcome", "blocker", "next_action"].map((item) => <option key={item} value={item}>{item.replaceAll("_", " ")}</option>)}</select></label>
+        <label><span className="sr-only">Project update</span><input className="field w-full" value={text} onChange={(event) => setText(event.target.value)} placeholder={editing ? "Edit the selected project update" : "Add an authoritative project update"} maxLength={500} required /></label>
+        <div className="flex gap-2">
+          <button className="button-secondary min-h-10" disabled={saving}><Plus aria-hidden size={15} />{saving ? "Saving…" : editing ? "Save" : "Add"}</button>
+          {editing ? <button type="button" className="button-quiet min-h-10" disabled={saving} onClick={cancelEdit}>Cancel</button> : null}
+        </div>
       </form>
 
       <div className="mt-5 grid gap-3 lg:grid-cols-2">
         {sections.map((section) => {
           const records = data.state[section] || [];
           if (!records.length && !["tasks", "blockers", "next_actions"].includes(section)) return null;
-          return <article key={section} className="rounded-control border border-line bg-surface/25 p-4"><div className="flex items-center gap-2"><ListChecks aria-hidden size={16} className="text-accent" /><h3 className="text-sm font-medium">{labels[section]}</h3><span className="ml-auto text-xs text-text-tertiary">{records.length}</span></div>{records.length ? <ul className="mt-3 space-y-2 text-sm text-text-secondary">{records.slice(0, 4).map((record) => <li key={`${record.namespace}-${record.key}`} className="flex gap-2"><CheckCircle2 aria-hidden size={15} className="mt-0.5 shrink-0 text-success" /><span>{summary(record)}</span></li>)}</ul> : <p className="mt-3 text-sm text-text-tertiary">Nothing recorded.</p>}</article>;
+          return <article key={section} className="rounded-control border border-line bg-surface/25 p-4"><div className="flex items-center gap-2"><ListChecks aria-hidden size={16} className="text-accent" /><h3 className="text-sm font-medium">{labels[section]}</h3><span className="ml-auto text-xs text-text-tertiary">{records.length}</span></div>{records.length ? <ul className="mt-3 space-y-2 text-sm text-text-secondary">{records.slice(0, 4).map((record) => <li key={`${record.namespace}-${record.key}`} className="flex items-start gap-2"><CheckCircle2 aria-hidden size={15} className="mt-0.5 shrink-0 text-success" /><span className="min-w-0 flex-1">{summary(record)}</span>{editableNamespaces.has(record.namespace) ? <button type="button" className="button-quiet min-h-8 px-2 py-1 text-xs" aria-label={`Edit ${record.namespace} ${summary(record)}`} onClick={() => beginEdit(record)}>Edit</button> : null}</li>)}</ul> : <p className="mt-3 text-sm text-text-tertiary">Nothing recorded.</p>}</article>;
         })}
         <article className="rounded-control border border-line bg-surface/25 p-4"><div className="flex items-center gap-2"><FileText aria-hidden size={16} className="text-accent" /><h3 className="text-sm font-medium">Files and reviewed memory</h3></div><p className="mt-3 text-sm text-text-secondary">{data.files.length} file references · {data.reviewed_memory.length} reviewed memories</p><p className="mt-2 text-xs leading-5 text-text-tertiary">Provider session state is never copied into project continuity.</p></article>
         <article className="rounded-control border border-line bg-surface/25 p-4"><div className="flex items-center gap-2"><AlertTriangle aria-hidden size={16} className={data.recovery.status === "clean" ? "text-success" : "text-warning"} /><h3 className="text-sm font-medium">Recovery</h3></div><p className="mt-3 text-sm text-text-secondary">{data.recovery.message}</p></article>

@@ -41,6 +41,14 @@ test("daily Project, Memory, send scope, budget hard stop, execution, and reload
     await expect(page.getByRole("listitem").filter({ hasText: value }).last()).toBeVisible();
   }
 
+  const taskItem = page.getByRole("listitem").filter({ hasText: "Validate execution" }).last();
+  await taskItem.getByRole("button", { name: "Edit task Validate execution" }).click();
+  await expect(page.getByLabel("Record type")).toBeDisabled();
+  await page.getByLabel("Project update").fill("Validate execution after review");
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByRole("listitem").filter({ hasText: "Validate execution after review" }).last()).toBeVisible();
+  await expect(page.getByText("Validate execution", { exact: true })).toHaveCount(0);
+
   await page.goto("/memory");
   await page.getByText("Add memory", { exact: true }).click();
   await page.getByLabel("Memory", { exact: true }).fill(memoryText);

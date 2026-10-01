@@ -1,6 +1,6 @@
 # Short independent-use test packet
 
-Choose one small task you actually need to do, using non-sensitive material. Follow the [five-minute UI path](5-minute-evaluation.md): install, start, create a project, **Projects → Control**, record Task/Decision/Outcome and progress, try normal Text chat, restart the services, and inspect the same project and conversation. Installation/build time is separate from the browser exercise.
+Choose one small task you actually need to do, using non-sensitive material. Follow the [five-minute UI path](5-minute-evaluation.md): install, start, create a project, **Projects → Control**, create Task/Decision/Outcome, edit one existing record, try normal Text chat, restart the services, and inspect the same project and conversation. Installation/build time is separate from the browser exercise.
 
 With no configured provider, complete the project/persistence steps and report chat as **not tested**. For the full path, use your own configured OpenAI, Anthropic, or local Ollama service. Do not substitute a mocked response for real inference. No API commands are needed for ordinary project or chat operations.
 
@@ -15,7 +15,7 @@ Fresh install: yes / no (existing checkout, caches, or data?)
 Install: success / failure / not tested; approximate time; first failing step if any
 Startup + open app: success / failure; Docker or source path; URL; approximate time
 My real workflow: what I needed to do; why I tried this workspace
-Project + Control: Task/Decision/Outcome and later progress visible? yes / no / not tested
+Project + Control: Task/Decision/Outcome created, one existing record edited, and saved text visible? yes / no / not tested
 Normal Text chat: success / failure / not tested; provider/model; useful for the task? why?
 Restart: success / failure / not tested; how I stopped and restarted API + web
 Persistence: same project + updates + continuity? yes / no / not tested

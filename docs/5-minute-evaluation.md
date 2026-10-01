@@ -53,7 +53,7 @@ On that project's card, select **Control**, then scroll below the project cards 
 | `decision` | Use public sources only |
 | `outcome` | Outline started; source review pending |
 
-Check that each entry appears under **Tasks**, **Decisions**, or **Outcomes**. To record later progress, select the same type and **Add** a new entry, for example `Task update: first source reviewed; second still pending`. This appends a progress record; the current UI does not edit the earlier entry in place or offer a completed-task toggle. Record only what you actually did.
+Check that each entry appears under **Tasks**, **Decisions**, or **Outcomes**. Then choose **Edit** on the Task, change it to `Review first public source; second still pending`, and select **Save**. Confirm the original Task text is replaced instead of creating a duplicate record. This verifies the existing versioned project-state update path through the normal UI.
 
 Ordinary project operations use this existing UI; no HTTP request or generated project id is needed. Reviewed Memory is a separate review workflow. These Task/Decision/Outcome records are not automatically accepted Memory.
 
@@ -75,7 +75,7 @@ Return to **Projects** first. Restart with the same checkout and data location:
 - Docker: run `docker compose restart`.
 - Windows source: stop the API and web terminals with **Ctrl+C**, then run the same two startup commands from step 1. Do not rerun setup while the services are running.
 
-Reload the app. Find the same project, open **Control**, and confirm the original records and progress updates remain. Open **Continuity** again and compare the state. If you completed a real chat, open the project and select that conversation from history; check that the earlier messages and reply remain.
+Reload the app. Find the same project, open **Control**, and confirm the Task edit plus the Decision and Outcome remain. Open **Continuity** again and compare the state. If you completed a real chat, open the project and select that conversation from history; check that the earlier messages and reply remain.
 
 If **Restart recovery** offers **Preview recovery**, inspect it before choosing **Confirm and resume**. A clean close may offer no recovery; that is expected and does not invalidate the persistence check. A page reload alone is not a service restart.
 

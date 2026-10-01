@@ -9,7 +9,7 @@ body:
       value: |
         Thank you for testing Personal AI OS. Do not include API keys, `.env` contents, authorization headers, cookies, private conversations, runtime databases, or unsanitized logs.
 
-        Start with the [five-minute UI guide](https://github.com/sui-ni2/personal-ai-os/blob/main/docs/5-minute-evaluation.md) and [short test packet](https://github.com/sui-ni2/personal-ai-os/blob/main/docs/external-test-packet.md). Use Projects → Control for ordinary project updates; no API command is needed. No-key project/persistence testing is useful, with real chat marked not tested.
+        Start with the [five-minute UI guide](https://github.com/sui-ni2/personal-ai-os/blob/main/docs/5-minute-evaluation.md) and [short test packet](https://github.com/sui-ni2/personal-ai-os/blob/main/docs/external-test-packet.md). Use Projects → Control to create and edit Task/Decision/Outcome records; no API command is needed. No-key project/persistence testing is useful, with real chat marked not tested.
 
         The optional developer no-key smoke in docs/try-without-api.md checks startup behavior; it is not a real user workflow or independent adoption proof.
   - type: dropdown
@@ -59,7 +59,7 @@ body:
     id: steps
     attributes:
       label: What did you test?
-      description: Include install/startup results, your workflow, Projects → Control, chat/provider (or not tested), service restart, and project/conversation persistence. State whether this was a fresh install or an existing checkout.
+      description: Include install/startup results, your workflow, Projects → Control create/edit results, chat/provider (or not tested), service restart, and project/conversation persistence. State whether this was a fresh install or an existing checkout.
       placeholder: "Install: ...\nStartup: ...\nMy workflow: ...\nControl updates: ...\nChat: ...\nService restart: ...\nPersistence: ..."
     validations:
       required: true
