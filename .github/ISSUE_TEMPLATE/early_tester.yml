@@ -9,8 +9,9 @@ body:
       value: |
         Thank you for testing Personal AI OS. Do not include API keys, `.env` contents, authorization headers, cookies, private conversations, runtime databases, or unsanitized logs.
 
-        You can contribute useful evidence without a paid provider API key by running:
-        `python scripts/release-provider-smoke.py --provider openai --no-key-only`
+        Start with the [five-minute UI guide](https://github.com/sui-ni2/personal-ai-os/blob/main/docs/5-minute-evaluation.md) and [short test packet](https://github.com/sui-ni2/personal-ai-os/blob/main/docs/external-test-packet.md). Use Projects → Control for ordinary project updates; no API command is needed. No-key project/persistence testing is useful, with real chat marked not tested.
+
+        The optional developer no-key smoke in docs/try-without-api.md checks startup behavior; it is not a real user workflow or independent adoption proof.
   - type: dropdown
     id: path
     attributes:
@@ -25,7 +26,7 @@ body:
     id: commit
     attributes:
       label: Version or commit
-      placeholder: main commit SHA or v0.2.0
+      placeholder: Full tested main commit SHA, or tag plus SHA
     validations:
       required: true
   - type: input
@@ -50,6 +51,7 @@ body:
       options:
         - Passed as expected
         - Passed with confusing or rough steps
+        - Partial; one or more steps failed or were not tested
         - Failed with a reproducible problem
     validations:
       required: true
@@ -57,8 +59,8 @@ body:
     id: steps
     attributes:
       label: What did you test?
-      description: Briefly list the steps you completed and where any friction appeared.
-      placeholder: "1. Fresh clone...\n2. Installed dependencies...\n3. Ran no-key smoke...\n4. Opened Settings..."
+      description: Include install/startup results, your workflow, Projects → Control, chat/provider (or not tested), service restart, and project/conversation persistence. State whether this was a fresh install or an existing checkout.
+      placeholder: "Install: ...\nStartup: ...\nMy workflow: ...\nControl updates: ...\nChat: ...\nService restart: ...\nPersistence: ..."
     validations:
       required: true
   - type: textarea

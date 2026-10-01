@@ -30,6 +30,9 @@ test("daily Project, Memory, send scope, budget hard stop, execution, and reload
   await expect(project).toContainText(projectName);
   await project.getByRole("button", { name: "Control" }).click();
   await expect(page.getByText("Project control center")).toBeVisible();
+  const control = page.getByRole("region", { name: projectName, exact: true });
+  await expect(control.getByRole("heading", { name: projectName, level: 2 })).toBeVisible();
+  await expect(control).toContainText("Deterministic daily-use validation project");
 
   for (const [kind, value] of [["goal", "Ship a safe daily workflow"], ["task", "Validate execution"], ["decision", "Keep context scoped"], ["outcome", "Daily path completed"]] as const) {
     await page.getByLabel("Record type").selectOption(kind);

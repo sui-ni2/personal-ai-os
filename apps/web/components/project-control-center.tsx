@@ -8,7 +8,7 @@ import { ErrorState, LoadingState } from "@/components/ui-states";
 type Project = { id: string; name: string; description: string };
 type StateRecord = { namespace: string; key: string; value: Record<string, unknown>; status: string; updated_at: string };
 type ControlCenter = {
-  project: Project;
+  project: { metadata: Project };
   state: Record<string, StateRecord[]>;
   files: { id: string; title: string; locator: string }[];
   activity: { id: string; summary: string; created_at: string }[];
@@ -80,8 +80,8 @@ export function ProjectControlCenter({ projectId }: { projectId: string }) {
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
         <div>
           <p className="eyebrow">Project control center</p>
-          <h2 id={`project-control-${projectId}`} className="section-title mt-1">{data.project.name}</h2>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-text-secondary">{data.project.description}</p>
+          <h2 id={`project-control-${projectId}`} className="section-title mt-1">{data.project.metadata.name}</h2>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-text-secondary">{data.project.metadata.description}</p>
         </div>
         <button className="button-quiet" onClick={() => void load()}><RefreshCw aria-hidden size={15} />Refresh</button>
       </div>
