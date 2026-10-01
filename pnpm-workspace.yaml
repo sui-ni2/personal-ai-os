@@ -3,6 +3,8 @@ packages:
 
 overrides:
   fsevents: 2.3.3
+  # Remove when upstream tooling no longer resolves the affected 7.29.0 release.
+  undici@7.29.0: 7.29.1
 
 allowBuilds:
   esbuild: true
