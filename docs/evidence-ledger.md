@@ -1,5 +1,32 @@
 # Project evidence ledger
 
+## Snapshot — 2026-10-01
+
+### Reach
+
+- Live public repository snapshot: **59 stars, 14 forks, and 2 subscribers**.
+- These are reach signals only and are not counted as independent adoption.
+
+### Maintenance
+
+- Current `main`: `80778e680c14cbe5ed4b4d3d55b893eaecb25139`.
+- PR #125 merged the Next.js 16.3.6 security update on 2026-09-29.
+- Four Dependabot pull requests remain open (#123, #124, #126, #127). They are maintenance activity, not external contribution evidence.
+
+### Independent adoption
+
+**INDEPENDENT_ADOPTION_VERIFIED = 0.**
+
+- Issues #7 and #15 still have no completed external test result.
+- Issue #55 has external contributor interest but no first-hand Personal AI OS workflow result.
+- Issue #56 has an external intent-to-test comment, but no environment-and-result report.
+- Therefore no non-maintainer install, real-workflow use, focused external PR tied to genuine use, or independent re-test is promoted into adoption evidence in this snapshot.
+
+### Application-facing interpretation
+
+The project has credible release, maintenance, security, continuity, and public-reach evidence. The highest-value missing evidence remains a reproducible independent user result. Repository activity should continue to be reported separately from adoption.
+
+
 This page records public evidence about Personal AI OS without treating repository activity as proof of independent adoption. Mutable metrics are dated, and external-use claims require a public source that can be inspected independently.
 
 ## Snapshot — 2026-08-31
