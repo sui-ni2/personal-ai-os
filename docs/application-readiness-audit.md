@@ -1,5 +1,9 @@
 # Application readiness audit
 
+The [2026-10-01 daily-use follow-up](daily-use-audit-2026-10-01.md) starts from merged PR #128
+and records current check scopes, dependency risk, backup defects, and remaining external proof.
+The dated application snapshots below are preserved.
+
 ## Refresh — 2026-10-01
 
 This refresh preserves the 2026-08-31 release audit below and records only live, externally inspectable repository facts observed on 2026-10-01.

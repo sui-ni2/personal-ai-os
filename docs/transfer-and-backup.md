@@ -19,6 +19,10 @@ without copying WAL or journal files directly:
 ```
 
 Keep the resulting ZIP somewhere separate from the computer. The repository ignores `backups/`.
+Each backup has a timestamp and unique suffix; repeated runs keep earlier archives intact.
+An archive-name collision fails rather than overwriting a backup. Empty data directories also
+produce a restorable backup. The archive format remains `personal-ai-os-data-backup-v1`, and
+existing backups remain compatible with the restore command.
 
 ## Restore safely
 
@@ -26,7 +30,7 @@ Stop the API before restoring. The restore command verifies the archive, rejects
 and moves any existing data directory aside instead of deleting it:
 
 ```powershell
-.\.venv\Scripts\python.exe .\scripts\restore-data.py .\backups\personal-ai-os-data-YYYYMMDDTHHMMSSZ.zip --data-dir .\data
+.\.venv\Scripts\python.exe .\scripts\restore-data.py .\backups\personal-ai-os-data-<timestamp>-<unique-suffix>.zip --data-dir .\data
 ```
 
 ## Make one transfer package

@@ -9,6 +9,7 @@ import zipfile
 from contextlib import closing
 from datetime import datetime, timezone
 from pathlib import Path
+from uuid import uuid4
 
 
 def snapshot_database(source: Path, destination: Path) -> None:
@@ -27,9 +28,10 @@ def build_backup(data_dir: Path, output_dir: Path) -> Path:
         raise SystemExit(f"Data directory does not exist: {data_dir}")
     output_dir.mkdir(parents=True, exist_ok=True)
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    archive = output_dir / f"personal-ai-os-data-{timestamp}.zip"
+    archive = output_dir / f"personal-ai-os-data-{timestamp}-{uuid4().hex}.zip"
     with tempfile.TemporaryDirectory(prefix="personal-ai-os-backup-") as temporary:
         staging = Path(temporary) / "data"
+        staging.mkdir()
         for source in data_dir.rglob("*"):
             relative = source.relative_to(data_dir)
             destination = staging / relative
@@ -48,7 +50,8 @@ def build_backup(data_dir: Path, output_dir: Path) -> Path:
         (Path(temporary) / "manifest.json").write_text(
             json.dumps(manifest, indent=2), encoding="utf-8"
         )
-        with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED) as bundle:
+        with zipfile.ZipFile(archive, "x", compression=zipfile.ZIP_DEFLATED) as bundle:
+            bundle.write(staging, "data/")
             for item in Path(temporary).rglob("*"):
                 if item.is_file():
                     bundle.write(item, item.relative_to(temporary))
