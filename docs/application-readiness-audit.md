@@ -1,5 +1,25 @@
 # Application readiness audit
 
+## Refresh — 2026-10-01
+
+This refresh preserves the 2026-08-31 release audit below and records only live, externally inspectable repository facts observed on 2026-10-01.
+
+| Item | Current state | Evidence boundary |
+| --- | --- | --- |
+| `main` | VERIFIED | Current `main` is `80778e680c14cbe5ed4b4d3d55b893eaecb25139`, the merge commit for PR #125. |
+| Latest stable GitHub Release | VERIFIED | `v0.3.0` remains the latest published stable release. |
+| Current maintenance | VERIFIED | PR #125 merged the Next.js 16.3.6 security update on 2026-09-29. |
+| Reach | VERIFIED | 59 stars, 14 forks, and 2 subscribers at the live repository snapshot. These remain reach signals, not adoption evidence. |
+| Open pull requests | VERIFIED | Four open Dependabot PRs: #123, #124, #126, and #127. Bot dependency PRs are maintenance activity, not external-user evidence. |
+| External validation paths | VERIFIED | Issues #7, #15, #55, and #56 remain open. |
+| Independent install / workflow evidence | MISSING | No qualifying completed non-maintainer install result or real-workflow report is present in those validation issues. |
+| Independent adoption | MISSING | `INDEPENDENT_ADOPTION_VERIFIED = 0` remains the defensible evidence boundary. |
+
+### Current consequence
+
+The repository now has stronger maintenance and public-reach evidence than at the 2026-08-31 audit, while the main unresolved application-quality gap is still independent use evidence. Do not replace that gap with stars, forks, bot PRs, maintainer dogfooding, synthetic feedback, or expressions of intent.
+
+
 **Observed:** 2026-08-31. **Authority order:** live GitHub repository facts, then this local worktree. This audit does not treat a local commit, generated file, or workflow definition as proof that a remote check or GitHub Release exists.
 
 | Item | Status | Fresh finding |
