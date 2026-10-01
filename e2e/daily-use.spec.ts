@@ -30,6 +30,9 @@ test("daily Project, Memory, send scope, budget hard stop, execution, and reload
   await expect(project).toContainText(projectName);
   await project.getByRole("button", { name: "Control" }).click();
   await expect(page.getByText("Project control center")).toBeVisible();
+  const control = page.getByRole("region", { name: projectName, exact: true });
+  await expect(control.getByRole("heading", { name: projectName, level: 2 })).toBeVisible();
+  await expect(control).toContainText("Deterministic daily-use validation project");
 
   for (const [kind, value] of [["goal", "Ship a safe daily workflow"], ["task", "Validate execution"], ["decision", "Keep context scoped"], ["outcome", "Daily path completed"]] as const) {
     await page.getByLabel("Record type").selectOption(kind);
@@ -37,6 +40,14 @@ test("daily Project, Memory, send scope, budget hard stop, execution, and reload
     await page.getByRole("button", { name: "Add" }).click();
     await expect(page.getByRole("listitem").filter({ hasText: value }).last()).toBeVisible();
   }
+
+  const taskItem = page.getByRole("listitem").filter({ hasText: "Validate execution" }).last();
+  await taskItem.getByRole("button", { name: "Edit task Validate execution" }).click();
+  await expect(page.getByLabel("Record type")).toBeDisabled();
+  await page.getByLabel("Project update").fill("Validate execution after review");
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByRole("listitem").filter({ hasText: "Validate execution after review" }).last()).toBeVisible();
+  await expect(page.getByText("Validate execution", { exact: true })).toHaveCount(0);
 
   await page.goto("/memory");
   await page.getByText("Add memory", { exact: true }).click();

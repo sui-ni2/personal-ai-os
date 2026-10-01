@@ -1,58 +1,86 @@
 # 5-minute evaluation
 
-This short path verifies durable project state without an API key, a provider call, MCP knowledge, or adapter setup. It uses a non-sensitive example project and ordinary browser/HTTP actions only.
+Allow about five minutes for the browser steps **after installation and startup**. Downloads and the first build can take longer. No API key is needed to create a project, record progress, and check persistence. A real chat response requires a configured provider.
 
-## 1. Start locally
+## 1. Install and start
 
-With Docker installed, run from a fresh checkout:
+For a new source checkout, install Git, then run:
 
 ```bash
-docker compose up --build -d
+git clone --branch main --single-branch https://github.com/sui-ni2/personal-ai-os.git
+cd personal-ai-os
+git rev-parse HEAD
 ```
 
-Open `http://127.0.0.1:8080`. The default local Compose path is loopback-only and does not make a billable model call when no provider is configured.
+Keep that SHA for your report. Choose one startup path:
 
-## 2. Create a Project
+| Environment | Install / start | Open app |
+| --- | --- | --- |
+| Docker Desktop or Docker Engine with Compose | `docker compose up --build -d` | `http://127.0.0.1:8080` |
+| Windows source, without Docker | Commands below; requires Python 3.11+, Node.js 20+, pnpm 11 | `http://localhost:3000` |
 
-Open **Projects**, enter `Long-running research` and a short description in **Create project**, then select **Create project**. This creates a tenant-scoped, provider-neutral project; it does not create a provider account or a plugin.
-
-## 3. Add durable example state
-
-The current release candidate exposes the state surface through the local API while richer project editors are still evolving. In PowerShell, paste the following; replace `long-running-research` only if the created project used a different generated id.
+On Windows, install dependencies once from the checkout root:
 
 ```powershell
-$base = "http://127.0.0.1:8080/api/projects/long-running-research/state"
-$records = @(
-  @{ namespace = "task"; key = "next"; value = @{ title = "Review two sources" }; source = "5-minute-evaluation"; expected_version = 0 },
-  @{ namespace = "decision"; key = "scope"; value = @{ choice = "Use public sources only" }; source = "5-minute-evaluation"; expected_version = 0 },
-  @{ namespace = "outcome"; key = "draft"; value = @{ status = "in_progress" }; source = "5-minute-evaluation"; expected_version = 0 }
-)
-$records | ForEach-Object { Invoke-RestMethod -Method Put -Uri "$base/records" -ContentType "application/json" -Body ($_ | ConvertTo-Json -Compress) }
-Invoke-RestMethod -Method Post -Uri "$base/experience" -ContentType "application/json" -Body (@{ namespace = "reviewed_memory"; text = "Keep conclusions tied to cited sources."; source = "5-minute-evaluation"; confidence = 1 } | ConvertTo-Json -Compress)
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\setup-windows.ps1
 ```
 
-These are project-owned Task, Decision, Outcome, and reviewed-Memory examples. Project creation and state writes also create bounded activity metadata; values stay in the project-private SQLite store.
+Wait for setup to finish. Start these in two separate terminals, both at the checkout root:
 
-## 4. Inspect continuity and activity
-
-Return to **Projects** and use **Continuity** on the new card. The preview shows the current state and reviewed Memory, not provider chat history. The card also shows the latest project activity.
-
-## 5. Verify restart recovery
-
-Open the text Chat page for the new project, then return to Projects. This records a metadata-only recovery checkpoint without sending a message, so it needs no provider key and never stores a provider session or private reasoning. Restart the app:
-
-```bash
-docker compose restart
+```powershell
+# Terminal 1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\dev-api.ps1
 ```
 
-Open **Projects** again. If the browser session did not record a clean close, use **Preview recovery**, inspect the bounded state, then choose **Confirm and resume**. The application never restores silently and does not mark a normal close as a crash. If the session closed cleanly, the status is `clean`; the Continuity preview still proves the project state persisted.
+```powershell
+# Terminal 2
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\dev-web.ps1
+```
 
-## 6. Optional provider-switch isolation check
+For prerequisite checks, manual setup, or troubleshooting, see [Try without an API key](try-without-api.md) and [README startup instructions](../README.md#start-locally). Keep the default localhost bindings. No provider credential is added by these setup paths.
 
-If two supported providers are already configured by you, switch the selected provider in Chat **without sending a message**, then open the same project’s Continuity preview. Task, Decision, Outcome, reviewed Memory, file/change references you add as state, workflows, and recovery metadata remain project-scoped rather than provider-scoped. Do not add a key solely for this evaluation.
+## 2. Create a project
 
-## What this does and does not prove
+Open **Projects**. Fill **New project name** with `First run notes` and **New project description** with a short, non-sensitive goal. Select **Create project** and find its card.
 
-It proves no-key startup, generic Project creation, tenant/project-scoped persistence, visible activity, bounded continuity, and explicit restart recovery. It does not prove a provider model response, cloud identity/billing, third-party adoption, or a production deployment.
+## 3. Record and update progress in Control
 
-Stop the local app with `docker compose down`. Do not use `-v` unless you intentionally want to delete the named local data volume.
+On that project's card, select **Control**, then scroll below the project cards to **Project control center**. Check its project name. Use **Record type**, **Project update**, and **Add**:
+
+| Record type | Example Project update |
+| --- | --- |
+| `task` | Review two public sources |
+| `decision` | Use public sources only |
+| `outcome` | Outline started; source review pending |
+
+Check that each entry appears under **Tasks**, **Decisions**, or **Outcomes**. Then choose **Edit** on the Task, change it to `Review first public source; second still pending`, and select **Save**. Confirm the original Task text is replaced instead of creating a duplicate record. This verifies the existing versioned project-state update path through the normal UI.
+
+Ordinary project operations use this existing UI; no HTTP request or generated project id is needed. Reviewed Memory is a separate review workflow. These Task/Decision/Outcome records are not automatically accepted Memory.
+
+## 4. Inspect continuity
+
+On the same card, select **Continuity**. Inspect the persisted project records in the preview. It is bounded project state, not a copied provider session, full chat history, or proof that reviewed core Memory was included.
+
+## 5. Open normal Text chat
+
+On the project's card, select **Open**. Verify **Project context** is your new project and keep **Text** selected.
+
+- **No provider configured:** the app explains the missing server-side credential and disables **Send message**. This is the expected no-key result. Continue to restart; report real chat as **not tested**, not successful.
+- **A provider is configured by you:** choose it with **Model**, write a short, non-sensitive request for your own workflow, and select **Send message**. Wait for a completed reply and note the provider/model and whether the reply was useful. Supported choices are OpenAI, Anthropic, and explicitly enabled local Ollama. Configuration is described in [README](../README.md#optional-local-ollama); keys stay server-side. Record a failure if the request fails.
+
+## 6. Restart and confirm persistence
+
+Return to **Projects** first. Restart with the same checkout and data location:
+
+- Docker: run `docker compose restart`.
+- Windows source: stop the API and web terminals with **Ctrl+C**, then run the same two startup commands from step 1. Do not rerun setup while the services are running.
+
+Reload the app. Find the same project, open **Control**, and confirm the Task edit plus the Decision and Outcome remain. Open **Continuity** again and compare the state. If you completed a real chat, open the project and select that conversation from history; check that the earlier messages and reply remain.
+
+If **Restart recovery** offers **Preview recovery**, inspect it before choosing **Confirm and resume**. A clean close may offer no recovery; that is expected and does not invalidate the persistence check. A page reload alone is not a service restart.
+
+## Report the result
+
+Use the [short external test packet](external-test-packet.md) to report success, a partial path, or the exact step that failed. No-key persistence can succeed while the full chat workflow remains partial. This guide and maintainer/CI runs do not establish independent adoption.
+
+Stop Docker with `docker compose down`, or stop the two source terminals with **Ctrl+C**. Keep the data volume/directory; `docker compose down -v` deletes it.

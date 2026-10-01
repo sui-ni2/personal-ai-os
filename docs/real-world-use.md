@@ -31,6 +31,8 @@ Repository maintenance and automated verification are still valuable, but they a
 
 ## How to contribute evidence
 
+For the shortest UI workflow and a copyable report covering installation, startup, real work, service restart, and persistence, start with the [external test packet](external-test-packet.md). Mark untested steps explicitly; no-key project persistence is a partial result for the full chat path.
+
 Use one of these paths:
 
 1. **Installation / first-run testing:** Issue #7 or the `Early tester feedback` issue form.

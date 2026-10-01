@@ -19,7 +19,7 @@ under the user's control.
 
 ## Evaluate in five minutes
 
-Follow [5-minute evaluation](docs/5-minute-evaluation.md) to start with no key, create a generic Project, add non-sensitive Task/Decision/Outcome/reviewed-Memory state, inspect continuity, and verify restart recovery. It does not require understanding MCP or provider adapters.
+Follow [5-minute evaluation](docs/5-minute-evaluation.md) after installation/startup to create a Project, use **Projects → Control** for Task/Decision/Outcome progress, inspect continuity, and check persistence after restarting. No key is needed for the project loop; a real chat requires your configured provider. Share a first-hand success, partial result, or failure with the [short external test packet](docs/external-test-packet.md).
 
 ## Early testers wanted
 
