@@ -420,10 +420,16 @@ class ProjectStateService:
         return [dict(row) for row in rows]
 
     def snapshot(self, project_id: str) -> ProjectStateSnapshot:
+        states = self.list_state(project_id)
+        experiences = self.list_experience(project_id)
         return ProjectStateSnapshot(
             project_id=project_id,
-            states=self.list_state(project_id)[:MAX_CONTEXT_RECORDS],
-            experiences=self.list_experience(project_id)[:MAX_CONTEXT_RECORDS],
+            states=states[:MAX_CONTEXT_RECORDS],
+            experiences=experiences[:MAX_CONTEXT_RECORDS],
+            truncated=(
+                len(states) > MAX_CONTEXT_RECORDS
+                or len(experiences) > MAX_CONTEXT_RECORDS
+            ),
         )
 
     def context_json(self, project_id: str) -> str:
