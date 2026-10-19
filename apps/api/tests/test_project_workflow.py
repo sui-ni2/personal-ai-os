@@ -210,6 +210,7 @@ def _seed_workflow_context(
 
 
 def test_workflow_context_reports_not_truncated_below_limit(runtime) -> None:
+    runtime.database.migrate()
     service = ProjectWorkflowService(
         runtime.database,
         data_dir=runtime.settings.data_dir,
@@ -228,6 +229,7 @@ def test_workflow_context_reports_not_truncated_below_limit(runtime) -> None:
 
 
 def test_workflow_context_reports_not_truncated_at_limit(runtime) -> None:
+    runtime.database.migrate()
     service = ProjectWorkflowService(
         runtime.database,
         data_dir=runtime.settings.data_dir,
@@ -246,6 +248,7 @@ def test_workflow_context_reports_not_truncated_at_limit(runtime) -> None:
 
 
 def test_workflow_context_reports_truncated_above_limit(runtime) -> None:
+    runtime.database.migrate()
     service = ProjectWorkflowService(
         runtime.database,
         data_dir=runtime.settings.data_dir,
