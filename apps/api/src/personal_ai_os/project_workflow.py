@@ -297,7 +297,9 @@ class ProjectWorkflowService:
         ]
 
     def context_json(self, project_id: str) -> str:
-        workflows = self.list_workflows(project_id)[:MAX_WORKFLOW_CONTEXT]
+        workflows = self.list_workflows(project_id)
+        truncated = len(workflows) > MAX_WORKFLOW_CONTEXT
+        workflows = workflows[:MAX_WORKFLOW_CONTEXT]
         compact = [
             {
                 "workflow_id": item["workflow_id"],
@@ -310,4 +312,11 @@ class ProjectWorkflowService:
             }
             for item in workflows
         ]
-        return json.dumps({"project_id": project_id, "workflows": compact}, ensure_ascii=False)
+        return json.dumps(
+            {
+                "project_id": project_id,
+                "workflows": compact,
+                "truncated": truncated,
+            },
+            ensure_ascii=False,
+        )
