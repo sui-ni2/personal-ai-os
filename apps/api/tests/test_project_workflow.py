@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import json
 from collections.abc import AsyncIterator
 
 from fastapi.testclient import TestClient
 from personal_ai_os_core import Message
 
 from personal_ai_os.main import create_app
-from personal_ai_os.project_workflow import ProjectWorkflowService
+from personal_ai_os.project_workflow import MAX_WORKFLOW_CONTEXT, ProjectWorkflowService
 
 
 def _create_workflow(client: TestClient, project_id: str = "general"):
@@ -190,6 +191,79 @@ def test_new_conversation_receives_workflow_gate_context(runtime, monkeypatch) -
     )
     assert '"completed_steps": ["review"]' in workflow
     assert '"next_step": "input"' in workflow
+
+
+def _seed_workflow_context(
+    service: ProjectWorkflowService,
+    *,
+    project_id: str,
+    count: int,
+) -> None:
+    for index in range(count):
+        service.create_workflow(
+            project_id=project_id,
+            workflow_id=f"workflow-{index:03d}",
+            run_key="run",
+            steps=["complete"],
+            source="test",
+        )
+
+
+def test_workflow_context_reports_not_truncated_below_limit(runtime) -> None:
+    runtime.database.migrate()
+    service = ProjectWorkflowService(
+        runtime.database,
+        data_dir=runtime.settings.data_dir,
+        tenant_id=runtime.settings.tenant_id,
+    )
+    _seed_workflow_context(
+        service,
+        project_id="workflow-context-below",
+        count=MAX_WORKFLOW_CONTEXT - 1,
+    )
+
+    payload = json.loads(service.context_json("workflow-context-below"))
+
+    assert len(payload["workflows"]) == MAX_WORKFLOW_CONTEXT - 1
+    assert payload["truncated"] is False
+
+
+def test_workflow_context_reports_not_truncated_at_limit(runtime) -> None:
+    runtime.database.migrate()
+    service = ProjectWorkflowService(
+        runtime.database,
+        data_dir=runtime.settings.data_dir,
+        tenant_id=runtime.settings.tenant_id,
+    )
+    _seed_workflow_context(
+        service,
+        project_id="workflow-context-exact",
+        count=MAX_WORKFLOW_CONTEXT,
+    )
+
+    payload = json.loads(service.context_json("workflow-context-exact"))
+
+    assert len(payload["workflows"]) == MAX_WORKFLOW_CONTEXT
+    assert payload["truncated"] is False
+
+
+def test_workflow_context_reports_truncated_above_limit(runtime) -> None:
+    runtime.database.migrate()
+    service = ProjectWorkflowService(
+        runtime.database,
+        data_dir=runtime.settings.data_dir,
+        tenant_id=runtime.settings.tenant_id,
+    )
+    _seed_workflow_context(
+        service,
+        project_id="workflow-context-overflow",
+        count=MAX_WORKFLOW_CONTEXT + 1,
+    )
+
+    payload = json.loads(service.context_json("workflow-context-overflow"))
+
+    assert len(payload["workflows"]) == MAX_WORKFLOW_CONTEXT
+    assert payload["truncated"] is True
 
 
 def test_workflow_route_rejects_unknown_project(client: TestClient) -> None:
