@@ -1,5 +1,40 @@
 # Project evidence ledger
 
+## Snapshot — 2026-10-21
+
+### Reach
+
+- Live public repository snapshot: **59 stars, 15 forks, and 173 commits**.
+- These are public reach/activity signals only and are not counted as independent adoption.
+
+### Maintenance
+
+- Current `main`: `8e317e9f92b5d48c1a73ece8182f9d16f5907471`.
+- PR #141 merged on 2026-10-21 to resolve the Vite security-update blocker while preserving the repository's supply-chain controls. Its merge record reports CI, CodeQL, Dependency Review, Platform Readiness, and v0.4 Hardening Gates passing.
+- The repository continues to use explicit external-validation issues rather than treating maintainer or bot activity as adoption.
+
+### External contribution
+
+**EXTERNAL_CONTRIBUTION_VERIFIED = 1+** for the current evidence state.
+
+- PR #133 was authored by non-maintainer @yunaremaia and merged with contributor authorship preserved.
+- The contribution fixed incorrect truncation reporting in project-context snapshots and supplied focused regression tests.
+- Review of #133 also surfaced the analogous workflow-context problem; maintainer PR #140 fixed that separate issue and credited the external review signal.
+- This is valid contributor/community evidence. It is **not** promoted into independent end-user adoption without a first-hand use result.
+
+### Independent adoption
+
+**INDEPENDENT_ADOPTION_VERIFIED = 0.**
+
+- Issue #7: no completed external result.
+- Issue #15: no completed external result.
+- Issue #55: external contributor interest, but no first-hand Personal AI OS workflow result.
+- Issue #56: external intent to test, but no completed environment/result report.
+
+### Application-facing interpretation
+
+Compared with the 2026-10-01 snapshot, the repository now has a verified merged non-maintainer contribution and subsequent maintainer follow-through, in addition to continuing release/security/CI work. The strongest remaining evidence gap is still meaningful independent usage. Stars, forks, commits, CI, contributor interest, and the merged external PR should each be described for what they prove, not converted into a stronger adoption claim.
+
 ## Snapshot — 2026-10-01
 
 ### Reach
