@@ -1,5 +1,18 @@
 # Maintainer evidence summary
 
+## Refresh — 2026-10-21
+
+The maintainer evidence is stronger than the 2026-08-30 baseline below.
+
+- **Current main:** `8e317e9f92b5d48c1a73ece8182f9d16f5907471`.
+- **Current public reach/activity:** 59 stars, 15 forks, 173 commits.
+- **External contribution:** non-maintainer @yunaremaia's PR #133 was merged with contributor authorship preserved and added a focused correctness fix plus regression tests.
+- **Review follow-through:** maintainer PR #140 fixed the analogous workflow-context issue identified during review of #133 and credited that external signal.
+- **Security maintenance:** PR #141 resolved the Vite security blocker without relaxing supply-chain controls; the merge record reports CI, CodeQL, Dependency Review, Platform Readiness, and v0.4 Hardening Gates passing.
+- **Evidence boundary:** `INDEPENDENT_ADOPTION_VERIFIED = 0` remains unchanged. A real external contribution demonstrates contributor engagement and maintainership, but it does not prove successful independent product adoption.
+
+For application or reviewer purposes, the repository can now substantiate active primary-maintainer work across PR review, issue triage, release/security maintenance, regression testing, contributor handling, and ongoing code quality. The material remaining gap is independent usage evidence.
+
 **Observation date:** 2026-08-30
 
 Personal AI OS is a local-first, provider-neutral workspace for long-running AI work. Its core premise is that project state — conversations, reviewed memory, tools, execution history, and project context — should remain under the user's control while model providers remain replaceable execution engines.
