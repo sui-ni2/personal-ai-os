@@ -24,19 +24,26 @@ jobs:
           corepack enable
           corepack prepare pnpm@11.16.0 --activate
           pnpm --version
-      - name: Align runtime compatibility stack
+      - name: Set the compatible patched dependency stack
         run: |
-          pnpm --filter @personal-ai-os/web add --save-exact \
-            @vinext/cloudflare@1.1.1 \
-            react@19.3.1 \
-            react-dom@19.3.1 \
-            react-server-dom-webpack@19.3.1 \
-            --lockfile-only
-          pnpm --filter @personal-ai-os/web add --save-dev --save-exact \
-            vinext@1.2.1 \
-            @vitejs/plugin-rsc@0.5.38 \
-            vite@8.3.3 \
-            --lockfile-only
+          node - <<'NODE'
+          const fs = require('fs');
+          const path = 'apps/web/package.json';
+          const pkg = JSON.parse(fs.readFileSync(path, 'utf8'));
+          Object.assign(pkg.dependencies, {
+            '@vinext/cloudflare': '1.1.1',
+            react: '19.3.1',
+            'react-dom': '19.3.1',
+            'react-server-dom-webpack': '19.3.1',
+          });
+          Object.assign(pkg.devDependencies, {
+            vinext: '1.2.1',
+            '@vitejs/plugin-rsc': '0.5.38',
+            vite: '8.3.3',
+          });
+          fs.writeFileSync(path, JSON.stringify(pkg, null, 2) + '\n');
+          NODE
+          pnpm install --lockfile-only
       - name: Verify generated dependency graph and commit
         shell: bash
         run: |
@@ -64,6 +71,7 @@ jobs:
           if (!lock.includes('vite@8.3.3')) throw new Error('lockfile lacks vite 8.3.3');
           if (lock.includes('vite@8.3.0')) throw new Error('vulnerable vite 8.3.0 remains');
           if (!lock.includes('vinext@1.2.1')) throw new Error('lockfile lacks vinext 1.2.1');
+          if (!lock.includes('react@19.3.1')) throw new Error('lockfile lacks React 19.3.1');
           NODE
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
