@@ -1,0 +1,44 @@
+name: Temporary Vite 8.3.3 lockfile refresh
+
+on:
+  push:
+    branches:
+      - fix/vite-security-8.3.4
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/vite-security-8.3.4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Enable pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.16.0 --activate
+      - name: Pin minimum patched Vite and refresh lockfile
+        run: pnpm --filter @personal-ai-os/web add --save-dev --save-exact vite@8.3.3 --lockfile-only
+      - name: Verify and commit generated files
+        shell: bash
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const pkg = JSON.parse(fs.readFileSync('apps/web/package.json', 'utf8'));
+          if (pkg.devDependencies?.vite !== '8.3.3') throw new Error('vite is not pinned to 8.3.3');
+          const lock = fs.readFileSync('pnpm-lock.yaml', 'utf8');
+          if (!lock.includes('vite@8.3.3')) throw new Error('lockfile lacks vite 8.3.3');
+          if (lock.includes('vite@8.3.0')) throw new Error('vulnerable vite 8.3.0 remains');
+          NODE
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add apps/web/package.json pnpm-lock.yaml
+          git diff --cached --quiet && { echo "No dependency changes generated"; exit 1; }
+          git commit -m "fix(deps): use minimum patched Vite 8.3.3"
+          git push origin HEAD:fix/vite-security-8.3.4
