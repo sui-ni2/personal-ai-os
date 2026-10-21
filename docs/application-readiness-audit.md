@@ -1,5 +1,24 @@
 # Application readiness audit
 
+## Refresh — 2026-10-21
+
+This refresh records current public evidence relevant to open-source maintainer review. It does not rewrite the dated historical snapshots below.
+
+| Item | Current state | Evidence boundary |
+| --- | --- | --- |
+| `main` | VERIFIED | Current `main` is `8e317e9f92b5d48c1a73ece8182f9d16f5907471`, merged from PR #141 on 2026-10-21. |
+| Reach | VERIFIED | Live GitHub snapshot: **59 stars, 15 forks, 173 commits**. These are reach/activity signals, not proof of end-user adoption. |
+| External contribution | VERIFIED | Non-maintainer @yunaremaia contributed PR #133, which was merged with contributor authorship preserved. The fix corrected project-context truncation reporting and included regression coverage. |
+| Maintainer follow-through | VERIFIED | PR #140 fixed the analogous workflow-context truncation issue after it was identified during review of #133 and explicitly credited that external review signal. |
+| Security / dependency maintenance | VERIFIED | PR #141 resolved a vulnerable Vite dependency with the minimum patched Vite release plus the upstream-compatible vinext stack, without weakening supply-chain controls; its merge record states CI, CodeQL, Dependency Review, Platform Readiness, and v0.4 Hardening Gates passed. |
+| External validation paths | VERIFIED | Issues #7, #15, #55, and #56 remain public entry points for fresh-install, real-workflow, and portability feedback. |
+| Independent install / workflow evidence | MISSING | #7 and #15 have no external result; #55 contains contributor interest but no first-hand use report; #56 contains intent to test but no completed environment/result report. |
+| Independent adoption | MISSING | `INDEPENDENT_ADOPTION_VERIFIED = 0` remains the defensible boundary. A merged external code contribution is meaningful contributor evidence, but it is not automatically end-user adoption. |
+
+### Application-facing interpretation
+
+The repository now demonstrates all of the maintainer responsibilities that can be verified from the project itself: ongoing releases, PR review and contributor handling, issue triage, security/dependency maintenance, CI/security gates, and a real merged non-maintainer contribution. The remaining weak signal is **meaningful independent usage/adoption**, which cannot be manufactured by maintainer activity and should not be overstated.
+
 The [2026-10-01 daily-use follow-up](daily-use-audit-2026-10-01.md) starts from merged PR #128
 and records current check scopes, dependency risk, backup defects, and remaining external proof.
 The dated application snapshots below are preserved.
