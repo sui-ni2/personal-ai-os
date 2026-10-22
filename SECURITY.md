@@ -2,8 +2,8 @@
 
 ## Supported versions
 
-Security fixes target the latest stable `v0.2.x` release line and the current `main` branch.
-Versions older than `v0.2.0` are pre-stable historical builds and are not supported.
+Security fixes target the current stable `v0.3.x` release line and the current `main` branch.
+The `v0.2.x` line and earlier builds are historical and are not guaranteed to receive fixes.
 When a fix affects the current stable release, maintainers will decide whether a focused
 backport is safer than requiring users to move to the next stable release.
 
