@@ -53,6 +53,16 @@ Repository ownership is explicit in `.github/CODEOWNERS` and `MAINTAINERS.md`.
 
 - **PR #142** — refreshed application-readiness, evidence-ledger, and maintainer-evidence documents to the current repository state while preserving `INDEPENDENT_ADOPTION_VERIFIED = 0`.
 
+## Upstream open-source contribution evidence
+
+The maintainer also contributes outside this repository. Current public FastMCP evidence includes:
+
+- [PrefectHQ/fastmcp PR #4849](https://github.com/PrefectHQ/fastmcp/pull/4849) — merged; rejects non-positive upstream token expiry with regression coverage.
+- [PrefectHQ/fastmcp PR #4861](https://github.com/PrefectHQ/fastmcp/pull/4861) — merged; adds bounded OIDC discovery caching with caller isolation and failure retry semantics.
+- [PrefectHQ/fastmcp PR #4881](https://github.com/PrefectHQ/fastmcp/pull/4881) — open and mergeable at the 2026-10-22 observation; the PR records successful exact-head tests, static analysis, and downstream smoke, with maintainer review/approval still outstanding.
+
+These links are evidence of sustained OSS contribution and review work. They are separate from Personal AI OS adoption and are not counted as user-usage evidence.
+
 ## Maintainer automation
 
 The repository includes deterministic, tested helpers for recurring OSS maintenance work:
