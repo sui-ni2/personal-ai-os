@@ -120,6 +120,17 @@ python scripts/tester_feedback_traceability.py feedback-trace.json
 
 Tests: `apps/api/tests/test_tester_feedback_traceability.py`.
 
+## 9. Public version-policy consistency
+
+The normal CI step `scripts/check_internal_versions.py` also fails closed when current public version policy drifts from repository metadata. It keeps two different concepts separate:
+
+- **source version consistency:** internal Python packages, API runtime, and the web package must agree;
+- **stable public policy consistency:** the latest dated stable entry in `CHANGELOG.md`, README's current-stable statement, and `SECURITY.md`'s supported `vMAJOR.MINOR.x` line must agree.
+
+The check is network-free and deliberately does **not** treat matching source/docs versions as proof that a Git tag or GitHub Release exists. Exact-SHA release evidence remains authoritative for publication claims.
+
+Tests: `apps/api/tests/test_version_policy_consistency.py`.
+
 ## Intended use with coding/API assistance
 
 These deterministic tools establish the non-negotiable policy boundary. Coding assistants or API-backed maintainer automation can operate around them to fetch source evidence, summarize context, propose fixes, and prepare review notes, while the repository-owned scripts remain the auditable gate for classification and release evidence.
