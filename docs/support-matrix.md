@@ -1,5 +1,17 @@
 # Verification support matrix
 
+## Refresh — 2026-10-22
+
+The historical 2026-08-30 matrix below remains useful for path-level verification, but the external-contribution state has changed.
+
+| Evidence area | Current state | Boundary |
+| --- | --- | --- |
+| External contribution | VERIFIED | PR #133 was authored by non-maintainer @yunaremaia and merged with contributor authorship preserved. |
+| Maintainer follow-through | VERIFIED | PR #140 fixed the analogous workflow-context issue surfaced during review of #133 and credited that external signal. |
+| Security / dependency maintenance | VERIFIED | PR #141 resolved the Vite security-update blocker without weakening supply-chain controls. |
+| Independent install / workflow use | MISSING | Issues #7, #15, #55, and #56 still contain no completed qualifying independent-use result. |
+| Independent adoption | MISSING | `INDEPENDENT_ADOPTION_VERIFIED = 0` remains unchanged; external code contribution is not automatically end-user adoption. |
+
 This matrix separates automated repository coverage, maintainer-side evidence, and genuinely independent user verification. It is intentionally conservative: CI success is not counted as third-party adoption.
 
 **Observation date:** 2026-08-30

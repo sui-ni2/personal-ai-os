@@ -54,7 +54,7 @@ Repository-admin settings that source-controlled CI cannot replace are tracked h
 
 A reviewer can verify the no-key startup and privacy boundary without configuring a paid provider by following [Try Personal AI OS without an API key](docs/try-without-api.md). That proof is deliberately narrow: it covers clean startup, the expected runtime version, unconfigured-provider behavior, and secret redaction; it does not claim a real model response without a provider.
 
-For an auditable view of what has and has not been verified, see the [verification support matrix](docs/support-matrix.md), [maintainer evidence summary](docs/maintainer-evidence-summary.md), [project evidence ledger](docs/evidence-ledger.md), and [application readiness audit](docs/application-readiness-audit.md). CI, maintainer dogfooding, stars, and forks are kept separate from genuinely independent user evidence.
+For an auditable view of what has and has not been verified, see the [OSS maintainer review packet](docs/oss-maintainer-review-packet.md), [verification support matrix](docs/support-matrix.md), [maintainer evidence summary](docs/maintainer-evidence-summary.md), [project evidence ledger](docs/evidence-ledger.md), and [application readiness audit](docs/application-readiness-audit.md). CI, maintainer dogfooding, stars, forks, and external code contributions are each reported for what they prove rather than being converted into independent user-adoption claims.
 
 ## What is runnable now
 

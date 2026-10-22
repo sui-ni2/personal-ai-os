@@ -1,5 +1,15 @@
 # Repository admin checklist
 
+## Current release and maintenance snapshot — 2026-10-22
+
+- [x] Current stable release is `v0.3.0`, with a published GitHub Release.
+- [x] Current security policy targets the stable `v0.3.x` line and `main`.
+- [x] A genuine non-maintainer contribution has been merged: PR #133 by @yunaremaia.
+- [x] Maintainer follow-through from that review signal is recorded in PR #140.
+- [x] PR #141 resolved the current Vite security-update blocker without weakening supply-chain controls.
+- [x] Reviewer-facing evidence is consolidated in `docs/oss-maintainer-review-packet.md`.
+- [ ] Independent end-user adoption remains unverified and is not inferred from stars, forks, CI, or external code contribution alone.
+
 These settings live in GitHub repository administration rather than the source tree. They are tracked separately because source-level CI cannot enforce or replace them.
 
 ## Discoverability
