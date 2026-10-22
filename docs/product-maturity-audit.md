@@ -1,5 +1,14 @@
 # Product maturity audit
 
+## Refresh — 2026-10-22
+
+This file preserves the 2026-08-31 product-closure audit below. The following items have been superseded on current `main`:
+
+- **Doctor diagnostics: DONE.** `scripts/doctor.py` now emits a redacted, shareable diagnostic report covering application/runtime version, database integrity/migration state, provider configuration presence without values, local ports, MCP configuration presence, recovery metadata count, backup state, and update state. README documents `python scripts/doctor.py --json`.
+- **External contribution evidence: VERIFIED.** PR #133 is a merged non-maintainer contribution with focused regression coverage; PR #140 records maintainer follow-through on a related issue surfaced during that review.
+- **Security maintenance remains active.** PR #141 resolved the Vite security-update blocker while retaining the repository's supply-chain controls and required checks.
+- **Independent adoption remains unverified.** These maintenance and contributor signals do not replace a first-hand independent-use result.
+
 **Audit date:** 2026-08-31
 **Audited baseline:** `origin/main` at `0c509d1` (`v0.3.0-3-g0c509d1`)
 **Scope:** the single Personal AI OS community/self-hosted product. This is a
