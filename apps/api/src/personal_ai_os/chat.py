@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import re
 from collections.abc import AsyncIterator, Awaitable, Callable
@@ -115,6 +116,7 @@ async def stream_chat(
     scope: dict[str, Any] | None = None
     side_effect_started = False
     provider_call_started = False
+    execution_finalized = False
     conversation = (
         runtime.database.get_conversation(request.conversation_id)
         if request.conversation_id
@@ -527,6 +529,7 @@ async def stream_chat(
                 latency_ms=duration_ms,
             )
             governance.settle_budget_reservation(budget_reservation_id, status="committed")
+        execution_finalized = True
         yield _sse(
             _event(
                 runtime,
@@ -542,6 +545,39 @@ async def stream_chat(
                 },
             )
         )
+    except (asyncio.CancelledError, GeneratorExit):
+        if execution_id and not execution_finalized:
+            if side_effect_started:
+                execution_status = "outcome_unknown"
+                retry_status = "retry_requires_confirmation"
+                side_effect_status = "outcome_unknown"
+            else:
+                execution_status = "cancelled"
+                retry_status = "retry_safe"
+                side_effect_status = "not_started"
+            governance.update_execution_run(
+                execution_id,
+                status=execution_status,
+                retry_status=retry_status,
+                side_effect_status=side_effect_status,
+                detail={"code": "cancelled", "send_scope_receipt_id": send_scope_receipt_id},
+            )
+            governance.record_usage(
+                conversation_id=conversation.id,
+                project_id=request.project_id,
+                provider=request.provider,
+                model=request.model,
+                input_tokens=(
+                    int(scope["approximate_context_tokens"])
+                    if scope and provider_call_started
+                    else 0
+                ),
+                output_tokens=None,
+                status=execution_status,
+                latency_ms=int((perf_counter() - started) * 1000),
+            )
+            governance.settle_budget_reservation(budget_reservation_id, status="released")
+        raise
     except Exception as exc:
         payload: dict[str, object] = {"message": str(exc)}
         if isinstance(exc, ProviderError):
