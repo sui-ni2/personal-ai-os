@@ -587,18 +587,19 @@ class Database:
         if values.get("conflict_key"):
             with self.connect() as connection:
                 conflict = connection.execute(
-                    "SELECT id FROM memories WHERE tenant_id = ? AND type = ? AND project_id IS ? AND conflict_key = ? "
-                    "AND status = ? AND text != ? LIMIT 1",
+                    "SELECT * FROM memories WHERE tenant_id = ? AND type = ? AND project_id IS ? AND conflict_key = ? "
+                    "AND status = ? LIMIT 1",
                     (
                         self.tenant_id,
                         values["type"],
                         values.get("project_id"),
                         values["conflict_key"],
                         MemoryStatus.ACTIVE.value,
-                        values["text"],
                     ),
                 ).fetchone()
             if conflict:
+                if conflict["text"] == values["text"]:
+                    return self._memory_from_row(conflict)
                 values["status"] = MemoryStatus.CONFLICT_REVIEW_REQUIRED
         record = MemoryRecord(id=str(uuid4()), created_at=now, updated_at=now, **values)
         with self.connect() as connection:
