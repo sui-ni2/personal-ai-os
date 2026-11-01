@@ -3,10 +3,8 @@ packages:
 
 overrides:
   fsevents: 2.3.3
-  # Patch the vulnerable fflate version pinned by Satori.
-  fflate@0.7.3: 0.7.5
-  # Do not resolve obsolete undici 7.29.0 to a vulnerable fallback.
-  undici@7.29.0: 7.30.1
+  # Remove when upstream tooling no longer resolves the affected 7.29.0 release.
+  undici@7.29.0: 7.29.1
   # Remove when the dependency graph no longer resolves the affected 3.1.8 release.
   fast-uri@3.1.8: 3.1.9
   # Remove when the dependency graph no longer resolves the affected 6.1.4 release.
