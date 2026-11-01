@@ -112,7 +112,9 @@ def create_auth_router(settings: Settings) -> APIRouter:
         if not limiter.allow(client_key):
             raise HTTPException(status_code=429, detail="Too many attempts. Try again later.")
         assert settings.access_password is not None
-        if not hmac.compare_digest(\n            payload.password.encode("utf-8"), settings.access_password.encode("utf-8")\n        ):
+        if not hmac.compare_digest(
+            payload.password.encode("utf-8"), settings.access_password.encode("utf-8")
+        ):
             limiter.record_failure(client_key)
             raise HTTPException(status_code=401, detail="The access password is incorrect")
         limiter.clear(client_key)
