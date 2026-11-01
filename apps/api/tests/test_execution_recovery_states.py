@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from collections.abc import AsyncIterator
 
 import pytest
@@ -75,3 +76,51 @@ async def test_execution_statuses_remain_explicit_across_success_and_provider_fa
         "retry_status": "retry_safe",
         "side_effect_status": "not_started",
     }
+
+
+@pytest.mark.asyncio
+async def test_task_cancellation_finalizes_execution_state(
+    runtime, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    runtime.database.migrate()
+
+    async def cancelled(*_args, **_kwargs) -> AsyncIterator[str]:
+        if False:
+            yield "unused"
+        raise asyncio.CancelledError
+
+    monkeypatch.setattr(runtime.providers.get("openai"), "stream", cancelled)
+
+    with pytest.raises(asyncio.CancelledError):
+        await _run(runtime, "Cancel the provider task.")
+
+    assert _latest_state(runtime) == {
+        "status": "cancelled",
+        "retry_status": "retry_safe",
+        "side_effect_status": "not_started",
+    }
+
+
+@pytest.mark.asyncio
+async def test_generator_close_finalizes_execution_state(runtime) -> None:
+    runtime.database.migrate()
+    stream = stream_chat(
+        runtime,
+        ChatRequest(
+            provider="openai",
+            model="openai-test",
+            project_id="general",
+            content="Close the stream after context.",
+        ),
+    )
+
+    first = await anext(stream)
+    assert "event: context" in first
+    await stream.aclose()
+
+    assert _latest_state(runtime) == {
+        "status": "cancelled",
+        "retry_status": "retry_safe",
+        "side_effect_status": "not_started",
+    }
+

@@ -6,7 +6,9 @@ from personal_ai_os.config import Settings
 from personal_ai_os.main import create_app
 
 
-def protected_settings(runtime) -> Settings:
+def protected_settings(
+    runtime, *, access_password: str = "correct horse battery staple"
+) -> Settings:
     source = runtime.settings
     return Settings(
         data_dir=source.data_dir,
@@ -17,7 +19,7 @@ def protected_settings(runtime) -> Settings:
         default_model=source.default_model,
         mcp_stdio_commands=source.mcp_stdio_commands,
         auth_required=True,
-        access_password="correct horse battery staple",
+        access_password=access_password,
         session_secret="test-session-secret-that-is-at-least-32-characters",
     )
 
@@ -55,6 +57,19 @@ def test_protected_api_login_and_logout(runtime) -> None:
 
         assert client.post("/api/auth/logout").status_code == 200
         assert client.get("/api/projects").status_code == 401
+
+
+
+def test_protected_api_accepts_non_ascii_passwords(runtime) -> None:
+    password = "correct 马 battery staple 🔐"
+    runtime.settings = protected_settings(runtime, access_password=password)
+    with TestClient(create_app(runtime=runtime)) as client:
+        rejected = client.post("/api/auth/login", json={"password": "错误 password 🔒"})
+        assert rejected.status_code == 401
+
+        accepted = client.post("/api/auth/login", json={"password": password})
+        assert accepted.status_code == 200
+        assert client.get("/api/auth/status").json()["authenticated"] is True
 
 
 def test_production_auth_configuration_fails_closed(monkeypatch, tmp_path) -> None:

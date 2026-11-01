@@ -56,3 +56,20 @@ def test_memory_workbench_can_reject_or_keep_both_with_explicit_scope(client: Te
     assert both.json()["project_id"] == "general"
     items = client.get("/api/memory").json()["items"]
     assert next(item for item in items if item["id"] == global_memory["id"])["status"] == "active"
+
+
+def test_identical_memory_creation_is_idempotent(client: TestClient) -> None:
+    first = _memory(client, "timezone=UTC")
+    duplicate = _memory(client, "timezone=UTC")
+
+    assert duplicate["id"] == first["id"]
+    active = client.get("/api/memory?status=active").json()["items"]
+    matches = [
+        item
+        for item in active
+        if item["type"] == "preference"
+        and item["project_id"] == "general"
+        and item["text"] == "timezone=UTC"
+    ]
+    assert [item["id"] for item in matches] == [first["id"]]
+
