@@ -202,10 +202,28 @@ class OpenAIAdapter:
                                 completed = True
                                 break
                             item = json.loads(data)
-                            delta = item.get("choices", [{}])[0].get("delta", {}).get("content")
-                            if delta:
+                            if not isinstance(item, dict):
+                                raise ValueError("invalid stream event")
+                            choices = item.get("choices")
+                            if not isinstance(choices, list):
+                                raise ValueError("invalid stream choices")
+                            if not choices:
+                                # OpenAI-compatible usage summaries have no text choice.
+                                if not isinstance(item.get("usage"), dict):
+                                    raise ValueError("empty choices without usage")
+                                continue
+                            choice = choices[0]
+                            if not isinstance(choice, dict):
+                                raise ValueError("invalid stream choice")
+                            delta = choice.get("delta", {})
+                            if not isinstance(delta, dict):
+                                raise ValueError("invalid stream delta")
+                            content = delta.get("content")
+                            if content is not None and not isinstance(content, str):
+                                raise ValueError("invalid stream content")
+                            if content:
                                 emitted = True
-                                yield str(delta)
+                                yield content
                 if not completed:
                     raise ProviderStreamInterrupted(
                         f"{self.provider_name} stream ended before completion",
@@ -225,7 +243,7 @@ class OpenAIAdapter:
                         code="timeout",
                         retryable=not emitted,
                     ) from exc
-            except (httpx.HTTPError, json.JSONDecodeError) as exc:
+            except (httpx.HTTPError, ValueError) as exc:
                 if emitted or attempt >= self._max_retries:
                     raise ProviderStreamInterrupted(
                         f"{self.provider_name} stream was interrupted",
