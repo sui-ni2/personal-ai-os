@@ -9,6 +9,10 @@ Every provider adapter is assessed against the same application contract:
 - usage is recorded as `EXACT`, `ESTIMATED`, or `UNKNOWN`, never silently
   presented as a bill.
 
+OpenAI-compatible SSE streams accept usage-only completion chunks with `choices: []`
+and a `usage` object. Malformed events are reported as stream interruptions;
+once text has been emitted, the adapter will not retry the stream.
+
 The community runtime exposes three fallback policies:
 
 | Policy | Behavior |

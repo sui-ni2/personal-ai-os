@@ -62,6 +62,113 @@ async def test_openai_normalizes_rate_limit_after_retry_budget() -> None:
     assert error.value.retryable is True
 
 
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("usage_before_text", [False, True])
+async def test_openai_accepts_usage_only_stream_chunk(usage_before_text: bool) -> None:
+    text_chunk = {"choices": [{"delta": {"content": "hello"}}]}
+    usage_chunk = {"choices": [], "usage": {"prompt_tokens": 2, "completion_tokens": 1}}
+    chunks = [usage_chunk, text_chunk] if usage_before_text else [text_chunk, usage_chunk]
+    body = "".join(f"data: {json.dumps(chunk)}\n\n" for chunk in chunks)
+    body += "data: [DONE]\n\n"
+    attempts = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal attempts
+        attempts += 1
+        return httpx.Response(200, text=body, request=request)
+
+    adapter = OpenAIAdapter(
+        "test-key", ("test-model",), max_retries=1, retry_base_seconds=0,
+        transport=httpx.MockTransport(handler),
+        endpoint="https://test.openai.local/messages",
+    )
+    assert [chunk async for chunk in adapter.stream(_messages(), "test-model")] == ["hello"]
+    assert attempts == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "malformed",
+    [
+        "not-json",
+        "[]",
+        "{}",
+        '{"choices":null}',
+        '{"choices":[]}',
+        '{"choices":[null]}',
+        '{"choices":[{"delta":null}]}',
+        '{"choices":[{"delta":{"content":123}}]}',
+    ],
+)
+async def test_openai_malformed_stream_is_normalized(malformed: str) -> None:
+    adapter = OpenAIAdapter(
+        "test-key", ("test-model",), max_retries=0,
+        transport=httpx.MockTransport(
+            lambda request: httpx.Response(
+                200, text=f"data: {malformed}\n\ndata: [DONE]\n\n", request=request
+            )
+        ),
+        endpoint="https://test.openai.local/messages",
+    )
+    with pytest.raises(ProviderStreamInterrupted) as error:
+        _ = [chunk async for chunk in adapter.stream(_messages(), "test-model")]
+    assert error.value.code == "stream_interrupted"
+    assert error.value.retryable is True
+
+
+@pytest.mark.asyncio
+async def test_openai_retries_malformed_stream_only_before_output() -> None:
+    attempts = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            return httpx.Response(200, text='data: {"choices":[]}\n\n', request=request)
+        return httpx.Response(
+            200,
+            text='data: {"choices":[{"delta":{"content":"recovered"}}]}\n\ndata: [DONE]\n\n',
+            request=request,
+        )
+
+    adapter = OpenAIAdapter(
+        "test-key", ("test-model",), max_retries=1, retry_base_seconds=0,
+        transport=httpx.MockTransport(handler),
+        endpoint="https://test.openai.local/messages",
+    )
+    assert [chunk async for chunk in adapter.stream(_messages(), "test-model")] == ["recovered"]
+    assert attempts == 2
+
+
+@pytest.mark.asyncio
+async def test_openai_never_retries_malformed_stream_after_output() -> None:
+    attempts = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal attempts
+        attempts += 1
+        return httpx.Response(
+            200,
+            text='data: {"choices":[{"delta":{"content":"partial"}}]}\n\n'
+            'data: {"choices":[]}\n\n',
+            request=request,
+        )
+
+    adapter = OpenAIAdapter(
+        "test-key", ("test-model",), max_retries=2, retry_base_seconds=0,
+        transport=httpx.MockTransport(handler),
+        endpoint="https://test.openai.local/messages",
+    )
+    emitted: list[str] = []
+    with pytest.raises(ProviderStreamInterrupted) as error:
+        async for chunk in adapter.stream(_messages(), "test-model"):
+            emitted.append(chunk)
+    assert emitted == ["partial"]
+    assert attempts == 1
+    assert error.value.retryable is False
+
 @pytest.mark.asyncio
 async def test_openai_detects_partial_stream_interruption() -> None:
     body = 'data: {"choices":[{"delta":{"content":"partial"}}]}\n\n'
