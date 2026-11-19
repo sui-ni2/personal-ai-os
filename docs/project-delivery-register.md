@@ -83,6 +83,14 @@
 - **PAI-016:** assemble exact-head v0.4 evidence; maintain the independent provider, device, install and multi-day-use limitations recorded in PAI-007/013/015/017/018/019.
 - **PAI-024:** perform real cross-client pilot only in authorized environments; do not copy or publish private candidate source.
 
+## Append-only plan retention
+
+The [historical ID baseline](project-delivery-ids.txt) independently retains every
+workstream ID. Removing an ID from both JSON and Markdown still fails the
+validator. New plans must be added to all three in a reviewed change.
+Changing the historical baseline itself requires explicit review; this prevents
+accidental loss but is not cryptographic protection from malicious edits.
+
 ## Checks and provenance
 
 Run `python scripts/check_project_delivery_register.py` or the focused pytest. The validator checks mandatory status-dependent gates, unique IDs, and one-to-one indexed rows; it **cannot** confirm that a PR merged, CI passed, or external users adopted the product.
