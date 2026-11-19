@@ -42,6 +42,8 @@ test("daily Project, Memory, send scope, budget hard stop, execution, and reload
   }
 
   const taskItem = page.getByRole("listitem").filter({ hasText: "Validate execution" }).last();
+  await expect(taskItem.getByText("Recorded", { exact: true })).toBeVisible();
+  await expect(taskItem.locator("svg.text-success")).toHaveCount(0);
   await taskItem.getByRole("button", { name: "Edit task Validate execution" }).click();
   await expect(page.getByLabel("Record type")).toBeDisabled();
   await page.getByLabel("Project update").fill("Validate execution after review");
