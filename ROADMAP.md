@@ -22,7 +22,8 @@ The stable release was published only after the documented real-inference, resta
 
 ## Persistent delivery and evidence register
 
-The [project delivery register](docs/project-delivery-register.md) tracks the existing
+The [project delivery register](docs/project-delivery-register.md) and
+[append-only workstream IDs](docs/project-delivery-ids.txt) track the existing
 roadmap and previously agreed work without discarding unfinished plans. Its
 [machine-readable inventory](docs/project-delivery-register.json) records work as
 active, ready to build, needing design, requiring external verification, explicitly
