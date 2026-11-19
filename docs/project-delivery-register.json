@@ -42,15 +42,15 @@
     },
     {
       "id": "PAI-004",
-      "lane": "ready",
+      "lane": "active",
       "priority": "P0",
       "title": "Project State Reconciler read-only v1",
       "source_refs": [
         "docs/persistent-project-state.md"
       ],
       "acceptance": "An opt-in bounded preview differentiates persisted records and unknown external results without changing private state.",
-      "next_step": "Implement small RFC stages after avoiding collision with PR #169.",
-      "design_ref": "docs/project-state-reconciler-rfc.md"
+      "next_step": "Review PR #170 API and regression CI; add accessible project preview only after #169 conflict resolution.",
+      "work_ref": "https://github.com/sui-ni2/personal-ai-os/pull/170"
     },
     {
       "id": "PAI-005",
