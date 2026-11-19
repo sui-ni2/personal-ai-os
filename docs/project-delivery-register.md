@@ -18,6 +18,7 @@
 | ID | Priority | Workstream | Next verified step |
 | --- | --- | --- | --- |
 | PAI-003 | P0 | Recorded state is not completed work (PR #169) | Inspect PR #169 head/reviews; repair real failures only; never auto-merge. |
+| PAI-004 | P0 | Project State Reconciler read-only v1 | Review PR #170 API and regression CI; add accessible project preview only after #169 conflict resolution. |
 | PAI-012 | P1 | Backup, migration, restore and user data portability | Advance integration safety checks; preserve all private records. |
 | PAI-020 | P0 | Next.js 16.4.5 security patch review | Prioritize #168 without automatic merge. |
 | PAI-021 | P2 | Python 3.15-slim major compatibility | Review #166 as a compatibility project, not an automatic patch. |
@@ -29,7 +30,6 @@
 
 | ID | Priority | Workstream | Next verified step |
 | --- | --- | --- | --- |
-| PAI-004 | P0 | Project State Reconciler read-only v1 | Implement small RFC stages after avoiding collision with PR #169. |
 | PAI-016 | P0 | v0.4 release-candidate gate and stable handoff | Finish candidate verification; do not automatically merge, tag or release. |
 | PAI-033 | P1 | First-run Doctor diagnostic comprehension | Build targeted diagnostic UX/regression without exposing private state. |
 
