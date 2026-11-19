@@ -83,3 +83,26 @@ def test_unknown_lane_and_unsafe_paths_fail_closed() -> None:
     errors = checker.validate_register(data, ROOT)
     assert any("unknown lane" in e for e in errors)
     assert any("source reference" in e for e in errors)
+
+
+def test_synchronized_json_index_deletion_still_fails_historical_baseline() -> None:
+    data = _sample()
+    index = (ROOT / "docs/project-delivery-register.md").read_text(encoding="utf-8")
+    baseline = (ROOT / "docs/project-delivery-ids.txt").read_text(encoding="utf-8")
+    data["items"] = [item for item in data["items"] if item["id"] != "PAI-004"]
+    index = "\n".join(
+        line for line in index.splitlines() if not line.startswith("| PAI-004 |")
+    )
+    assert checker.validate_index(data, index) == []
+    assert any("removed commitments PAI-004" in error
+               for error in checker.validate_id_baseline(data, baseline))
+
+
+def test_new_plan_id_requires_explicit_history_append() -> None:
+    data = _sample()
+    baseline = (ROOT / "docs/project-delivery-ids.txt").read_text(encoding="utf-8")
+    item = copy.deepcopy(data["items"][0])
+    item["id"] = "PAI-099"
+    data["items"].append(item)
+    assert any("new IDs require" in error
+               for error in checker.validate_id_baseline(data, baseline))
