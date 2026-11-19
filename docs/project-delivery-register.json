@@ -284,13 +284,13 @@
       "id": "PAI-024",
       "lane": "external",
       "priority": "P1",
-      "title": "Cross-client project handoff and skill pilot",
+      "title": "Cross-client project-state handoff acceptance",
       "source_refs": [
         "docs/reference-workflow.md"
       ],
       "acceptance": "Two actual clients reproduce evidence-sensitive resume on one non-sensitive fixture.",
-      "next_step": "Keep unapproved skill source private; no public upload or listing before owner authorization.",
-      "proof_needed": "Observed Codex/Claude Code session results plus independent user pilot"
+      "next_step": "Compare two genuine clients using synthetic handoff; keep unpublished working materials private.",
+      "proof_needed": "Observed cross-client resume outcomes and independent non-sensitive tester results"
     },
     {
       "id": "PAI-025",
