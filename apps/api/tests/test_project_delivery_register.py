@@ -23,6 +23,8 @@ def test_committed_delivery_register_has_no_missing_or_duplicate_workstreams() -
     index = (ROOT / "docs/project-delivery-register.md").read_text(encoding="utf-8")
     assert checker.validate_register(document, ROOT) == []
     assert checker.validate_index(document, index) == []
+    baseline = (ROOT / "docs/project-delivery-ids.txt").read_text(encoding="utf-8")
+    assert checker.validate_id_baseline(document, baseline) == []
     assert len({item["id"] for item in document["items"]}) == len(document["items"])
 
 
