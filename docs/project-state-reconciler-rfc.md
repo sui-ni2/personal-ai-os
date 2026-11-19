@@ -91,7 +91,7 @@ authoritative execution/confirmation system. Public CI green is not product adop
    prove real-world reconciliation.
 5. **External pilot:** only with explicit consent and a non-sensitive fixture, compare
    ordinary chat summary versus a verified checkpoint in two actual clients and note
-   recoverability/error rates. A separate Skill candidate is **not** authorized for
+   recoverability/error rates. Private external-client artifacts are **not** authorized for
    publication by this RFC.
 
 ## Promotion rule
