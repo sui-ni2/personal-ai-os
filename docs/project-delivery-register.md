@@ -8,7 +8,7 @@
 1. Retain every tracked line: **active** work continues, **ready** designs turn into implementation, **design** produces an accepted RFC, **external** waits for real evidence, **deferred** retains an explicit review trigger, **completed** is not repeated without regression.
 2. **A plan, saved record, submitted PR, passing mock, or green CI is not a finished product.** Move status only after explicit evidence and acceptance. The register checker validates bookkeeping, not GitHub state or real-world truth.
 3. Finish active changes before starting overlapping ones. Use small reviewed branches and exact-SHA checks. No direct-main push, forced update, automated merge, secret access, migration without backup or unauthorized publication.
-4. Keep all domain workflows behind the project boundary. Community/local-first remains runnable; cloud identity/billing stays fail-closed. Do not publish an unapproved external Skill candidate from private project work.
+4. Keep all domain workflows behind the project boundary. Community/local-first remains runnable; cloud identity/billing stays fail-closed. Do not publish unapproved private candidate files or account materials.
 5. Each project-building run must inspect this index, live open PRs/issues, relevant design and completed evidence, then close one verifiable step or record the real blocker. No empty repetition, manufactured adoption or meaningless PRs.
 
 ## Tracked commitments
@@ -54,7 +54,7 @@
 | PAI-017 | P0 | Seven-to-fourteen-day daily dogfooding | Collect day-by-day results; time elapsed alone is insufficient. |
 | PAI-018 | P0 | Independent first-use and real-workflow evidence | Continue Issues #7 and #55; do not manufacture adoption. |
 | PAI-019 | P0 | Independent Windows and macOS/Linux clean installs | Continue Issues #15 and #56 and fix reproduced friction. |
-| PAI-024 | P1 | Cross-client project handoff and skill pilot | Keep unapproved skill source private; no public upload or listing before owner authorization. |
+| PAI-024 | P1 | Cross-client project-state handoff acceptance | Compare two genuine clients using synthetic handoff; keep unpublished working materials private. |
 
 ### 5 · Deliberately deferred with review triggers
 
