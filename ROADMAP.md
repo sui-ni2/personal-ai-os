@@ -28,7 +28,7 @@ roadmap and previously agreed work without discarding unfinished plans. Its
 active, ready to build, needing design, requiring external verification, explicitly
 deferred, or completed with evidence. The
 [network-free validator](scripts/check_project_delivery_register.py) guards against
-omitted IDs and unsupported status promotion in the published register; it does
+omitted IDs and missing status-specific proof fields in the published register; it does
 **not** verify live PRs or users. This roadmap remains the product direction; the
 register adds execution ownership, acceptance gates and continuity.
 
