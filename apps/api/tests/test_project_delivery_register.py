@@ -69,7 +69,6 @@ def test_index_detects_hidden_workstream_omission() -> None:
 def test_index_rejects_paper_promotion_without_register_update() -> None:
     data = _sample()
     index = (ROOT / "docs/project-delivery-register.md").read_text(encoding="utf-8")
-    index = index.replace("| PAI-004 |", "| PAI-004 |", 1)
     data["items"][3]["lane"] = "completed"
     assert any("wrong lane" in e for e in checker.validate_index(data, index))
 
