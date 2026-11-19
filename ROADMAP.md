@@ -20,6 +20,18 @@ The stable release was published only after the documented real-inference, resta
 4. **Continuity before feature count**
    - Restart-safe conversations, project-scoped state, workflow gates, version history, outcomes, and MCP continuity are more important than adding disconnected features.
 
+## Persistent delivery and evidence register
+
+The [project delivery register](docs/project-delivery-register.md) tracks the existing
+roadmap and previously agreed work without discarding unfinished plans. Its
+[machine-readable inventory](docs/project-delivery-register.json) records work as
+active, ready to build, needing design, requiring external verification, explicitly
+deferred, or completed with evidence. The
+[network-free validator](scripts/check_project_delivery_register.py) guards against
+omitted IDs and unsupported status promotion in the published register; it does
+**not** verify live PRs or users. This roadmap remains the product direction; the
+register adds execution ownership, acceptance gates and continuity.
+
 ## Next priorities after v0.3.0
 
 1. **Prove workspace continuity with external users**
