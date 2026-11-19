@@ -15,6 +15,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 REGISTER = Path("docs/project-delivery-register.json")
 INDEX = Path("docs/project-delivery-register.md")
+ID_BASELINE = Path("docs/project-delivery-ids.txt")
 
 LANES = ("active", "ready", "design", "external", "deferred", "completed")
 GATE_BY_LANE = {
@@ -143,6 +144,34 @@ def validate_index(document: Any, markdown: str) -> list[str]:
     return errors
 
 
+def validate_id_baseline(document: Any, baseline_text: str) -> list[str]:
+    """Retain historical commitments even when both register and index are edited."""
+    if not isinstance(document, dict) or not isinstance(document.get("items"), list):
+        return ["cannot validate baseline without a register"]
+    ids = [
+        row.strip()
+        for row in baseline_text.splitlines()
+        if row.strip() and not row.lstrip().startswith("#")
+    ]
+    errors: list[str] = []
+    if not ids or any(not ID_PATTERN.fullmatch(item_id) for item_id in ids):
+        errors.append("baseline: invalid or empty historical ID list")
+    if len(ids) != len(set(ids)):
+        errors.append("baseline: duplicate historical ID")
+    current = {
+        item.get("id")
+        for item in document["items"]
+        if isinstance(item, dict) and isinstance(item.get("id"), str)
+    }
+    removed = set(ids) - current
+    if removed:
+        errors.append("baseline: removed commitments " + ", ".join(sorted(removed)))
+    unregistered = current - set(ids)
+    if unregistered:
+        errors.append("baseline: new IDs require an append-only baseline update: " + ", ".join(sorted(unregistered)))
+    return errors
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, default=ROOT)
@@ -151,10 +180,13 @@ def main(argv: list[str] | None = None) -> int:
     try:
         document = json.loads((root / REGISTER).read_text(encoding="utf-8"))
         markdown = (root / INDEX).read_text(encoding="utf-8")
+        baseline_text = (root / ID_BASELINE).read_text(encoding="utf-8")
     except (OSError, ValueError) as exc:
         print(f"DELIVERY_REGISTER_BLOCKED: {type(exc).__name__}")
         return 1
-    errors = validate_register(document, root) + validate_index(document, markdown)
+    errors = (validate_register(document, root)
+              + validate_index(document, markdown)
+              + validate_id_baseline(document, baseline_text))
     if errors:
         for error in errors:
             print(f"DELIVERY_REGISTER_BLOCKED: {error}")
