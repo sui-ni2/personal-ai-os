@@ -1,6 +1,6 @@
 # Project State Reconciler — read-only v1 design
 
-**Status:** implementation-ready proposal, not deployed or externally validated.
+**Status:** read-only metadata API implementation in PR #170; not merged, not externally validated. Conflict classification and the user-facing Projects preview remain future increments.
 **Parent workstream:** PAI-004 in [project delivery register](project-delivery-register.md).
 **Existing implementation to reuse:** [persistent project state](persistent-project-state.md), [bounded handoff](project-handoff.md), [recovery](project-handoff.md#restart-recovery), and the Project Control Center.
 
