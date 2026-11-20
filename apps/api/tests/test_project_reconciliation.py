@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
+from personal_ai_os.project_state import ProjectStateService
+from personal_ai_os.project_workflow import ProjectWorkflowService
+
 
 def _put_state(client: TestClient, key: str, summary: str) -> None:
     response = client.put(
@@ -94,3 +97,40 @@ def test_preview_bounds_and_invalid_project_are_fail_closed(client: TestClient) 
         "/api/projects/no-such-project/control-center/reconciliation-preview"
     )
     assert unknown.status_code == 404
+
+
+def test_preview_avoids_unbounded_private_state_and_workflow_loads(
+    client: TestClient, monkeypatch
+) -> None:
+    for key in ("one", "two", "three"):
+        _put_state(client, key, "PRIVATE_UNREAD_VALUE_" + key)
+    for index in range(3):
+        created = client.post(
+            "/api/projects/general/workflows",
+            json={
+                "workflow_id": f"bounded-{index}",
+                "run_key": "synthetic",
+                "steps": ["start", "finish"],
+                "source": "reconciliation-test",
+            },
+        )
+        assert created.status_code == 201
+
+    def forbidden_full_load(*args, **kwargs):
+        raise AssertionError("Reconciliation must not load entire private state")
+
+    monkeypatch.setattr(ProjectStateService, "list_state", forbidden_full_load)
+    monkeypatch.setattr(ProjectStateService, "_state_from_row", forbidden_full_load)
+    monkeypatch.setattr(ProjectWorkflowService, "list_workflows", forbidden_full_load)
+
+    response = client.get(
+        "/api/projects/general/control-center/reconciliation-preview?limit=1"
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["counts"] == {"states": 3, "workflows": 3}
+    assert payload["truncated"] is True
+    assert len(payload["state_records"]) == 1
+    assert len(payload["workflow_records"]) == 1
+    assert payload["workflow_records"][0]["next_step"] == "start"
+    assert "PRIVATE_UNREAD_VALUE" not in response.text

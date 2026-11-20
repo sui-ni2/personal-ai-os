@@ -183,6 +183,32 @@ class ProjectWorkflowService:
             ).fetchall()
         return [self._row_to_workflow(row) for row in rows]
 
+    def list_workflow_metadata(
+        self, project_id: str, *, limit: int
+    ) -> tuple[int, list[dict[str, Any]]]:
+        """Count all workflows while fetching only bounded workflow positions."""
+        if not 1 <= limit <= 100:
+            raise ValueError("Workflow metadata limit must be between 1 and 100")
+        with self._connect(project_id) as connection:
+            total = int(connection.execute("SELECT COUNT(*) FROM workflows").fetchone()[0])
+            rows = connection.execute(
+                "SELECT workflow_id, run_key, version, status, current_index, steps_json "
+                "FROM workflows ORDER BY updated_at DESC LIMIT ?",
+                (limit,),
+            ).fetchall()
+        records = []
+        for row in rows:
+            steps = json.loads(row["steps_json"])
+            next_index = int(row["current_index"]) + 1
+            records.append({
+                "workflow_id": row["workflow_id"],
+                "run_key": row["run_key"],
+                "version": row["version"],
+                "status": row["status"],
+                "next_step": steps[next_index] if next_index < len(steps) else None,
+            })
+        return total, records
+
     def advance_workflow(
         self,
         *,

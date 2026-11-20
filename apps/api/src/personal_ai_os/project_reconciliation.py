@@ -38,14 +38,16 @@ class ProjectReconciliationService:
         if not 1 <= limit <= 100:
             raise ValueError("Reconciliation preview limit must be between 1 and 100")
 
-        states = self.state.list_state(project_id)
-        workflows = self.workflow.list_workflows(project_id)
+        state_count, states = self.state.list_state_metadata(project_id, limit=limit)
+        workflow_count, workflows = self.workflow.list_workflow_metadata(
+            project_id, limit=limit
+        )
         return {
             "project_id": project_id,
             "read_at": datetime.now(timezone.utc).isoformat(),
             "evidence_scope": "PERSISTED_RECORDS_ONLY",
-            "counts": {"states": len(states), "workflows": len(workflows)},
-            "truncated": len(states) > limit or len(workflows) > limit,
+            "counts": {"states": state_count, "workflows": workflow_count},
+            "truncated": state_count > limit or workflow_count > limit,
             "state_records": [
                 {
                     "namespace": state["namespace"],
@@ -55,7 +57,7 @@ class ProjectReconciliationService:
                     "evidence_label": "RECORDED",
                     "reason_code": "STORED_NOT_EXECUTION_PROOF",
                 }
-                for state in states[:limit]
+                for state in states
             ],
             "workflow_records": [
                 {
@@ -68,6 +70,6 @@ class ProjectReconciliationService:
                     "external_execution": "UNVERIFIED",
                     "reason_code": "WORKFLOW_STATE_NOT_EXTERNAL_RECEIPT",
                 }
-                for workflow in workflows[:limit]
+                for workflow in workflows
             ],
         }
