@@ -58,6 +58,8 @@ jobs:
           if ($errors.Count -ne 0) { $errors | Format-List | Out-String | Write-Error; exit 1 }
       - name: Run deterministic package/install/rollback fixtures
         run: python -m pytest -q apps/api/tests/test_windows_distribution_contract.py
+      - name: Run backup, restore, and migration safety tests on Windows
+        run: python -m pytest -q apps/api/tests/test_backup_restore.py apps/api/tests/test_migration_safety.py
 
   browser-daily-use:
     name: Chromium daily-use and accessibility

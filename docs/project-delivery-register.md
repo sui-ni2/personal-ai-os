@@ -17,7 +17,7 @@
 
 | ID | Priority | Workstream | Next verified step |
 | --- | --- | --- | --- |
-| PAI-012 | P1 | Backup, migration, restore and user data portability | Advance integration safety checks; preserve all private records. |
+| PAI-012 | P1 | Backup, migration, restore and user data portability | Obtain a real Windows update/rollback run with package SHA-256, backup integrity, preserved-record inventory, and post-rollback health; do not infer it from deterministic CI. |
 | PAI-020 | P0 | Next.js 16.4.5 security patch review | Prioritize #168 without automatic merge. |
 | PAI-021 | P2 | Python 3.15-slim major compatibility | Review #166 as a compatibility project, not an automatic patch. |
 | PAI-022 | P1 | vinext and Cloudflare packages alignment | Review #162/#163 together without fragmentary upgrades. |

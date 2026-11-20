@@ -24,14 +24,31 @@ An archive-name collision fails rather than overwriting a backup. Empty data dir
 produce a restorable backup. The archive format remains `personal-ai-os-data-backup-v1`, and
 existing backups remain compatible with the restore command.
 
+New archives include a SHA-256 digest and byte count for every backed-up data file. The
+archive is verified against that manifest before it is returned, and restore verifies the
+same manifest before moving the current data directory. Older v1 archives without the
+file-digest list remain restorable. Empty nested directories are retained as well. A backup
+refuses to follow symlinks or special files, and the output directory must be outside the data
+directory so previous archives cannot become recursive backup input.
+
 ## Restore safely
 
-Stop the API before restoring. The restore command verifies the archive, rejects unsafe paths,
-and moves any existing data directory aside instead of deleting it:
+Stop the API before restoring. The restore command verifies the archive and its SHA-256 file manifest before touching the
+current data directory. It rejects absolute/traversal paths, Windows path aliases,
+symlinks, special files, duplicate/case-colliding entries, and unexpected archive roots.
+It then moves any existing data directory aside instead of deleting it:
 
 ```powershell
 .\.venv\Scripts\python.exe .\scripts\restore-data.py .\backups\personal-ai-os-data-<timestamp>-<unique-suffix>.zip --data-dir .\data
 ```
+
+## Migration safety
+
+Before applying pending database migrations, the application creates a uniquely named
+SQLite online-backup snapshot. It checks the snapshot's SQLite integrity and recorded
+schema versions before beginning the migration transaction. If snapshot creation or
+verification fails, the migration does not start. Repeated attempts retain distinct
+pre-migration snapshots rather than replacing an earlier recovery point.
 
 ## Make one transfer package
 
