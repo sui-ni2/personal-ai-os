@@ -111,9 +111,32 @@ class ProjectHandoffService:
             or len(experiences) > experience_limit
             or len(workflows) > workflow_limit
         )
+        # This is a read-only inventory of recorded workflow positions, not a claim
+        # that tasks or real-world side effects have been independently verified.
+        resume = {
+            "recorded_workflows": {
+                "active": sum(item["status"] == "active" for item in workflows),
+                "completed": sum(item["status"] == "completed" for item in workflows),
+                "other": sum(
+                    item["status"] not in {"active", "completed"} for item in workflows
+                ),
+            },
+            "next_steps": [
+                {
+                    "workflow_id": item["workflow_id"],
+                    "run_key": item["run_key"],
+                    "next_step": item["next_step"],
+                    "version": item["version"],
+                }
+                for item in selected_workflows
+                if item["status"] == "active" and item["next_step"] is not None
+            ],
+            "coverage": "partial" if truncated else "complete",
+        }
         return {
             "project_id": project_id,
             "mode": mode,
+            "resume": resume,
             "counts": {
                 "states": len(states),
                 "experiences": len(experiences),

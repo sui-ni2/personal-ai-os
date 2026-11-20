@@ -48,6 +48,20 @@ The Projects screen exposes continuity on each active project card. It does not 
 
 This makes persisted project state and workflow position inspectable again after an application restart without reconstructing missing facts from chat history.
 
+## Resume inventory (recorded state only)
+
+The handoff also returns a small `resume` inventory, built from the same private workflow
+records, without another database or write. `recorded_workflows` counts active, completed,
+and other stored workflow statuses. `next_steps` lists the next recorded step for active
+workflows included in the bounded response; `coverage` is `partial` if any handoff
+record limit was exceeded.
+
+A workflow marked `completed` proves only what the authoritative workflow store recorded.
+A Task, Decision, Outcome, or next step being present does not prove execution, external
+side effects, user verification, or release readiness. The Projects Control Center therefore
+uses a neutral **Recorded** label instead of a green completion check for state records.
+No automatic status promotion, provider call, or cross-project reconciliation is performed.
+
 ## Deliberate exclusions
 
 Neither handoff mode includes:
