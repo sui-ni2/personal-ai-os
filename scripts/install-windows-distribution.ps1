@@ -54,6 +54,16 @@ function Write-AtomicJson {
     }
 }
 
+function Expand-DistributionArchive {
+    param([string]$Archive, [string]$Destination)
+    # Windows PowerShell 5.1's Expand-Archive intermittently calls an unavailable
+    # three-argument ExtractToDirectory overload. Use the compatible two-arg API.
+    if ($PSVersionTable.PSEdition -eq "Desktop") {
+        Add-Type -AssemblyName System.IO.Compression.FileSystem
+    }
+    [System.IO.Compression.ZipFile]::ExtractToDirectory($Archive, $Destination)
+}
+
 function Get-Distribution {
     param([string]$Path)
     if (-not $Path) { throw "PackagePath is required for Install or Update." }
@@ -61,7 +71,7 @@ function Get-Distribution {
     if (-not (Test-Path -LiteralPath $resolved -PathType Leaf)) { throw "Distribution package was not found: $resolved" }
     $staging = Join-Path ([IO.Path]::GetTempPath()) ("personal-ai-os-package-" + [Guid]::NewGuid().ToString("N"))
     New-Item -ItemType Directory -Force -Path $staging | Out-Null
-    Expand-Archive -LiteralPath $resolved -DestinationPath $staging
+    Expand-DistributionArchive -Archive $resolved -Destination $staging
     $manifestPath = Join-Path $staging "personal-ai-os-release.json"
     $applicationArchive = Join-Path $staging "application.zip"
     if (-not (Test-Path -LiteralPath $manifestPath) -or -not (Test-Path -LiteralPath $applicationArchive)) { throw "Distribution is missing its manifest or application archive." }
@@ -189,7 +199,7 @@ try {
     if ($Action -eq "Update" -and -not $existing) { throw "No existing installation was found. Use -Action Install." }
 
     $candidate = Join-Path $installRoot ("candidate-" + [Guid]::NewGuid().ToString("N"))
-    Expand-Archive -LiteralPath $distribution.ApplicationArchive -DestinationPath $candidate
+    Expand-DistributionArchive -Archive $distribution.ApplicationArchive -Destination $candidate
     if (-not (Test-Path -LiteralPath (Join-Path $candidate "compose.yaml"))) { throw "Distribution application archive is incomplete." }
 
     if ($Action -eq "Install") {
