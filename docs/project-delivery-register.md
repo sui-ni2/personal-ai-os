@@ -18,6 +18,7 @@
 | ID | Priority | Workstream | Next verified step |
 | --- | --- | --- | --- |
 | PAI-012 | P1 | Backup, migration, restore and user data portability | Advance integration safety checks; preserve all private records. |
+| PAI-034 | P0 | Projects-screen evidence review and conflict classification | Complete exact-head backend, frontend, Playwright, mobile and accessibility checks; keep the external pilot as a separate owner-consented gate. |
 | PAI-020 | P0 | Next.js 16.4.5 security patch review | Prioritize #168 without automatic merge. |
 | PAI-021 | P2 | Python 3.15-slim major compatibility | Review #166 as a compatibility project, not an automatic patch. |
 | PAI-022 | P1 | vinext and Cloudflare packages alignment | Review #162/#163 together without fragmentary upgrades. |
@@ -78,7 +79,7 @@
 
 ## Immediate build order
 
-- **PAI-003/PAI-004:** both are completed with exact-head CI; preserve the distinction between recorded state and real execution. **PAI-005** remains a separate lifecycle design.
+- **PAI-003/PAI-004:** both are completed with exact-head CI; preserve the distinction between recorded state and real execution. **PAI-034** adds the Projects evidence review and metadata conflict classification; **PAI-005** remains a separate lifecycle design.
 - **PAI-020:** security fix #168 remains a separate review and merge decision; **PAI-021/022/023** are compatibility-sensitive updates, not an automated merge batch.
 - **PAI-016:** assemble exact-head v0.4 evidence; maintain the independent provider, device, install and multi-day-use limitations recorded in PAI-007/013/015/017/018/019.
 - **PAI-024:** perform real cross-client pilot only in authorized environments; do not copy or publish private candidate source.

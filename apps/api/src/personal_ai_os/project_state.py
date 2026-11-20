@@ -249,17 +249,45 @@ class ProjectStateService:
     def list_state_metadata(
         self, project_id: str, *, limit: int
     ) -> tuple[int, list[dict[str, Any]]]:
-        """Count records and fetch a SQL-bounded set of metadata only.
+        """Return bounded state metadata and version-history integrity only.
 
-        The query intentionally does not read or deserialize private value_json.
+        Private values, sources, confidence and history payloads are never selected.
+        A missing history row is distinguished from contradictory version metadata.
         """
         if not 1 <= limit <= 100:
             raise ValueError("State metadata limit must be between 1 and 100")
         with self._connect(project_id) as connection:
-            total = int(connection.execute("SELECT COUNT(*) FROM current_state").fetchone()[0])
+            total = int(connection.execute(
+                "SELECT COUNT(*) FROM current_state"
+            ).fetchone()[0])
             rows = connection.execute(
-                "SELECT namespace, key, version, status FROM current_state "
-                "ORDER BY namespace, key LIMIT ?",
+                """
+                WITH bounded AS (
+                    SELECT namespace, key, version, status
+                    FROM current_state
+                    ORDER BY namespace, key
+                    LIMIT ?
+                ),
+                history_stats AS (
+                    SELECT h.namespace, h.key,
+                           COUNT(*) AS history_count,
+                           COUNT(DISTINCT h.version) AS history_distinct_versions,
+                           MIN(h.version) AS history_min_version,
+                           MAX(h.version) AS history_max_version
+                    FROM state_history AS h
+                    INNER JOIN bounded AS b
+                        ON b.namespace = h.namespace AND b.key = h.key
+                    GROUP BY h.namespace, h.key
+                )
+                SELECT b.namespace, b.key, b.version, b.status,
+                       COALESCE(h.history_count, 0) AS history_count,
+                       COALESCE(h.history_distinct_versions, 0) AS history_distinct_versions,
+                       h.history_min_version, h.history_max_version
+                FROM bounded AS b
+                LEFT JOIN history_stats AS h
+                    ON h.namespace = b.namespace AND h.key = b.key
+                ORDER BY b.namespace, b.key
+                """,
                 (limit,),
             ).fetchall()
         return total, [dict(row) for row in rows]

@@ -49,7 +49,7 @@
       "source_refs": [
         "docs/persistent-project-state.md"
       ],
-      "acceptance": "An opt-in bounded preview differentiates persisted records and unknown external results without changing private state.",
+      "acceptance": "An opt-in bounded metadata API distinguishes stored state and workflow positions without exposing private values or claiming external execution.",
       "next_step": "Preserve the metadata-only, bounded API invariants; keep the Projects-screen preview and conflict classification as separate future increments.",
       "work_ref": "https://github.com/sui-ni2/personal-ai-os/pull/170",
       "proof_ref": "https://github.com/sui-ni2/personal-ai-os/commit/fb9008167b013e3d19dbfc50323cbf1b4e5412e2"
@@ -149,6 +149,18 @@
       "acceptance": "Backup/restore safety code exists; real installed upgrade is not proved by it.",
       "next_step": "Advance integration safety checks; preserve all private records.",
       "work_ref": "docs/windows-distribution.md"
+    },
+    {
+      "id": "PAI-034",
+      "lane": "active",
+      "priority": "P0",
+      "title": "Projects-screen evidence review and conflict classification",
+      "source_refs": [
+        "docs/project-state-reconciler-rfc.md"
+      ],
+      "acceptance": "Projects Control Center provides an opt-in closable metadata-only review; deterministic classifications distinguish recorded state, workflow position, unresolved external execution, persisted version conflicts and incomplete evidence without private payloads or writes; exact-head API, UI, mobile and accessibility gates pass.",
+      "next_step": "Complete exact-head backend, frontend, Playwright, mobile and accessibility checks; keep the external pilot as a separate owner-consented gate.",
+      "work_ref": "https://github.com/sui-ni2/personal-ai-os/pull/174"
     },
     {
       "id": "PAI-013",
