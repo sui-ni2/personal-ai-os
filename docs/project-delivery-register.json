@@ -43,15 +43,16 @@
     },
     {
       "id": "PAI-004",
-      "lane": "active",
+      "lane": "completed",
       "priority": "P0",
       "title": "Project State Reconciler read-only v1",
       "source_refs": [
         "docs/persistent-project-state.md"
       ],
       "acceptance": "An opt-in bounded preview differentiates persisted records and unknown external results without changing private state.",
-      "next_step": "Verify exact-head API, privacy, bounds and CI; then plan the user-facing preview as a separate increment.",
-      "work_ref": "https://github.com/sui-ni2/personal-ai-os/pull/170"
+      "next_step": "Preserve the metadata-only, bounded API invariants; keep the Projects-screen preview and conflict classification as separate future increments.",
+      "work_ref": "https://github.com/sui-ni2/personal-ai-os/pull/170",
+      "proof_ref": "https://github.com/sui-ni2/personal-ai-os/commit/fb9008167b013e3d19dbfc50323cbf1b4e5412e2"
     },
     {
       "id": "PAI-005",

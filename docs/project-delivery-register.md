@@ -17,7 +17,6 @@
 
 | ID | Priority | Workstream | Next verified step |
 | --- | --- | --- | --- |
-| PAI-004 | P0 | Project State Reconciler read-only v1 | Verify exact-head API, privacy, bounds and CI; then plan the user-facing preview as a separate increment. |
 | PAI-012 | P1 | Backup, migration, restore and user data portability | Advance integration safety checks; preserve all private records. |
 | PAI-020 | P0 | Next.js 16.4.5 security patch review | Prioritize #168 without automatic merge. |
 | PAI-021 | P2 | Python 3.15-slim major compatibility | Review #166 as a compatibility project, not an automatic patch. |
@@ -70,6 +69,7 @@
 | PAI-001 | P0 | Published v0.3.0 community release | Preserve evidence without re-releasing completed work. |
 | PAI-002 | P0 | Project persistence, handoff, and restart recovery | Extend, not rebuild, the existing persistence engine. |
 | PAI-003 | P0 | Recorded state is not completed work (PR #169) | Preserve neutral Recorded labels; reopen only if a regression is observed. |
+| PAI-004 | P0 | Project State Reconciler read-only v1 | Preserve the metadata-only, bounded API invariants; keep the Projects-screen preview and conflict classification as separate future increments. |
 | PAI-006 | P0 | Provider-neutral core and project isolation | Preserve existing boundaries; real provider use has a separate gate. |
 | PAI-009 | P0 | Budget reservation and usage safety | Keep regression coverage; invoices need independent evidence. |
 | PAI-010 | P0 | MCP side-effect confirmation and send-scope receipt | Do not weaken permission or replay boundaries. |
@@ -78,7 +78,7 @@
 
 ## Immediate build order
 
-- **PAI-003 → PAI-004 → PAI-005:** PAI-003 is merged with exact-head CI; PAI-004 is the active read-only reconciler API; PAI-005 remains a separate lifecycle design. Do not confuse recorded state with real execution.
+- **PAI-003/PAI-004:** both are completed with exact-head CI; preserve the distinction between recorded state and real execution. **PAI-005** remains a separate lifecycle design.
 - **PAI-020:** security fix #168 remains a separate review and merge decision; **PAI-021/022/023** are compatibility-sensitive updates, not an automated merge batch.
 - **PAI-016:** assemble exact-head v0.4 evidence; maintain the independent provider, device, install and multi-day-use limitations recorded in PAI-007/013/015/017/018/019.
 - **PAI-024:** perform real cross-client pilot only in authorized environments; do not copy or publish private candidate source.

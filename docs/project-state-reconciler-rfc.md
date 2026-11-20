@@ -1,6 +1,6 @@
 # Project State Reconciler — read-only v1 design
 
-**Status:** PR #169 merged as `f95ee9f` with exact-head CI passing. Read-only metadata API implementation is in PR #170 and remains unmerged, not externally validated. Conflict classification and the user-facing Projects preview remain future increments.
+**Status:** PR #169 merged as `f95ee9f` and PR #170 merged as `fb9008167b013e3d19dbfc50323cbf1b4e5412e2`. PR #170 exact-head CI, v0.4 Hardening Gates, CodeQL, Dependency Review, and Platform Readiness passed; post-merge main CI also passed. The bounded read-only API v1 is implemented. No external user pilot or user-facing Projects preview has been validated; conflict classification and the UI remain future increments.
 **Parent workstream:** PAI-004 in [project delivery register](project-delivery-register.md).
 **Existing implementation to reuse:** [persistent project state](persistent-project-state.md), [bounded handoff](project-handoff.md), [recovery](project-handoff.md#restart-recovery), and the Project Control Center.
 
@@ -27,28 +27,40 @@ external account actions, upload/download of private source data, full audit exp
 cross-project matching, cloud tenant resolution, database migrations, unbounded retrieval,
 and automatic release or publication decisions.
 
-## Proposed contract (metadata only)
+## Implemented v1 API contract (metadata only)
 
-An opt-in endpoint such as
-`GET /api/projects/{project_id}/reconciliation-preview?limit=20` would read existing
-authoritative project-scoped stores. The exact route/name is subject to implementation
-review; do not add a second private state database.
+PR #170 implements the opt-in endpoint:
 
-Suggested response fields:
+`GET /api/projects/{project_id}/control-center/reconciliation-preview?limit=20`
 
-- `project_id`, `read_at`, `state_fingerprint` (no private state values), and
-  `truncated` plus **original total counts**;
-- `recorded_workflows`: active/completed/other counts sourced solely from the workflow store;
-- `next_steps`: bounded workflow ID, run key, exact version, and next recorded step;
-- `items`: bounded state namespace/key/version and a *reason-coded* evidence label;
-- `needs_user_review`: true when evidence is incomplete, conflicting, or involves a
-  non-idempotent external side effect.
+The route checks that the project exists and reuses the existing project/tenant-scoped
+state and workflow stores. `limit` is constrained to 1–100. Each store returns an
+original total count plus at most `limit` rows using SQL-level bounded reads.
+
+The current response contains:
+
+- `project_id`, `read_at`, and `evidence_scope=PERSISTED_RECORDS_ONLY`;
+- `counts.states` and `counts.workflows`, plus an explicit `truncated` flag;
+- `state_records`: namespace, key, version and storage status, labelled
+  `RECORDED` / `STORED_NOT_EXECUTION_PROOF`;
+- `workflow_records`: workflow ID, run key, version, recorded status and next step,
+  labelled `WORKFLOW_POSITION` with `external_execution=UNVERIFIED`.
+
+The state query does not select or deserialize private `value_json`. The workflow
+query does not read transition evidence. The endpoint is read-only and does not create
+a second state store.
+
+This v1 does **not** yet return a state fingerprint, classify `CONFLICT` or
+`INSUFFICIENT_EVIDENCE`, or render a user-facing Projects preview. Those remain
+future increments rather than capabilities to infer from the current response.
 
 The response must never contain provider credentials, raw conversations, chain-of-thought,
 tool payload bodies, unreviewed memory values, prior transition evidence, authorization
 headers, or another project's storage records. Only actor-authorized metadata is eligible.
 
 ## Evidence classification (invariants)
+
+The current v1 response emits only `RECORDED` and `WORKFLOW_POSITION`. Other labels below are future classification targets, not current API output.
 
 | Label | Meaning | Never infer |
 | --- | --- | --- |
@@ -78,21 +90,21 @@ authoritative execution/confirmation system. Public CI green is not product adop
 
 ## Build sequence and acceptance gates
 
-1. **Pure classifier and tests:** implement deterministic inputs/outputs in an independent
-   module, with synthetic data only. Tests include absent evidence, stale versions,
-   concurrent version mismatch, terminal workflow without external receipt, unknown
-   external effect, locked state, project/tenant isolation and truncation.
-2. **Read-only API:** wire the classifier behind the existing access middleware, preserve
-   response-size limits, and verify no state or audit writes occur on GET.
-3. **User preview:** extend Projects only after PR #169 has settled, distinguish
-   `RECORDED` and `NEEDS_CONFIRMATION`, support keyboard/screen-reader behavior.
-4. **Verification:** focused backend regressions, TypeScript and production build,
-   Playwright/axe, CodeQL, dependency review and exact-head CI. A mock success does not
-   prove real-world reconciliation.
-5. **External pilot:** only with explicit consent and a non-sensitive fixture, compare
-   ordinary chat summary versus a verified checkpoint in two actual clients and note
-   recoverability/error rates. Private external-client artifacts are **not** authorized for
-   publication by this RFC.
+1. **Read-only API v1 — completed in PR #170:** metadata-only state/workflow records,
+   SQL-bounded reads, project scoping, explicit truncation and no external-completion claim.
+2. **Conflict classification — future:** add stale-version, concurrent mismatch, locked
+   state and insufficient-evidence classifications only with deterministic fixtures and
+   explicit source/version semantics.
+3. **User preview — future:** extend Projects with accessible RECORDED and
+   NEEDS_CONFIRMATION presentation only after a separate reviewed increment; support
+   keyboard and screen-reader behavior.
+4. **API verification — passed:** focused backend regressions, CI, v0.4 Hardening Gates,
+   CodeQL, Dependency Review and Platform Readiness passed on PR #170's exact head.
+   Future UI work still requires TypeScript, production build, Playwright/axe and exact-head CI.
+5. **External pilot — not done:** only with explicit consent and a non-sensitive fixture,
+   compare ordinary chat summary versus a verified checkpoint in two actual clients and
+   note recoverability/error rates. Private external-client artifacts are **not** authorized
+   for publication by this RFC.
 
 ## Promotion rule
 
