@@ -30,15 +30,16 @@
     },
     {
       "id": "PAI-003",
-      "lane": "active",
+      "lane": "completed",
       "priority": "P0",
       "title": "Recorded state is not completed work (PR #169)",
       "source_refs": [
         "docs/project-handoff.md"
       ],
-      "acceptance": "Review and exact-head CI gate with no false-completion icon.",
-      "next_step": "Inspect PR #169 head/reviews; repair real failures only; never auto-merge.",
-      "work_ref": "https://github.com/sui-ni2/personal-ai-os/pull/169"
+      "acceptance": "Merged with exact-head CI; recorded state remains distinct from externally verified completion.",
+      "next_step": "Preserve neutral Recorded labels; reopen only if a regression is observed.",
+      "work_ref": "https://github.com/sui-ni2/personal-ai-os/pull/169",
+      "proof_ref": "https://github.com/sui-ni2/personal-ai-os/commit/f95ee9f44f8de4959f64e0d6ac710a87b1781e37"
     },
     {
       "id": "PAI-004",
@@ -49,7 +50,7 @@
         "docs/persistent-project-state.md"
       ],
       "acceptance": "An opt-in bounded preview differentiates persisted records and unknown external results without changing private state.",
-      "next_step": "Review PR #170 API and regression CI; add accessible project preview only after #169 conflict resolution.",
+      "next_step": "Verify exact-head API, privacy, bounds and CI; then plan the user-facing preview as a separate increment.",
       "work_ref": "https://github.com/sui-ni2/personal-ai-os/pull/170"
     },
     {

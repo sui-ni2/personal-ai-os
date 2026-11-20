@@ -1,6 +1,6 @@
 # Project State Reconciler — read-only v1 design
 
-**Status:** read-only metadata API implementation in PR #170; not merged, not externally validated. Conflict classification and the user-facing Projects preview remain future increments.
+**Status:** PR #169 merged as `f95ee9f` with exact-head CI passing. Read-only metadata API implementation is in PR #170 and remains unmerged, not externally validated. Conflict classification and the user-facing Projects preview remain future increments.
 **Parent workstream:** PAI-004 in [project delivery register](project-delivery-register.md).
 **Existing implementation to reuse:** [persistent project state](persistent-project-state.md), [bounded handoff](project-handoff.md), [recovery](project-handoff.md#restart-recovery), and the Project Control Center.
 
@@ -11,7 +11,7 @@ and recovery evidence. However, a persisted record, a workflow marked completed,
 statement, and a confirmed external action are **different kinds of evidence**. Collapsing
 them into one checkmark can mislead a user resuming a long-running project.
 
-PR #169 removes unconditional UI completion checkmarks and adds a bounded list of next
+Merged PR #169 removes unconditional UI completion checkmarks and adds a bounded list of next
 recorded workflow steps. This RFC addresses the **next** increment; it must not duplicate
 or overwrite that PR.
 
