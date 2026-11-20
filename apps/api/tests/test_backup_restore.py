@@ -185,7 +185,16 @@ def test_backup_restore_preserves_workspace_records_wal_commits_and_private_file
 
 @pytest.mark.parametrize(
     "unsafe_name",
-    ["../escaped.txt", "..\\escaped.txt", "/absolute/escaped.txt", "C:/escaped.txt", "\\\\server\\share\\escaped.txt"],
+    [
+        "../escaped.txt",
+        "..\\\\escaped.txt",
+        "/absolute/escaped.txt",
+        "C:/escaped.txt",
+        "\\\\\\server\\\\share\\\\escaped.txt",
+        "data/CON.txt",
+        "data/trailing.",
+        "data/illegal?.txt",
+    ],
 )
 def test_restore_rejects_cross_platform_path_traversal_before_replacing_data(tmp_path, unsafe_name):
     restore = _script_module("restore")
@@ -204,6 +213,22 @@ def test_restore_rejects_cross_platform_path_traversal_before_replacing_data(tmp
 
     assert sentinel.read_text(encoding="utf-8") == "existing private data"
     assert not (tmp_path / "escaped.txt").exists()
+
+
+def test_restore_rejects_case_colliding_archive_paths_before_replacing_data(tmp_path):
+    restore = _script_module("restore")
+    archive = tmp_path / "case-collision.zip"
+    with zipfile.ZipFile(archive, "w") as bundle:
+        bundle.writestr("manifest.json", json.dumps({"format": "personal-ai-os-data-backup-v1"}))
+        bundle.writestr("data/Record.txt", "first")
+        bundle.writestr("data/record.txt", "second")
+    target = tmp_path / "existing-data"
+    target.mkdir()
+    sentinel = target / "must-survive.txt"
+    sentinel.write_text("existing private data", encoding="utf-8")
+    with pytest.raises(SystemExit, match="duplicate or case-colliding"):
+        restore.restore(archive, target)
+    assert sentinel.read_text(encoding="utf-8") == "existing private data"
 
 
 def test_restore_rejects_zip_symlink_entries_before_replacing_data(tmp_path):
