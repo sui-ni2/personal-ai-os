@@ -184,7 +184,7 @@ export function ProjectReconciliationPreview({ projectId }: { projectId: string 
               <p className="eyebrow">Read-only snapshot</p>
               <h3 id={`${panelId}-title`} className="mt-1 text-base font-medium text-text-primary">Evidence review</h3>
             </div>
-            <button type="button" className="icon-button size-9" aria-label="Close state review" onClick={close}>
+            <button type="button" className="icon-button" aria-label="Close state review" onClick={close}>
               <X aria-hidden size={16} />
             </button>
           </div>
@@ -210,6 +210,9 @@ export function ProjectReconciliationPreview({ projectId }: { projectId: string 
                 ))}
               </div>
 
+              <p className="mt-2 text-xs leading-5 text-text-tertiary">
+                Evidence-label counts apply to records shown below; category totals include all stored records.
+              </p>
               <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-text-tertiary">
                 <span>{preview.counts.states} state records</span>
                 <span>{preview.counts.workflows} workflows</span>
@@ -232,9 +235,9 @@ export function ProjectReconciliationPreview({ projectId }: { projectId: string 
 
               {preview.truncated ? (
                 <div className="mt-3 rounded-control border border-warning bg-surface p-3">
-                  <p className="text-sm font-medium text-warning">Partial view — older records are outside this snapshot.</p>
+                  <p className="text-sm font-medium text-warning">Partial view — some records are outside this snapshot.</p>
                   <p className="mt-1 text-xs leading-5 text-text-secondary">
-                    Counts above reflect the full stored totals. The current limit is {limit}; the preview can show up to 100 records per category.
+                    Category totals above reflect all stored records; evidence-label counts cover only displayed records. The current limit is {limit}; the preview can show up to 100 records per category.
                   </p>
                   {limit < 100 ? (
                     <button type="button" className="button-quiet mt-2 min-h-9 px-2 text-accent-hover" disabled={loading} onClick={() => void load(100)}>
