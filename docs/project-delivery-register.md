@@ -69,7 +69,7 @@
 | PAI-001 | P0 | Published v0.3.0 community release | Preserve evidence without re-releasing completed work. |
 | PAI-002 | P0 | Project persistence, handoff, and restart recovery | Extend, not rebuild, the existing persistence engine. |
 | PAI-003 | P0 | Recorded state is not completed work (PR #169) | Preserve neutral Recorded labels; reopen only if a regression is observed. |
-| PAI-004 | P0 | Project State Reconciler read-only v1 (PR #170) | Preserve metadata-only, bounded semantics; treat the Projects-screen preview and conflict classification as separate future increments. |
+| PAI-004 | P0 | Project State Reconciler read-only v1 | Preserve the metadata-only, bounded API invariants; keep the Projects-screen preview and conflict classification as separate future increments. |
 | PAI-006 | P0 | Provider-neutral core and project isolation | Preserve existing boundaries; real provider use has a separate gate. |
 | PAI-009 | P0 | Budget reservation and usage safety | Keep regression coverage; invoices need independent evidence. |
 | PAI-010 | P0 | MCP side-effect confirmation and send-scope receipt | Do not weaken permission or replay boundaries. |
