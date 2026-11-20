@@ -149,8 +149,13 @@ def build_backup(data_dir: Path, output_dir: Path) -> Path:
                 if name.casefold() in expected:
                     raise ValueError("duplicate backup manifest path")
                 expected.add(name.casefold())
-                payload = bundle.read(name)
-                if len(payload) != size or hashlib.sha256(payload).hexdigest() != digest:
+                actual_digest = hashlib.sha256()
+                actual_size = 0
+                with bundle.open(name) as stream:
+                    for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                        actual_digest.update(chunk)
+                        actual_size += len(chunk)
+                if actual_size != size or actual_digest.hexdigest() != digest:
                     raise ValueError(f"backup integrity check failed for {relative}")
             actual = {
                 name.casefold()
