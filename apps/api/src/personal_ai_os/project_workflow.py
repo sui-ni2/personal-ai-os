@@ -245,6 +245,7 @@ class ProjectWorkflowService:
                 next_index = int(item["current_index"]) + 1
                 item["next_step"] = steps[next_index] if next_index < len(steps) else None
                 item["step_count"] = len(steps)
+            records.append(item)
         return total, records
 
     def advance_workflow(

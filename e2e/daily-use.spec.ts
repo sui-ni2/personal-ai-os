@@ -77,6 +77,15 @@ test("daily Project, Memory, send scope, budget hard stop, execution, and reload
   await page.getByRole("button", { name: "Close state review" }).click();
   await expect(reconciliation).toHaveCount(0);
 
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole("button", { name: "Review recorded state" }).click();
+  await expect(reconciliation).toBeVisible();
+  const mobileReconciliationAxe = await new AxeBuilder({ page }).include("main").analyze();
+  expect(mobileReconciliationAxe.violations).toEqual([]);
+  await page.getByRole("button", { name: "Close state review" }).click();
+  await expect(reconciliation).toHaveCount(0);
+  await page.setViewportSize({ width: 1280, height: 900 });
+
   await page.goto("/memory");
   await page.getByText("Add memory", { exact: true }).click();
   await page.getByLabel("Memory", { exact: true }).fill(memoryText);

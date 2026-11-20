@@ -132,6 +132,7 @@ def test_state_history_gaps_and_version_disagreement_are_distinguished(client: T
         connection.execute(
             "UPDATE state_history SET version = 99 WHERE namespace = 'task' AND key = 'history-conflict'"
         )
+        connection.commit()
     finally:
         connection.close()
 
@@ -159,6 +160,7 @@ def test_workflow_transition_gaps_and_version_disagreement_are_distinguished(cli
         connection.execute(
             "UPDATE workflow_transitions SET version = 99 WHERE workflow_id = 'transition-conflict'"
         )
+        connection.commit()
     finally:
         connection.close()
 
@@ -186,6 +188,19 @@ def test_unknown_external_outcome_requires_confirmation_without_exposing_details
         side_effect_status="outcome_unknown",
         detail={"private_error": "DO_NOT_ECHO_EXECUTION_DETAIL"},
     )
+    other_project = governance.create_execution_run(
+        conversation_id="synthetic-other-project",
+        project_id="p5",
+        provider="openai",
+        model="test-model",
+    )
+    governance.update_execution_run(
+        other_project,
+        status="outcome_unknown",
+        retry_status="retry_requires_confirmation",
+        side_effect_status="outcome_unknown",
+        detail={"private_error": "OTHER_PROJECT_DETAIL"},
+    )
     completed = governance.create_execution_run(
         conversation_id="synthetic-completed",
         project_id="general",
@@ -203,11 +218,12 @@ def test_unknown_external_outcome_requires_confirmation_without_exposing_details
     response = client.get("/api/projects/general/control-center/reconciliation-preview")
     assert response.status_code == 200
     records = {item["execution_id"]: item for item in response.json()["execution_records"]}
+    assert other_project not in records
     assert records[unknown]["evidence_label"] == "NEEDS_CONFIRMATION"
     assert records[unknown]["reason_code"] == "EXTERNAL_SIDE_EFFECT_OUTCOME_UNKNOWN"
     assert records[completed]["evidence_label"] == "RECORDED"
     assert records[completed]["reason_code"] == "EXECUTION_RESULT_RECORDED_NOT_INDEPENDENT_PROOF"
-    for sensitive in ("DO_NOT_ECHO_EXECUTION_DETAIL", "DO_NOT_ECHO_COMPLETED_DETAIL", "private_error", "private_result", "test-model", "openai"):
+    for sensitive in ("DO_NOT_ECHO_EXECUTION_DETAIL", "DO_NOT_ECHO_COMPLETED_DETAIL", "OTHER_PROJECT_DETAIL", "private_error", "private_result", "test-model", "openai"):
         assert sensitive not in response.text
 
 
