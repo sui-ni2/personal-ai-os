@@ -22,6 +22,29 @@ def snapshot_database(source: Path, destination: Path) -> None:
         destination_db.commit()
 
 
+_WINDOWS_RESERVED_NAMES = {
+    "CON", "PRN", "AUX", "NUL", "CONIN$", "CONOUT$",
+    *(f"COM{number}" for number in range(1, 10)),
+    *(f"LPT{number}" for number in range(1, 10)),
+    "COM¹", "COM²", "COM³", "LPT¹", "LPT²", "LPT³",
+}
+
+
+def _assert_portable_relative_path(relative: str) -> None:
+    if not relative or "\\" in relative or ":" in relative or relative.startswith("/"):
+        raise SystemExit(f"Backup data contains a non-portable path: {relative}")
+    for part in relative.split("/"):
+        device_name = part.split(".", maxsplit=1)[0].upper()
+        if (
+            not part
+            or part in {".", ".."}
+            or part.endswith((" ", "."))
+            or device_name in _WINDOWS_RESERVED_NAMES
+            or any(ord(character) < 32 or character in '<>:"|?*' for character in part)
+        ):
+            raise SystemExit(f"Backup data contains a non-portable path: {relative}")
+
+
 def _file_manifest(root: Path) -> list[dict[str, object]]:
     records: list[dict[str, object]] = []
     for path in sorted(root.rglob("*")):
@@ -32,8 +55,7 @@ def _file_manifest(root: Path) -> list[dict[str, object]]:
         if not path.is_file():
             raise SystemExit(f"Backup data contains an unsupported filesystem entry: {path}")
         relative = path.relative_to(root).as_posix()
-        if "\\" in relative or ":" in relative or relative.startswith("/"):
-            raise SystemExit(f"Backup data contains a non-portable path: {relative}")
+        _assert_portable_relative_path(relative)
         digest = hashlib.sha256()
         size = 0
         with path.open("rb") as stream:
@@ -61,6 +83,7 @@ def build_backup(data_dir: Path, output_dir: Path) -> Path:
             if source.is_symlink():
                 raise SystemExit(f"Backup data contains a symlink; refusing to follow it: {source}")
             relative = source.relative_to(data_dir)
+            _assert_portable_relative_path(relative.as_posix())
             destination = staging / relative
             if source.is_dir():
                 destination.mkdir(parents=True, exist_ok=True)
