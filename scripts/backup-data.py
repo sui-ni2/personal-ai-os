@@ -108,8 +108,13 @@ def build_backup(data_dir: Path, output_dir: Path) -> Path:
         with zipfile.ZipFile(archive, "x", compression=zipfile.ZIP_DEFLATED) as bundle:
             bundle.write(staging, "data/")
             for item in Path(temporary).rglob("*"):
-                if item.is_file():
-                    bundle.write(item, item.relative_to(temporary))
+                if item == staging:
+                    continue
+                relative_item = item.relative_to(temporary).as_posix()
+                if item.is_dir():
+                    bundle.write(item, f"{relative_item}/")
+                elif item.is_file():
+                    bundle.write(item, relative_item)
     try:
         with zipfile.ZipFile(archive) as bundle:
             if bundle.testzip() is not None or "manifest.json" not in bundle.namelist():
