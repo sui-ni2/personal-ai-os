@@ -1,7 +1,7 @@
 # Project State Reconciler — read-only v1 design
 
-**Status:** PAI-004 read-only metadata API v1 merged in PR #170 as `fb9008167b013e3d19dbfc50323cbf1b4e5412e2`; PR #172 reconciled its delivery register. PAI-034 is implementing the opt-in Projects evidence review and deterministic metadata classification in PR #174; it is not complete until its final exact-head gates pass. No external user pilot or independent cross-client acceptance is claimed.
-**Parent workstream:** PAI-004 in [project delivery register](project-delivery-register.md).
+**Status:** PAI-004 read-only metadata API v1 merged in PR #170 as `fb9008167b013e3d19dbfc50323cbf1b4e5412e2`; PR #172 reconciled its delivery register. PAI-034 Projects evidence review and structural metadata classification merged in PR #174 as `8ad1d7f77488f7be33f64190dc2d2cb4b005d831`. Final exact-head PR checks and post-merge main CI, CodeQL and Platform Readiness passed; provider smoke was skipped. No semantic cross-source reconciliation or external user pilot is claimed.
+**Parent workstreams:** PAI-004 read-only API v1 and PAI-034 Projects preview/classification in [project delivery register](project-delivery-register.md).
 **Existing implementation to reuse:** [persistent project state](persistent-project-state.md), [bounded handoff](project-handoff.md), [recovery](project-handoff.md#restart-recovery), and the Project Control Center.
 
 ## Problem
@@ -117,12 +117,13 @@ authoritative execution/confirmation system. Public CI green is not product adop
 
 1. **Read-only API v1 — completed in PR #170:** metadata-only state/workflow records,
    SQL-bounded reads, project scoping, explicit truncation and no external-completion claim.
-2. **PAI-034 classification and Projects preview — in progress:** deterministic state-history,
-   workflow-transition and external-execution classification; bounded metadata-only response;
-   opt-in closable UI; no automatic conflict resolution or state mutation.
-3. **Verification — required on PR #174 exact head:** focused backend tests, frontend typecheck
-   and production build, Playwright daily-use, mobile viewport, axe, CodeQL, dependency review
-   and the complete required CI matrix. No older SHA result substitutes for the final head.
+2. **PAI-034 classification and Projects preview — completed in PR #174:** deterministic
+   state-history, workflow-transition and external-execution classification; bounded
+   metadata-only response; opt-in closable UI; no automatic conflict resolution or mutation.
+3. **Verification — passed on PR #174 exact head:** backend/frontend, Playwright daily-use and
+   axe on desktop/mobile, CodeQL, Dependency Review, v0.4 Hardening Gates and Platform
+   Readiness. Post-merge main CI, CodeQL and Platform Readiness also passed. Provider smoke
+   was skipped by workflow configuration and is not counted as a pass.
 4. **External pilot — not done:** only with explicit owner consent and a non-sensitive fixture,
    compare ordinary chat summary versus a verified checkpoint in two actual clients and note
    recoverability/error rates. Private external-client artifacts are **not** authorized for
@@ -132,8 +133,7 @@ authoritative execution/confirmation system. Public CI green is not product adop
 
 ## Promotion rule
 
-PAI-004 is completed for the read-only metadata API in PR #170. PAI-034 is the separate
-active workstream for classification and the Projects preview; it becomes `completed` only
-after a reviewed merge, matching exact-SHA deterministic gates, and a clear statement of
-remaining external limitations. PAI-005 remains a separate design track for writeable
-lifecycle transitions.
+PAI-004 is completed for the read-only metadata API in PR #170. PAI-034 is completed in
+PR #174 after the reviewed merge and exact-head deterministic gates. Its scope remains
+read-only and metadata-only; semantic cross-source reconciliation, external pilot and
+writeable lifecycle transitions are not included. PAI-005 remains a separate design track.
