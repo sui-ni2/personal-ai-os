@@ -20,6 +20,14 @@ def validate_data_target(data_dir: Path) -> None:
         raise SystemExit(f"Refusing to replace a project root: {data_dir}")
 
 
+_WINDOWS_RESERVED_NAMES = {
+    "CON", "PRN", "AUX", "NUL", "CONIN$", "CONOUT$",
+    *(f"COM{number}" for number in range(1, 10)),
+    *(f"LPT{number}" for number in range(1, 10)),
+    "COM¹", "COM²", "COM³", "LPT¹", "LPT²", "LPT³",
+}
+
+
 def _normalize_archive_path(name: str) -> str:
     if not isinstance(name, str) or not name or "\x00" in name or "\\" in name:
         raise SystemExit("Backup contains an unsafe path")
@@ -32,7 +40,13 @@ def _normalize_archive_path(name: str) -> str:
         or PurePosixPath(raw).is_absolute()
         or windows_path.is_absolute()
         or windows_path.drive
-        or any(part in {"", ".", ".."} or ":" in part for part in parts)
+        or any(
+            part in {"", ".", ".."}
+            or part.endswith((" ", "."))
+            or part.split(".", maxsplit=1)[0].upper() in _WINDOWS_RESERVED_NAMES
+            or any(ord(character) < 32 or character in '<>:"|?*' for character in part)
+            for part in parts
+        )
     ):
         raise SystemExit("Backup contains an unsafe path")
     return "/".join(parts)
