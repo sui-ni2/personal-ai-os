@@ -1,6 +1,6 @@
 # Project State Reconciler — read-only v1 design
 
-**Status:** PAI-004 read-only metadata API v1 merged in PR #170 as `fb9008167b013e3d19dbfc50323cbf1b4e5412e2`; PR #172 reconciled its delivery register. PAI-034 is implementing the opt-in Projects evidence review and deterministic metadata classification in PR #173; it is not complete until its final exact-head gates pass. No external user pilot or independent cross-client acceptance is claimed.
+**Status:** PAI-004 read-only metadata API v1 merged in PR #170 as `fb9008167b013e3d19dbfc50323cbf1b4e5412e2`; PR #172 reconciled its delivery register. PAI-034 is implementing the opt-in Projects evidence review and deterministic metadata classification in PR #174; it is not complete until its final exact-head gates pass. No external user pilot or independent cross-client acceptance is claimed.
 **Parent workstream:** PAI-004 in [project delivery register](project-delivery-register.md).
 **Existing implementation to reuse:** [persistent project state](persistent-project-state.md), [bounded handoff](project-handoff.md), [recovery](project-handoff.md#restart-recovery), and the Project Control Center.
 
@@ -120,7 +120,7 @@ authoritative execution/confirmation system. Public CI green is not product adop
 2. **PAI-034 classification and Projects preview — in progress:** deterministic state-history,
    workflow-transition and external-execution classification; bounded metadata-only response;
    opt-in closable UI; no automatic conflict resolution or state mutation.
-3. **Verification — required on PR #173 exact head:** focused backend tests, frontend typecheck
+3. **Verification — required on PR #174 exact head:** focused backend tests, frontend typecheck
    and production build, Playwright daily-use, mobile viewport, axe, CodeQL, dependency review
    and the complete required CI matrix. No older SHA result substitutes for the final head.
 4. **External pilot — not done:** only with explicit owner consent and a non-sensitive fixture,

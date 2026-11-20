@@ -160,7 +160,7 @@
       ],
       "acceptance": "Projects Control Center provides an opt-in closable metadata-only review; deterministic classifications distinguish recorded state, workflow position, unresolved external execution, persisted version conflicts and incomplete evidence without private payloads or writes; exact-head API, UI, mobile and accessibility gates pass.",
       "next_step": "Complete exact-head backend, frontend, Playwright, mobile and accessibility checks; keep the external pilot as a separate owner-consented gate.",
-      "work_ref": "https://github.com/sui-ni2/personal-ai-os/pull/173"
+      "work_ref": "https://github.com/sui-ni2/personal-ai-os/pull/174"
     },
     {
       "id": "PAI-013",
