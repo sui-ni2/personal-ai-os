@@ -1,0 +1,405 @@
+{
+  "schema_version": 1,
+  "snapshot_date": "2026-11-20",
+  "repository": "sui-ni2/personal-ai-os",
+  "authority": "Dated planning snapshot. Current source, GitHub state, exact-SHA checks, and independent evidence override this register.",
+  "items": [
+    {
+      "id": "PAI-001",
+      "lane": "completed",
+      "priority": "P0",
+      "title": "Published v0.3.0 community release",
+      "source_refs": [
+        "ROADMAP.md"
+      ],
+      "acceptance": "Published version and exact-SHA release gates are preserved; later commits require their own verification.",
+      "next_step": "Preserve evidence without re-releasing completed work.",
+      "proof_ref": "https://github.com/sui-ni2/personal-ai-os/releases/tag/v0.3.0"
+    },
+    {
+      "id": "PAI-002",
+      "lane": "completed",
+      "priority": "P0",
+      "title": "Project persistence, handoff, and restart recovery",
+      "source_refs": [
+        "docs/project-handoff.md"
+      ],
+      "acceptance": "Project-scoped state and bounded recovery are implemented with focused tests.",
+      "next_step": "Extend, not rebuild, the existing persistence engine.",
+      "proof_ref": "apps/api/tests/test_project_recovery.py"
+    },
+    {
+      "id": "PAI-003",
+      "lane": "completed",
+      "priority": "P0",
+      "title": "Recorded state is not completed work (PR #169)",
+      "source_refs": [
+        "docs/project-handoff.md"
+      ],
+      "acceptance": "Merged with exact-head CI; recorded state remains distinct from externally verified completion.",
+      "next_step": "Preserve neutral Recorded labels; reopen only if a regression is observed.",
+      "work_ref": "https://github.com/sui-ni2/personal-ai-os/pull/169",
+      "proof_ref": "https://github.com/sui-ni2/personal-ai-os/commit/f95ee9f44f8de4959f64e0d6ac710a87b1781e37"
+    },
+    {
+      "id": "PAI-004",
+      "lane": "active",
+      "priority": "P0",
+      "title": "Project State Reconciler read-only v1",
+      "source_refs": [
+        "docs/persistent-project-state.md"
+      ],
+      "acceptance": "An opt-in bounded preview differentiates persisted records and unknown external results without changing private state.",
+      "next_step": "Verify exact-head API, privacy, bounds and CI; then plan the user-facing preview as a separate increment.",
+      "work_ref": "https://github.com/sui-ni2/personal-ai-os/pull/170"
+    },
+    {
+      "id": "PAI-005",
+      "lane": "design",
+      "priority": "P0",
+      "title": "Task/Decision/Outcome lifecycle provenance",
+      "source_refs": [
+        "docs/product-contract.md"
+      ],
+      "acceptance": "Explicit proof-aware lifecycle, version conflicts and user approvals are described before schema changes.",
+      "next_step": "Design lifecycle state transitions and failure tests.",
+      "design_goal": "RFC for lifecycle version, proof scope and privacy"
+    },
+    {
+      "id": "PAI-006",
+      "lane": "completed",
+      "priority": "P0",
+      "title": "Provider-neutral core and project isolation",
+      "source_refs": [
+        "docs/project-facts.md"
+      ],
+      "acceptance": "Adapter and project boundaries are backed by source and regression suites.",
+      "next_step": "Preserve existing boundaries; real provider use has a separate gate.",
+      "proof_ref": "apps/api/tests/test_providers.py"
+    },
+    {
+      "id": "PAI-007",
+      "lane": "external",
+      "priority": "P0",
+      "title": "Real provider switching with persisted project state",
+      "source_refs": [
+        "docs/support-matrix.md"
+      ],
+      "acceptance": "An observed first-hand provider switch retains task and conversation state after restart.",
+      "next_step": "Run operator-controlled credentialed/local-provider acceptance with redacted outcome.",
+      "proof_needed": "Exact SHA, provider identities, restart, state/trace and failure result"
+    },
+    {
+      "id": "PAI-008",
+      "lane": "design",
+      "priority": "P1",
+      "title": "Unified Settings and first-run information architecture",
+      "source_refs": [
+        "ROADMAP.md"
+      ],
+      "acceptance": "Accessible standard/advanced grouping for privacy, services, budget, data and diagnostics.",
+      "next_step": "Write screen and consent/secret handling RFC before UI changes.",
+      "design_goal": "Interaction states, permissions and first-run usability test"
+    },
+    {
+      "id": "PAI-009",
+      "lane": "completed",
+      "priority": "P0",
+      "title": "Budget reservation and usage safety",
+      "source_refs": [
+        "docs/v0.4-hardening-audit.md"
+      ],
+      "acceptance": "Deterministic tests cover reservations, settlement, hard stops and concurrent races.",
+      "next_step": "Keep regression coverage; invoices need independent evidence.",
+      "proof_ref": "apps/api/tests/test_governance_adversarial.py"
+    },
+    {
+      "id": "PAI-010",
+      "lane": "completed",
+      "priority": "P0",
+      "title": "MCP side-effect confirmation and send-scope receipt",
+      "source_refs": [
+        "docs/v0.4-hardening-audit.md"
+      ],
+      "acceptance": "Deterministic tests prove bounded consent, actor/tool binding and redaction.",
+      "next_step": "Do not weaken permission or replay boundaries.",
+      "proof_ref": "apps/api/tests/test_send_scope_invariant.py"
+    },
+    {
+      "id": "PAI-011",
+      "lane": "completed",
+      "priority": "P0",
+      "title": "Interrupted execution and unknown side-effect safety",
+      "source_refs": [
+        "docs/v0.4-real-world-readiness.md"
+      ],
+      "acceptance": "Run state and no-auto-retry semantics have deterministic tests.",
+      "next_step": "Keep external provider failures distinct from fixture coverage.",
+      "proof_ref": "apps/api/tests/test_execution_recovery_states.py"
+    },
+    {
+      "id": "PAI-012",
+      "lane": "active",
+      "priority": "P1",
+      "title": "Backup, migration, restore and user data portability",
+      "source_refs": [
+        "docs/transfer-and-backup.md"
+      ],
+      "acceptance": "Backup/restore safety code exists; real installed upgrade is not proved by it.",
+      "next_step": "Advance integration safety checks; preserve all private records.",
+      "work_ref": "docs/windows-distribution.md"
+    },
+    {
+      "id": "PAI-013",
+      "lane": "external",
+      "priority": "P0",
+      "title": "Real Windows distribution and rollback acceptance",
+      "source_refs": [
+        "docs/windows-distribution.md"
+      ],
+      "acceptance": "Disposable install, update and rollback have dated integrity results.",
+      "next_step": "Obtain real operator environment and rollback verification without deleting user data.",
+      "proof_needed": "Windows version, package hash, backup and rollback run"
+    },
+    {
+      "id": "PAI-014",
+      "lane": "external",
+      "priority": "P2",
+      "title": "Signing identity and signed Windows artifacts",
+      "source_refs": [
+        "docs/v0.4-real-world-readiness.md"
+      ],
+      "acceptance": "Owner-custodied signing identity and independent signature evidence exist.",
+      "next_step": "Retain unsigned limitation until owner supplies authorized custody.",
+      "proof_needed": "Owner-provided cert and verified signed artifact"
+    },
+    {
+      "id": "PAI-015",
+      "lane": "external",
+      "priority": "P1",
+      "title": "Physical mobile PWA and assistive-tech verification",
+      "source_refs": [
+        "docs/mobile-deployment.md"
+      ],
+      "acceptance": "Physical HTTPS iOS/Android and real screen-reader behavior is observed.",
+      "next_step": "Request consented actual-device test; no emulation substitution.",
+      "proof_needed": "OS, device, HTTPS origin, focus, offline and recovery results"
+    },
+    {
+      "id": "PAI-016",
+      "lane": "ready",
+      "priority": "P0",
+      "title": "v0.4 release-candidate gate and stable handoff",
+      "source_refs": [
+        "docs/v0.4-release-scope.md"
+      ],
+      "acceptance": "Exact-SHA checks, soak, review and explicit external limitations meet published gate.",
+      "next_step": "Finish candidate verification; do not automatically merge, tag or release.",
+      "design_ref": "docs/v0.4-release-scope.md"
+    },
+    {
+      "id": "PAI-017",
+      "lane": "external",
+      "priority": "P0",
+      "title": "Seven-to-fourteen-day daily dogfooding",
+      "source_refs": [
+        "docs/dogfooding-v0.4-protocol.md"
+      ],
+      "acceptance": "Dated continuous real operator receipts pass the protocol.",
+      "next_step": "Collect day-by-day results; time elapsed alone is insufficient.",
+      "proof_needed": "Seven or fourteen dated real runs with exact version"
+    },
+    {
+      "id": "PAI-018",
+      "lane": "external",
+      "priority": "P0",
+      "title": "Independent first-use and real-workflow evidence",
+      "source_refs": [
+        "docs/real-world-use.md"
+      ],
+      "acceptance": "Independent testers report actual attempts, including failures, and reproducible environment.",
+      "next_step": "Continue Issues #7 and #55; do not manufacture adoption.",
+      "proof_needed": "Real user OS/SHA/workflow/result and optional re-test"
+    },
+    {
+      "id": "PAI-019",
+      "lane": "external",
+      "priority": "P0",
+      "title": "Independent Windows and macOS/Linux clean installs",
+      "source_refs": [
+        "docs/support-matrix.md"
+      ],
+      "acceptance": "Independent no-key setup results on requested platforms exist.",
+      "next_step": "Continue Issues #15 and #56 and fix reproduced friction.",
+      "proof_needed": "Dated fresh installs with exact SHA and results"
+    },
+    {
+      "id": "PAI-020",
+      "lane": "active",
+      "priority": "P0",
+      "title": "Next.js 16.4.5 security patch review",
+      "source_refs": [
+        "docs/maintainer-automation.md"
+      ],
+      "acceptance": "Review exact-head tests and security delta before deciding merger.",
+      "next_step": "Prioritize #168 without automatic merge.",
+      "work_ref": "https://github.com/sui-ni2/personal-ai-os/pull/168"
+    },
+    {
+      "id": "PAI-021",
+      "lane": "active",
+      "priority": "P2",
+      "title": "Python 3.15-slim major compatibility",
+      "source_refs": [
+        "Dockerfile"
+      ],
+      "acceptance": "Supported runtimes and dependencies demonstrate compatibility before major upgrade.",
+      "next_step": "Review #166 as a compatibility project, not an automatic patch.",
+      "work_ref": "https://github.com/sui-ni2/personal-ai-os/pull/166"
+    },
+    {
+      "id": "PAI-022",
+      "lane": "active",
+      "priority": "P1",
+      "title": "vinext and Cloudflare packages alignment",
+      "source_refs": [
+        "apps/web/package.json"
+      ],
+      "acceptance": "Coherent dependency set and lockfile pass hosted build and relevant checks.",
+      "next_step": "Review #162/#163 together without fragmentary upgrades.",
+      "work_ref": "https://github.com/sui-ni2/personal-ai-os/pull/163"
+    },
+    {
+      "id": "PAI-023",
+      "lane": "active",
+      "priority": "P2",
+      "title": "UI icons and Node type dependency maintenance",
+      "source_refs": [
+        "apps/web/package.json"
+      ],
+      "acceptance": "Relevant frontend checks pass on compatible versions.",
+      "next_step": "Review #159/#161 only for warranted benefit.",
+      "work_ref": "https://github.com/sui-ni2/personal-ai-os/pull/161"
+    },
+    {
+      "id": "PAI-024",
+      "lane": "external",
+      "priority": "P1",
+      "title": "Cross-client project-state handoff acceptance",
+      "source_refs": [
+        "docs/reference-workflow.md"
+      ],
+      "acceptance": "Two actual clients reproduce evidence-sensitive resume on one non-sensitive fixture.",
+      "next_step": "Compare two genuine clients using synthetic handoff; keep unpublished working materials private.",
+      "proof_needed": "Observed cross-client resume outcomes and independent non-sensitive tester results"
+    },
+    {
+      "id": "PAI-025",
+      "lane": "design",
+      "priority": "P2",
+      "title": "End-to-end speech input and spoken response",
+      "source_refs": [
+        "ROADMAP.md"
+      ],
+      "acceptance": "Speech/transcript/restart/interrupt and permissions behavior has an accepted contract.",
+      "next_step": "Design small voice acceptance and cancellation matrix.",
+      "design_goal": "Voice capture, consent, interruption, persistence and safety RFC"
+    },
+    {
+      "id": "PAI-026",
+      "lane": "design",
+      "priority": "P2",
+      "title": "Codex/Research project plugins",
+      "source_refs": [
+        "docs/implementation-decisions.md"
+      ],
+      "acceptance": "Plugins use shared Project contracts without domain fields in core.",
+      "next_step": "Specify one reference plugin and prove isolation.",
+      "design_goal": "Plugin-specific context/tools/views/permission test design"
+    },
+    {
+      "id": "PAI-027",
+      "lane": "design",
+      "priority": "P3",
+      "title": "Tasks, Calendar, Journal, Reading and daily workflow",
+      "source_refs": [
+        "docs/implementation-decisions.md"
+      ],
+      "acceptance": "A user-validated need and non-overlap with existing Project Tasks justify each module.",
+      "next_step": "Prioritize a single need after real external usage evidence.",
+      "design_goal": "Usability, persistence, scope and privacy RFC"
+    },
+    {
+      "id": "PAI-028",
+      "lane": "deferred",
+      "priority": "P2",
+      "title": "Gemini and new model provider adapters",
+      "source_refs": [
+        "docs/v0.4-release-scope.md"
+      ],
+      "acceptance": "Provider conformance and real demand justify post-v0.4 scope.",
+      "next_step": "No untested new provider in v0.4 candidate.",
+      "review_trigger": "Core RC accepted plus real demand and fault contract"
+    },
+    {
+      "id": "PAI-029",
+      "lane": "deferred",
+      "priority": "P3",
+      "title": "Managed-cloud account, billing and device sync",
+      "source_refs": [
+        "docs/product-contract.md"
+      ],
+      "acceptance": "Identity, tenant isolation, deletion, finance and support are operationally ready.",
+      "next_step": "Maintain fail-closed cloud contract.",
+      "review_trigger": "Adoption plus complete privacy/identity/cost review"
+    },
+    {
+      "id": "PAI-030",
+      "lane": "deferred",
+      "priority": "P3",
+      "title": "Agent swarms, marketplace and unrelated integrations",
+      "source_refs": [
+        "docs/v0.4-release-scope.md"
+      ],
+      "acceptance": "A separate user-problem/permission design demonstrates value and manageable cost.",
+      "next_step": "Do not increase v0.4 scope to inflate feature count.",
+      "review_trigger": "Explicit user evidence and separate approved proposal"
+    },
+    {
+      "id": "PAI-031",
+      "lane": "active",
+      "priority": "P1",
+      "title": "Maintainer and open-source application evidence",
+      "source_refs": [
+        "docs/oss-maintainer-review-packet.md"
+      ],
+      "acceptance": "Claims cite real releases, contributor actions and adoption; no assumed approval.",
+      "next_step": "Keep public ledger accurate; check application result only through actual decision evidence.",
+      "work_ref": "docs/evidence-ledger.md"
+    },
+    {
+      "id": "PAI-032",
+      "lane": "completed",
+      "priority": "P2",
+      "title": "Upstream FastMCP contribution and related issue",
+      "source_refs": [
+        "docs/project-facts.md"
+      ],
+      "acceptance": "Upstream #4881 is merged and #4854 closed; no vendor adoption assumed.",
+      "next_step": "Monitor only meaningful regression or follow-up.",
+      "proof_ref": "https://github.com/PrefectHQ/fastmcp/pull/4881"
+    },
+    {
+      "id": "PAI-033",
+      "lane": "ready",
+      "priority": "P1",
+      "title": "First-run Doctor diagnostic comprehension",
+      "source_refs": [
+        "docs/maintainer-automation.md"
+      ],
+      "acceptance": "User can interpret a redacted failure and choose a safe, reversible next step.",
+      "next_step": "Build targeted diagnostic UX/regression without exposing private state.",
+      "design_ref": "docs/product-maturity-audit.md"
+    }
+  ]
+}

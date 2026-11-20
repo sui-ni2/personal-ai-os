@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 
 from .governance import GovernanceService
 from .project_recovery import ProjectRecoveryService
+from .project_reconciliation import ProjectReconciliationService
 from .project_state import ProjectStateService
 from .routes import runtime_from
 
@@ -80,3 +81,22 @@ def project_control_center(project_id: str, request: Request) -> dict[str, objec
             "provider_session_copied": False,
         },
     }
+
+
+@router.get("/reconciliation-preview")
+def project_reconciliation_preview(
+    project_id: str,
+    request: Request,
+    limit: int = Query(default=20, ge=1, le=100),
+) -> dict[str, object]:
+    """On-demand metadata preview: stored state is never external execution proof."""
+    runtime = runtime_from(request)
+    try:
+        runtime.projects.describe(project_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return ProjectReconciliationService(
+        runtime.database,
+        data_dir=runtime.settings.data_dir,
+        tenant_id=runtime.settings.tenant_id,
+    ).preview(project_id, limit=limit)

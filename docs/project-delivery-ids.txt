@@ -1,0 +1,36 @@
+# Append-only historical IDs for the Personal AI OS public delivery register.
+# Add new IDs with a reviewed change; never silently remove old commitments.
+# Completed/deferred work stays discoverable; this is not evidence of successful delivery.
+PAI-001
+PAI-002
+PAI-003
+PAI-004
+PAI-005
+PAI-006
+PAI-007
+PAI-008
+PAI-009
+PAI-010
+PAI-011
+PAI-012
+PAI-013
+PAI-014
+PAI-015
+PAI-016
+PAI-017
+PAI-018
+PAI-019
+PAI-020
+PAI-021
+PAI-022
+PAI-023
+PAI-024
+PAI-025
+PAI-026
+PAI-027
+PAI-028
+PAI-029
+PAI-030
+PAI-031
+PAI-032
+PAI-033

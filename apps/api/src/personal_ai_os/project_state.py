@@ -246,6 +246,24 @@ class ProjectStateService:
             ).fetchall()
         return [self._state_from_row(row) for row in rows]
 
+    def list_state_metadata(
+        self, project_id: str, *, limit: int
+    ) -> tuple[int, list[dict[str, Any]]]:
+        """Count records and fetch a SQL-bounded set of metadata only.
+
+        The query intentionally does not read or deserialize private value_json.
+        """
+        if not 1 <= limit <= 100:
+            raise ValueError("State metadata limit must be between 1 and 100")
+        with self._connect(project_id) as connection:
+            total = int(connection.execute("SELECT COUNT(*) FROM current_state").fetchone()[0])
+            rows = connection.execute(
+                "SELECT namespace, key, version, status FROM current_state "
+                "ORDER BY namespace, key LIMIT ?",
+                (limit,),
+            ).fetchall()
+        return total, [dict(row) for row in rows]
+
     def put_state(
         self,
         *,
