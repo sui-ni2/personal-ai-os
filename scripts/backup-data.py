@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import shutil
 import sqlite3
@@ -21,11 +22,35 @@ def snapshot_database(source: Path, destination: Path) -> None:
         destination_db.commit()
 
 
+def _file_manifest(root: Path) -> list[dict[str, object]]:
+    records: list[dict[str, object]] = []
+    for path in sorted(root.rglob("*")):
+        if path.is_symlink():
+            raise SystemExit(f"Backup data contains a symlink; refusing to follow it: {path}")
+        if path.is_dir():
+            continue
+        if not path.is_file():
+            raise SystemExit(f"Backup data contains an unsupported filesystem entry: {path}")
+        relative = path.relative_to(root).as_posix()
+        if "\\" in relative or ":" in relative or relative.startswith("/"):
+            raise SystemExit(f"Backup data contains a non-portable path: {relative}")
+        digest = hashlib.sha256()
+        size = 0
+        with path.open("rb") as stream:
+            for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                digest.update(chunk)
+                size += len(chunk)
+        records.append({"path": relative, "size_bytes": size, "sha256": digest.hexdigest()})
+    return records
+
+
 def build_backup(data_dir: Path, output_dir: Path) -> Path:
     data_dir = data_dir.resolve()
     output_dir = output_dir.resolve()
     if not data_dir.is_dir():
         raise SystemExit(f"Data directory does not exist: {data_dir}")
+    if output_dir == data_dir or data_dir in output_dir.parents:
+        raise SystemExit("Backup output directory must be outside the data directory")
     output_dir.mkdir(parents=True, exist_ok=True)
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     archive = output_dir / f"personal-ai-os-data-{timestamp}-{uuid4().hex}.zip"
@@ -33,19 +58,26 @@ def build_backup(data_dir: Path, output_dir: Path) -> Path:
         staging = Path(temporary) / "data"
         staging.mkdir()
         for source in data_dir.rglob("*"):
+            if source.is_symlink():
+                raise SystemExit(f"Backup data contains a symlink; refusing to follow it: {source}")
             relative = source.relative_to(data_dir)
             destination = staging / relative
             if source.is_dir():
                 destination.mkdir(parents=True, exist_ok=True)
-            elif source.suffix in {".db", ".sqlite", ".sqlite3"}:
-                snapshot_database(source, destination)
-            elif not any(source.name.endswith(suffix) for suffix in ("-wal", "-shm", "-journal")):
-                destination.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(source, destination)
+            elif source.is_file():
+                if source.suffix in {".db", ".sqlite", ".sqlite3"}:
+                    snapshot_database(source, destination)
+                elif not source.name.endswith(("-wal", "-shm", "-journal")):
+                    destination.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(source, destination)
+            else:
+                raise SystemExit(f"Backup data contains an unsupported filesystem entry: {source}")
+        files = _file_manifest(staging)
         manifest = {
             "format": "personal-ai-os-data-backup-v1",
             "created_at": datetime.now(timezone.utc).isoformat(),
             "source_name": data_dir.name,
+            "files": files,
         }
         (Path(temporary) / "manifest.json").write_text(
             json.dumps(manifest, indent=2), encoding="utf-8"
@@ -55,10 +87,53 @@ def build_backup(data_dir: Path, output_dir: Path) -> Path:
             for item in Path(temporary).rglob("*"):
                 if item.is_file():
                     bundle.write(item, item.relative_to(temporary))
-    with zipfile.ZipFile(archive) as bundle:
-        if bundle.testzip() is not None or "manifest.json" not in bundle.namelist():
-            archive.unlink(missing_ok=True)
-            raise SystemExit("Backup verification failed")
+    try:
+        with zipfile.ZipFile(archive) as bundle:
+            if bundle.testzip() is not None or "manifest.json" not in bundle.namelist():
+                raise ValueError("archive CRC or manifest check failed")
+            archived_manifest = json.loads(bundle.read("manifest.json"))
+            if archived_manifest.get("format") != "personal-ai-os-data-backup-v1":
+                raise ValueError("unsupported backup manifest")
+            records = archived_manifest.get("files")
+            if not isinstance(records, list):
+                raise ValueError("backup manifest file list is missing")
+            expected: set[str] = set()
+            for record in records:
+                if not isinstance(record, dict):
+                    raise ValueError("invalid backup manifest entry")
+                relative = record.get("path")
+                size = record.get("size_bytes")
+                digest = record.get("sha256")
+                if (
+                    not isinstance(relative, str)
+                    or not relative
+                    or "\\" in relative
+                    or ":" in relative
+                    or relative.startswith("/")
+                    or ".." in Path(relative).parts
+                    or type(size) is not int
+                    or size < 0
+                    or not isinstance(digest, str)
+                    or len(digest) != 64
+                ):
+                    raise ValueError("invalid backup manifest entry")
+                name = f"data/{relative}"
+                if name.casefold() in expected:
+                    raise ValueError("duplicate backup manifest path")
+                expected.add(name.casefold())
+                payload = bundle.read(name)
+                if len(payload) != size or hashlib.sha256(payload).hexdigest() != digest:
+                    raise ValueError(f"backup integrity check failed for {relative}")
+            actual = {
+                name.casefold()
+                for name in bundle.namelist()
+                if name.startswith("data/") and not name.endswith("/")
+            }
+            if actual != expected:
+                raise ValueError("backup archive contents do not match the manifest")
+    except Exception as exc:
+        archive.unlink(missing_ok=True)
+        raise SystemExit("Backup verification failed") from exc
     return archive
 
 
