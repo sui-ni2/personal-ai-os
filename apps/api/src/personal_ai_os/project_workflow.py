@@ -186,27 +186,65 @@ class ProjectWorkflowService:
     def list_workflow_metadata(
         self, project_id: str, *, limit: int
     ) -> tuple[int, list[dict[str, Any]]]:
-        """Count all workflows while fetching only bounded workflow positions."""
+        """Return bounded workflow positions plus transition-version integrity.
+
+        Transition evidence bodies and sources are deliberately never selected.
+        """
         if not 1 <= limit <= 100:
             raise ValueError("Workflow metadata limit must be between 1 and 100")
         with self._connect(project_id) as connection:
-            total = int(connection.execute("SELECT COUNT(*) FROM workflows").fetchone()[0])
+            total = int(connection.execute(
+                "SELECT COUNT(*) FROM workflows"
+            ).fetchone()[0])
             rows = connection.execute(
-                "SELECT workflow_id, run_key, version, status, current_index, steps_json "
-                "FROM workflows ORDER BY updated_at DESC LIMIT ?",
+                """
+                WITH bounded AS (
+                    SELECT workflow_id, run_key, version, status,
+                           current_index, steps_json
+                    FROM workflows
+                    ORDER BY updated_at DESC, workflow_id, run_key
+                    LIMIT ?
+                ),
+                transition_stats AS (
+                    SELECT t.workflow_id, t.run_key,
+                           COUNT(*) AS transition_count,
+                           COUNT(DISTINCT t.version) AS transition_distinct_versions,
+                           MIN(t.version) AS transition_min_version,
+                           MAX(t.version) AS transition_max_version
+                    FROM workflow_transitions AS t
+                    INNER JOIN bounded AS b
+                        ON b.workflow_id = t.workflow_id AND b.run_key = t.run_key
+                    GROUP BY t.workflow_id, t.run_key
+                )
+                SELECT b.workflow_id, b.run_key, b.version, b.status,
+                       b.current_index, b.steps_json,
+                       COALESCE(t.transition_count, 0) AS transition_count,
+                       COALESCE(t.transition_distinct_versions, 0) AS transition_distinct_versions,
+                       t.transition_min_version, t.transition_max_version
+                FROM bounded AS b
+                LEFT JOIN transition_stats AS t
+                    ON t.workflow_id = b.workflow_id AND t.run_key = b.run_key
+                ORDER BY b.workflow_id, b.run_key
+                """,
                 (limit,),
             ).fetchall()
-        records = []
+        records: list[dict[str, Any]] = []
         for row in rows:
-            steps = json.loads(row["steps_json"])
-            next_index = int(row["current_index"]) + 1
-            records.append({
-                "workflow_id": row["workflow_id"],
-                "run_key": row["run_key"],
-                "version": row["version"],
-                "status": row["status"],
-                "next_step": steps[next_index] if next_index < len(steps) else None,
-            })
+            item = dict(row)
+            try:
+                steps = json.loads(item.pop("steps_json"))
+                item["steps_valid"] = isinstance(steps, list) and bool(steps) and all(
+                    isinstance(step, str) and bool(step) for step in steps
+                )
+            except (TypeError, ValueError, json.JSONDecodeError):
+                steps = []
+                item["steps_valid"] = False
+            if not item["steps_valid"]:
+                item["next_step"] = None
+            else:
+                next_index = int(item["current_index"]) + 1
+                item["next_step"] = steps[next_index] if next_index < len(steps) else None
+                item["step_count"] = len(steps)
         return total, records
 
     def advance_workflow(
