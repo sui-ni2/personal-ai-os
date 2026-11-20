@@ -27,9 +27,9 @@ existing backups remain compatible with the restore command.
 New archives include a SHA-256 digest and byte count for every backed-up data file. The
 archive is verified against that manifest before it is returned, and restore verifies the
 same manifest before moving the current data directory. Older v1 archives without the
-file-digest list remain restorable. A backup refuses to follow symlinks or special files,
-and the output directory must be outside the data directory so previous archives cannot
-become recursive backup input.
+file-digest list remain restorable. Empty nested directories are retained as well. A backup
+refuses to follow symlinks or special files, and the output directory must be outside the data
+directory so previous archives cannot become recursive backup input.
 
 ## Restore safely
 
