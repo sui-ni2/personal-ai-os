@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { AlertTriangle, CheckCircle2, ChevronDown, FileText, ListChecks, Plus, RefreshCw } from "lucide-react";
+import { AlertTriangle, ChevronDown, CircleDot, FileText, ListChecks, Plus, RefreshCw } from "lucide-react";
 import { apiJson } from "@/lib/api";
 import { ErrorState, LoadingState } from "@/components/ui-states";
 
@@ -123,11 +123,14 @@ export function ProjectControlCenter({ projectId }: { projectId: string }) {
         </div>
       </form>
 
+      <p className="mt-4 text-xs leading-5 text-text-tertiary">
+        These are recorded project updates, not proof of completed tasks, external actions, or verified outcomes.
+      </p>
       <div className="mt-5 grid gap-3 lg:grid-cols-2">
         {sections.map((section) => {
           const records = data.state[section] || [];
           if (!records.length && !["tasks", "blockers", "next_actions"].includes(section)) return null;
-          return <article key={section} className="rounded-control border border-line bg-surface/25 p-4"><div className="flex items-center gap-2"><ListChecks aria-hidden size={16} className="text-accent" /><h3 className="text-sm font-medium">{labels[section]}</h3><span className="ml-auto text-xs text-text-tertiary">{records.length}</span></div>{records.length ? <ul className="mt-3 space-y-2 text-sm text-text-secondary">{records.slice(0, 4).map((record) => <li key={`${record.namespace}-${record.key}`} className="flex items-start gap-2"><CheckCircle2 aria-hidden size={15} className="mt-0.5 shrink-0 text-success" /><span className="min-w-0 flex-1">{summary(record)}</span>{editableNamespaces.has(record.namespace) ? <button type="button" className="button-quiet min-h-8 px-2 py-1 text-xs" aria-label={`Edit ${record.namespace} ${summary(record)}`} onClick={() => beginEdit(record)}>Edit</button> : null}</li>)}</ul> : <p className="mt-3 text-sm text-text-tertiary">Nothing recorded.</p>}</article>;
+          return <article key={section} className="rounded-control border border-line bg-surface/25 p-4"><div className="flex items-center gap-2"><ListChecks aria-hidden size={16} className="text-accent" /><h3 className="text-sm font-medium">{labels[section]}</h3><span className="ml-auto text-xs text-text-tertiary">{records.length}</span></div>{records.length ? <ul className="mt-3 space-y-2 text-sm text-text-secondary">{records.slice(0, 4).map((record) => <li key={`${record.namespace}-${record.key}`} className="flex items-start gap-2"><CircleDot aria-hidden size={15} className="mt-0.5 shrink-0 text-text-tertiary" /><span className="min-w-0 flex-1">{summary(record)}<span className="block text-xs text-text-tertiary">Recorded</span></span>{editableNamespaces.has(record.namespace) ? <button type="button" className="button-quiet min-h-8 px-2 py-1 text-xs" aria-label={`Edit ${record.namespace} ${summary(record)}`} onClick={() => beginEdit(record)}>Edit</button> : null}</li>)}</ul> : <p className="mt-3 text-sm text-text-tertiary">Nothing recorded.</p>}</article>;
         })}
         <article className="rounded-control border border-line bg-surface/25 p-4"><div className="flex items-center gap-2"><FileText aria-hidden size={16} className="text-accent" /><h3 className="text-sm font-medium">Files and reviewed memory</h3></div><p className="mt-3 text-sm text-text-secondary">{data.files.length} file references · {data.reviewed_memory.length} reviewed memories</p><p className="mt-2 text-xs leading-5 text-text-tertiary">Provider session state is never copied into project continuity.</p></article>
         <article className="rounded-control border border-line bg-surface/25 p-4"><div className="flex items-center gap-2"><AlertTriangle aria-hidden size={16} className={data.recovery.status === "clean" ? "text-success" : "text-warning"} /><h3 className="text-sm font-medium">Recovery</h3></div><p className="mt-3 text-sm text-text-secondary">{data.recovery.message}</p></article>

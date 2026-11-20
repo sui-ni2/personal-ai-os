@@ -62,6 +62,13 @@ def test_compact_handoff_is_bounded_current_state_without_receipts(client: TestC
     assert payload["mode"] == "compact"
     assert payload["truncated"] is False
     assert payload["counts"] == {"states": 1, "experiences": 1, "workflows": 1}
+    assert payload["resume"] == {
+        "recorded_workflows": {"active": 1, "completed": 0, "other": 0},
+        "next_steps": [
+            {"workflow_id": "handoff-check", "run_key": "synthetic-run", "next_step": "continue", "version": 2}
+        ],
+        "coverage": "complete",
+    }
 
     state = payload["states"][0]
     assert state["value"] == {"status": "reviewed"}
@@ -100,6 +107,32 @@ def test_full_handoff_keeps_rich_current_records_but_not_transition_evidence(cli
     serialized = response.text
     assert "private_receipt" not in serialized
     assert "must-not-appear-in-handoff" not in serialized
+
+
+def test_resume_inventory_respects_persisted_workflow_completion(client: TestClient) -> None:
+    _seed_handoff(client)
+    before = client.get("/api/projects/general/handoff").json()["resume"]
+    assert before["recorded_workflows"]["completed"] == 0
+    assert len(before["next_steps"]) == 1
+
+    advance = client.post(
+        "/api/projects/general/workflows/handoff-check/synthetic-run/advance",
+        json={
+            "next_step": "continue",
+            "expected_version": 2,
+            "evidence": {"private_receipt": "not-in-resume"},
+            "source": "test-workflow",
+        },
+    )
+    assert advance.status_code == 200
+
+    response = client.get("/api/projects/general/handoff")
+    assert response.status_code == 200
+    resume = response.json()["resume"]
+    assert resume["recorded_workflows"] == {"active": 0, "completed": 1, "other": 0}
+    assert resume["next_steps"] == []
+    assert resume["coverage"] == "complete"
+    assert "not-in-resume" not in response.text
 
 
 def test_handoff_is_project_scoped(client: TestClient) -> None:

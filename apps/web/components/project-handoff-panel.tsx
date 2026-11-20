@@ -10,6 +10,11 @@ type HandoffSnapshot = {
   mode: HandoffMode;
   counts: { states: number; experiences: number; workflows: number };
   truncated: boolean;
+  resume?: {
+    recorded_workflows: { active: number; completed: number; other: number };
+    next_steps: { workflow_id: string; run_key: string; next_step: string; version: number }[];
+    coverage: "complete" | "partial";
+  };
   states: unknown[];
   experiences: unknown[];
   workflows: unknown[];
@@ -99,6 +104,17 @@ export function ProjectHandoffPanel({ projectId, projectName }: Props) {
         {snapshot.counts.states} state · {snapshot.counts.experiences} experience · {snapshot.counts.workflows} workflow
         {snapshot.counts.workflows === 1 ? "" : "s"}. This preview is read-only and comes from persisted project continuity state.
       </p>
+      {snapshot.resume ? (
+        <div className="mt-2 space-y-1 text-xs leading-5 text-text-secondary">
+          <p>Recorded workflow positions: {snapshot.resume.recorded_workflows.active} active, {snapshot.resume.recorded_workflows.completed} completed.</p>
+          {snapshot.resume.next_steps.map((step) => (
+            <p key={`${step.workflow_id}/${step.run_key}`}>
+              Next recorded step in {step.workflow_id}: {step.next_step} (v{step.version}).
+            </p>
+          ))}
+          <p className="text-text-tertiary">A recorded workflow position is not independent proof that external work was performed.</p>
+        </div>
+      ) : null}
       {snapshot.truncated ? (
         <p className="mt-2 text-xs leading-5 text-warning">
           Older records are outside this bounded snapshot. Total counts above still reflect the stored project state.
