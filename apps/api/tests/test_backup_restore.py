@@ -146,6 +146,8 @@ def test_backup_restore_preserves_workspace_records_wal_commits_and_private_file
     attachment = data / "attachments" / "project-1" / "private-note.md"
     attachment.parent.mkdir(parents=True)
     attachment.write_text("private attachment body", encoding="utf-8")
+    empty_directory = data / "empty-workspace" / "nested"
+    empty_directory.mkdir(parents=True)
 
     wal_connection = sqlite3.connect(database_path)
     try:
@@ -181,6 +183,8 @@ def test_backup_restore_preserves_workspace_records_wal_commits_and_private_file
         assert connection.execute("SELECT summary FROM repository_events WHERE id='event-1'").fetchone()["summary"] == "private outcome"
         assert connection.execute("SELECT body FROM wal_probe WHERE id=1").fetchone()["body"] == "committed WAL record"
     assert (target / "attachments/project-1/private-note.md").read_text(encoding="utf-8") == "private attachment body"
+    assert (target / "empty-workspace/nested").is_dir()
+    assert list((target / "empty-workspace/nested").iterdir()) == []
 
 
 @pytest.mark.parametrize(
