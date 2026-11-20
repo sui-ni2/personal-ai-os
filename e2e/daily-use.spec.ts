@@ -51,6 +51,32 @@ test("daily Project, Memory, send scope, budget hard stop, execution, and reload
   await expect(page.getByRole("listitem").filter({ hasText: "Validate execution after review" }).last()).toBeVisible();
   await expect(page.getByText("Validate execution", { exact: true })).toHaveCount(0);
 
+  const projectResponse = await request.get(`${api}/projects`);
+  expect(projectResponse.ok()).toBeTruthy();
+  const projectItems = (await projectResponse.json()).items as { id: string; name: string }[];
+  const projectId = projectItems.find((item) => item.name === projectName)?.id;
+  expect(projectId).toBeTruthy();
+  const workflow = await request.post(`${api}/projects/${encodeURIComponent(projectId!)}/workflows`, {
+    data: { workflow_id: "reconciliation-e2e", run_key: "daily-use", steps: ["inspect", "verify"], source: "playwright" },
+  });
+  expect(workflow.status()).toBe(201);
+  const advanced = await request.post(`${api}/projects/${encodeURIComponent(projectId!)}/workflows/reconciliation-e2e/daily-use/advance`, {
+    data: { next_step: "inspect", expected_version: 1, evidence: { fixture: true }, source: "playwright" },
+  });
+  expect(advanced.ok()).toBeTruthy();
+
+  await page.getByRole("button", { name: "Review recorded state" }).click();
+  const reconciliation = page.getByRole("region", { name: "Evidence review" });
+  await expect(reconciliation).toBeVisible();
+  await expect(reconciliation).toContainText("Recorded");
+  await expect(reconciliation).toContainText("Workflow position");
+  await expect(reconciliation).toContainText("Next recorded step: verify");
+  await expect(reconciliation).toContainText("External execution: unverified");
+  const reconciliationAxe = await new AxeBuilder({ page }).include("main").analyze();
+  expect(reconciliationAxe.violations).toEqual([]);
+  await page.getByRole("button", { name: "Close state review" }).click();
+  await expect(reconciliation).toHaveCount(0);
+
   await page.goto("/memory");
   await page.getByText("Add memory", { exact: true }).click();
   await page.getByLabel("Memory", { exact: true }).fill(memoryText);
