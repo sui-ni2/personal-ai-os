@@ -42,6 +42,7 @@ register adds execution ownership, acceptance gates and continuity.
 2. **Strengthen Project Continuity**
    - Make Tasks, Conversations, Files, Outcomes, decisions, changed files, blockers, and reviewed Project Memory first-class project state.
    - Compact/full read-only handoff snapshots, explicit Projects-screen preview, metadata-only interruption detection, and user-confirmed restart recovery are implemented with bounded payloads and no provider-session copying.
+- PAI-034 adds an opt-in Projects evidence review over persisted metadata: recorded state, workflow position, unresolved external execution, version-history conflicts and incomplete coverage. It remains read-only; external cross-client acceptance is a separate gate.
 3. **Finish the Settings center**
    - Unify AI services, default models, voice, memory/privacy, appearance, data controls, MCP, and diagnostics.
    - Keep credential values server-side and never return them to the browser.
