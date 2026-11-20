@@ -19,7 +19,7 @@ test.afterEach(async ({ request }) => {
   await setGeneralBudget(request, 100_000);
 });
 
-test("daily Project, Memory, send scope, budget hard stop, execution, and reload path", async ({ page }, testInfo) => {
+test("daily Project, Memory, send scope, budget hard stop, execution, and reload path", async ({ page, request }, testInfo) => {
   const projectName = `Daily-use E2E ${testInfo.project.name}`;
   const memoryText = `daily-use-e2e=${testInfo.project.name}`;
   await page.goto("/projects");
@@ -77,14 +77,18 @@ test("daily Project, Memory, send scope, budget hard stop, execution, and reload
   await page.getByRole("button", { name: "Close state review" }).click();
   await expect(reconciliation).toHaveCount(0);
 
-  await page.setViewportSize({ width: 390, height: 844 });
+  if (testInfo.project.name === "chromium") {
+    await page.setViewportSize({ width: 390, height: 844 });
+  }
   await page.getByRole("button", { name: "Review recorded state" }).click();
   await expect(reconciliation).toBeVisible();
   const mobileReconciliationAxe = await new AxeBuilder({ page }).include("main").analyze();
   expect(mobileReconciliationAxe.violations).toEqual([]);
   await page.getByRole("button", { name: "Close state review" }).click();
   await expect(reconciliation).toHaveCount(0);
-  await page.setViewportSize({ width: 1280, height: 900 });
+  if (testInfo.project.name === "chromium") {
+    await page.setViewportSize({ width: 1280, height: 900 });
+  }
 
   await page.goto("/memory");
   await page.getByText("Add memory", { exact: true }).click();
