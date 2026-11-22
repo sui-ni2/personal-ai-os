@@ -14,6 +14,8 @@ type DoctorReport = {
   database: { status: string; migration_version: number | null };
   data_directory: { exists: boolean; writable: boolean };
   providers: { configured: Record<string, boolean>; values_exposed: boolean };
+  projects?: { registered_count: number; names_exposed: boolean };
+  recovery?: { metadata_file_count: number; details_exposed: boolean };
 };
 type DoctorGuidance = { title: string; steps: string[] };
 
@@ -21,9 +23,32 @@ function isRedactedDoctorReport(report: DoctorReport): boolean {
   return report?.report === "personal-ai-os-doctor-browser-v1"
     && report.safe_to_share === true
     && report.providers?.values_exposed === false
+    && report.providers.configured !== null
+    && typeof report.providers.configured === "object"
+    && !Array.isArray(report.providers.configured)
+    && Object.entries(report.providers.configured).every(([id, value]) => /^[a-z][a-z0-9_-]{0,31}$/.test(id) && typeof value === "boolean")
     && typeof report.data_directory?.writable === "boolean"
     && typeof report.data_directory?.exists === "boolean"
     && typeof report.database?.status === "string";
+}
+
+function safeDoctorDownload(report: DoctorReport): object {
+  // Explicitly project safe fields. Never serialize future/unknown API fields into a downloaded report.
+  const statuses = ["ok", "attention", "missing", "legacy_detected"];
+  return {
+    report: "personal-ai-os-doctor-browser-v1",
+    safe_to_share: true,
+    redaction: "Only allowlisted metadata. Credentials, paths, project content, and provider responses are excluded.",
+    database: {
+      status: statuses.includes(report.database.status) ? report.database.status : "attention",
+      migration_version: Number.isInteger(report.database.migration_version) ? report.database.migration_version : null,
+    },
+    data_directory: { exists: report.data_directory.exists, writable: report.data_directory.writable },
+    providers: { configured: report.providers.configured, values_exposed: false },
+    projects: { registered_count: Number.isInteger(report.projects?.registered_count) && (report.projects?.registered_count || 0) >= 0 ? report.projects!.registered_count : 0, names_exposed: false },
+    recovery: { metadata_file_count: Number.isInteger(report.recovery?.metadata_file_count) && (report.recovery?.metadata_file_count || 0) >= 0 ? report.recovery!.metadata_file_count : 0, details_exposed: false },
+    limitations: ["This report does not verify live provider inference, Windows updates, or physical-device behavior."],
+  };
 }
 
 function doctorGuidance(report: DoctorReport): DoctorGuidance {
@@ -143,8 +168,8 @@ export function SettingsGovernancePanel({ providers }: { providers: Provider[] }
         setLifecycleNotice("Doctor report did not meet the redaction contract. Nothing was downloaded.");
         return;
       }
-      downloadJson("personal-ai-os-doctor-safe-report.json", report);
-      setLifecycleNotice(report.safe_to_share ? "Redacted Doctor report downloaded." : "Doctor report was not marked safe to share.");
+      downloadJson("personal-ai-os-doctor-safe-report.json", safeDoctorDownload(report));
+      setLifecycleNotice("Redacted Doctor report downloaded.");
     } catch {
       setLifecycleNotice("Doctor report could not be created. Your local data was not changed.");
     } finally { setLifecycleBusy(false); }

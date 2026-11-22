@@ -225,6 +225,12 @@ test("Doctor first-run guidance remains redacted and never downloads an unverifi
   await expect(guidance).toContainText("No-key startup is safe");
   await expect(guidance).toContainText("does not verify a live AI request");
   await expect(page.getByText("must-not-render-sensitive-content")).toHaveCount(0);
+  const safeDownloadPending = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Download safe Doctor report" }).click();
+  const safeDownload = await safeDownloadPending;
+  const safeContent = await (await import("node:fs/promises")).readFile(await safeDownload.path(), "utf8");
+  expect(safeContent).not.toContain("must-not-render-sensitive-content");
+  expect(JSON.parse(safeContent).safe_to_share).toBe(true);
 
   unsafe = true;
   await page.getByRole("button", { name: "Check local setup" }).click();
