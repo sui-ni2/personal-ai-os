@@ -18,12 +18,11 @@
 | ID | Priority | Workstream | Next verified step |
 | --- | --- | --- | --- |
 | PAI-012 | P1 | Backup, migration, restore and user data portability | Advance integration safety checks; preserve all private records. |
-| PAI-020 | P0 | Next.js 16.4.5 security patch review | Prioritize #168 without automatic merge. |
 | PAI-021 | P2 | Python 3.15-slim major compatibility | Review #166 as a compatibility project, not an automatic patch. |
 | PAI-022 | P1 | vinext and Cloudflare packages alignment | Review #162/#163 together without fragmentary upgrades. |
 | PAI-023 | P2 | UI icons and Node type dependency maintenance | Review #159/#161 only for warranted benefit. |
 | PAI-031 | P1 | Maintainer and open-source application evidence | Keep public ledger accurate; check application result only through actual decision evidence. |
-| PAI-033 | P1 | First-run Doctor diagnostic comprehension | Review and run exact-head browser, typecheck and accessibility checks for read-only first-run guidance; do not claim independent first-use acceptance. |
+| PAI-035 | P0 | Transitive source-map-js security resolution | Review exact-head frozen lockfile install, frontend, hosted build, CodeQL and platform checks; classify the related Dependabot outcome separately. |
 
 ### 2 · Designed and ready to build
 
@@ -53,6 +52,7 @@
 | PAI-018 | P0 | Independent first-use and real-workflow evidence | Continue Issues #7 and #55; do not manufacture adoption. |
 | PAI-019 | P0 | Independent Windows and macOS/Linux clean installs | Continue Issues #15 and #56 and fix reproduced friction. |
 | PAI-024 | P1 | Cross-client project-state handoff acceptance | Compare two genuine clients using synthetic handoff; keep unpublished working materials private. |
+| PAI-033 | P1 | First-run Doctor diagnostic comprehension | Observe an actual no-key first-run user interpreting Doctor guidance; record the app SHA, environment, safe action chosen and outcome without private diagnostic contents. |
 
 ### 5 · Deliberately deferred with review triggers
 
@@ -76,6 +76,7 @@
 | PAI-010 | P0 | MCP side-effect confirmation and send-scope receipt | Do not weaken permission or replay boundaries. |
 | PAI-011 | P0 | Interrupted execution and unknown side-effect safety | Keep external provider failures distinct from fixture coverage. |
 | PAI-032 | P2 | Upstream FastMCP contribution and related issue | Monitor only meaningful regression or follow-up. |
+| PAI-020 | P0 | Next.js 16.4.5 security patch review | Preserve the reviewed Next.js 16.4.5 security patch and post-merge exact-SHA checks; treat source-map-js PAI-035 independently. |
 
 ## Immediate build order
 
