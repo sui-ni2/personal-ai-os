@@ -1,6 +1,6 @@
 # Personal AI OS — persistent project delivery register
 
-> **Dated snapshot:** 2026-11-20, Asia/Singapore. Repository: `sui-ni2/personal-ai-os`. This is an index, not a live GitHub/CI status feed.
+> **Dated snapshot:** 2026-11-22, Asia/Singapore. Repository: `sui-ni2/personal-ai-os`. This is an index, not a live GitHub/CI status feed.
 > `docs/project-delivery-register.json` is the machine-readable inventory. Check current code, PR head, reviews and exact SHA before any modification.
 
 ## Rules for continuing the work
@@ -23,13 +23,13 @@
 | PAI-022 | P1 | vinext and Cloudflare packages alignment | Review #162/#163 together without fragmentary upgrades. |
 | PAI-023 | P2 | UI icons and Node type dependency maintenance | Review #159/#161 only for warranted benefit. |
 | PAI-031 | P1 | Maintainer and open-source application evidence | Keep public ledger accurate; check application result only through actual decision evidence. |
+| PAI-033 | P1 | First-run Doctor diagnostic comprehension | Review and run exact-head browser, typecheck and accessibility checks for read-only first-run guidance; do not claim independent first-use acceptance. |
 
 ### 2 · Designed and ready to build
 
 | ID | Priority | Workstream | Next verified step |
 | --- | --- | --- | --- |
 | PAI-016 | P0 | v0.4 release-candidate gate and stable handoff | Finish candidate verification; do not automatically merge, tag or release. |
-| PAI-033 | P1 | First-run Doctor diagnostic comprehension | Build targeted diagnostic UX/regression without exposing private state. |
 
 ### 3 · Design needed before implementation
 

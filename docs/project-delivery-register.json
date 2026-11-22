@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "snapshot_date": "2026-11-20",
+  "snapshot_date": "2026-11-22",
   "repository": "sui-ni2/personal-ai-os",
   "authority": "Dated planning snapshot. Current source, GitHub state, exact-SHA checks, and independent evidence override this register.",
   "items": [
@@ -405,15 +405,15 @@
     },
     {
       "id": "PAI-033",
-      "lane": "ready",
+      "lane": "active",
       "priority": "P1",
       "title": "First-run Doctor diagnostic comprehension",
       "source_refs": [
         "docs/maintainer-automation.md"
       ],
       "acceptance": "User can interpret a redacted failure and choose a safe, reversible next step.",
-      "next_step": "Build targeted diagnostic UX/regression without exposing private state.",
-      "design_ref": "docs/product-maturity-audit.md"
+      "next_step": "Review and run exact-head browser, typecheck and accessibility checks for read-only first-run guidance; do not claim independent first-use acceptance.",
+      "work_ref": "https://github.com/sui-ni2/personal-ai-os/pull/176"
     }
   ]
 }
