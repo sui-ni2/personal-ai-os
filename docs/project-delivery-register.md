@@ -18,7 +18,6 @@
 | ID | Priority | Workstream | Next verified step |
 | --- | --- | --- | --- |
 | PAI-012 | P1 | Backup, migration, restore and user data portability | Advance integration safety checks; preserve all private records. |
-| PAI-020 | P0 | Next.js 16.4.5 security patch review | Review post-merge main checks on #168 at bfb046a; track the unrelated source-map-js remediation as PAI-035 before closing security maintenance. |
 | PAI-021 | P2 | Python 3.15-slim major compatibility | Review #166 as a compatibility project, not an automatic patch. |
 | PAI-022 | P1 | vinext and Cloudflare packages alignment | Review #162/#163 together without fragmentary upgrades. |
 | PAI-023 | P2 | UI icons and Node type dependency maintenance | Review #159/#161 only for warranted benefit. |
@@ -77,6 +76,7 @@
 | PAI-010 | P0 | MCP side-effect confirmation and send-scope receipt | Do not weaken permission or replay boundaries. |
 | PAI-011 | P0 | Interrupted execution and unknown side-effect safety | Keep external provider failures distinct from fixture coverage. |
 | PAI-032 | P2 | Upstream FastMCP contribution and related issue | Monitor only meaningful regression or follow-up. |
+| PAI-020 | P0 | Next.js 16.4.5 security patch review | Preserve the reviewed Next.js 16.4.5 security patch and post-merge exact-SHA checks; treat source-map-js PAI-035 independently. |
 
 ## Immediate build order
 
