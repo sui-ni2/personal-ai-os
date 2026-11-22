@@ -201,3 +201,38 @@ test("keyboard, focus restoration, axe, and mobile viewport cover daily surfaces
   await expect(page.getByRole("button", { name: "Open conversation history" })).toBeFocused();
   if (isMobile) await expect(page.getByRole("main")).toBeVisible();
 });
+
+test("Doctor first-run guidance remains redacted and never downloads an unverified report", async ({ page }) => {
+  let unsafe = false;
+  await page.route("**/api/doctor", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        report: "personal-ai-os-doctor-browser-v1",
+        safe_to_share: !unsafe,
+        database: { status: "ok", migration_version: 8 },
+        data_directory: { exists: true, writable: true },
+        providers: { configured: { openai: false, anthropic: false }, values_exposed: unsafe },
+        unsafe_private_value: "must-not-render-sensitive-content",
+      }),
+    });
+  });
+  await page.goto("/settings");
+  await page.getByRole("button", { name: "Check local setup" }).click();
+  const guidance = page.getByRole("status", { name: "Local setup guidance" });
+  await expect(guidance).toContainText("Local setup next steps");
+  await expect(guidance).toContainText("No-key startup is safe");
+  await expect(guidance).toContainText("does not verify a live AI request");
+  await expect(page.getByText("must-not-render-sensitive-content")).toHaveCount(0);
+
+  unsafe = true;
+  await page.getByRole("button", { name: "Check local setup" }).click();
+  await expect(guidance).toContainText("Doctor report needs review");
+  await expect(guidance).toContainText("Do not download or share it");
+  let downloads = 0;
+  page.on("download", () => { downloads += 1; });
+  await page.getByRole("button", { name: "Download safe Doctor report" }).click();
+  await expect(page.getByText("Doctor report did not meet the redaction contract. Nothing was downloaded.")).toBeVisible();
+  expect(downloads).toBe(0);
+});
