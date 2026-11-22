@@ -23,7 +23,7 @@
 | PAI-022 | P1 | vinext and Cloudflare packages alignment | Review #162/#163 together without fragmentary upgrades. |
 | PAI-023 | P2 | UI icons and Node type dependency maintenance | Review #159/#161 only for warranted benefit. |
 | PAI-031 | P1 | Maintainer and open-source application evidence | Keep public ledger accurate; check application result only through actual decision evidence. |
-| PAI-033 | P1 | First-run Doctor diagnostic comprehension | [PR #176](https://github.com/sui-ni2/personal-ai-os/pull/176) adds read-only guidance, redaction-safe downloads and browser regression coverage. Exact-head CI, accessibility review and independent first-use remain unverified; do not mark completed. |
+| PAI-033 | P1 | First-run Doctor diagnostic comprehension | Review and run exact-head browser, typecheck and accessibility checks for read-only first-run guidance; do not claim independent first-use acceptance. |
 
 ### 2 · Designed and ready to build
 
