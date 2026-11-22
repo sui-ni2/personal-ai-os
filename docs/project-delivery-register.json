@@ -256,7 +256,7 @@
         "docs/maintainer-automation.md"
       ],
       "acceptance": "Review exact-head tests and security delta before deciding merger.",
-      "next_step": "Prioritize #168 without automatic merge.",
+      "next_step": "Review post-merge main checks on #168 at bfb046a; track the unrelated source-map-js remediation as PAI-035 before closing security maintenance.",
       "work_ref": "https://github.com/sui-ni2/personal-ai-os/pull/168"
     },
     {
@@ -405,15 +405,29 @@
     },
     {
       "id": "PAI-033",
-      "lane": "active",
+      "lane": "external",
       "priority": "P1",
       "title": "First-run Doctor diagnostic comprehension",
       "source_refs": [
         "docs/maintainer-automation.md"
       ],
       "acceptance": "User can interpret a redacted failure and choose a safe, reversible next step.",
-      "next_step": "Review and run exact-head browser, typecheck and accessibility checks for read-only first-run guidance; do not claim independent first-use acceptance.",
-      "work_ref": "https://github.com/sui-ni2/personal-ai-os/pull/176"
+      "next_step": "Observe an actual no-key first-run user interpreting Doctor guidance; record the app SHA, environment, safe action chosen and outcome without private diagnostic contents.",
+      "work_ref": "https://github.com/sui-ni2/personal-ai-os/pull/176",
+      "proof_needed": "Actual independent first-use observation on installed app with dated redacted failure-and-next-action outcome; CI/mock is not user acceptance."
+    },
+    {
+      "id": "PAI-035",
+      "lane": "active",
+      "priority": "P0",
+      "title": "Transitive source-map-js security resolution",
+      "source_refs": [
+        "pnpm-lock.yaml",
+        "apps/web/package.json"
+      ],
+      "acceptance": "Resolved package graph excludes source-map-js 1.2.1 while retaining verified frozen-lockfile frontend and platform compatibility; private advisory status stays unverified.",
+      "next_step": "Review exact-head frozen lockfile install, frontend, hosted build, CodeQL and platform checks; classify the related Dependabot outcome separately.",
+      "work_ref": "https://github.com/sui-ni2/personal-ai-os/tree/fix/source-map-js-remediation-20261122"
     }
   ]
 }
