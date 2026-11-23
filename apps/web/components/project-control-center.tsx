@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { AlertTriangle, ChevronDown, CircleDot, FileText, ListChecks, Plus, RefreshCw } from "lucide-react";
 import { apiJson } from "@/lib/api";
 import { ErrorState, LoadingState } from "@/components/ui-states";
+import { ProjectReconciliationPreview } from "@/components/project-reconciliation-preview";
 
 type Project = { id: string; name: string; description: string };
 type StateRecord = { namespace: string; key: string; value: Record<string, unknown>; version: number; status: string; updated_at: string };
@@ -113,6 +114,8 @@ export function ProjectControlCenter({ projectId }: { projectId: string }) {
         <article className="rounded-control border border-line bg-surface/45 p-4"><p className="text-xs text-text-tertiary">Blockers</p><p className="mt-1 text-sm font-medium">{blockers.length ? `${blockers.length} needs attention` : "None recorded"}</p></article>
         <article className="rounded-control border border-line bg-surface/45 p-4"><p className="text-xs text-text-tertiary">Last execution</p><p className="mt-1 text-sm font-medium">{data.recent_execution ? data.recent_execution.status.replaceAll("_", " ") : "No execution yet"}</p></article>
       </div>
+
+      <ProjectReconciliationPreview projectId={projectId} />
 
       <form className="mt-5 grid gap-2 rounded-control border border-line bg-surface/35 p-3 sm:grid-cols-[10rem_1fr_auto]" onSubmit={saveRecord}>
         <label><span className="sr-only">Record type</span><select className="field w-full" value={kind} onChange={(event) => setKind(event.target.value)} disabled={Boolean(editing)}>{["goal", "current_state", "task", "decision", "outcome", "blocker", "next_action"].map((item) => <option key={item} value={item}>{item.replaceAll("_", " ")}</option>)}</select></label>

@@ -149,3 +149,12 @@ def test_non_https_release_notes_url_is_rejected() -> None:
             affected_surface="tooling",
             release_notes_url="http://example.com/release",
         )
+
+
+def test_pnpm_transitive_source_map_js_has_no_known_vulnerable_lock() -> None:
+    from pathlib import Path
+
+    lock = (Path(__file__).parents[3] / "pnpm-lock.yaml").read_text(encoding="utf-8")
+    # Do not restore the resolved version rejected by the security updater.
+    assert "source-map-js@1.2.1:" not in lock
+    assert "source-map-js: 1.2.1" not in lock

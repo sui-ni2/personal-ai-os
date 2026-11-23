@@ -8,7 +8,73 @@ type Provider = { id: string; configured: boolean; models: string[] };
 type Usage = { items: { provider: string; model: string; requests: number; input_tokens: number; output_tokens: number; token_precision: string; cost_precision: string; latency_ms: number }[] };
 type Budget = { policies: { period: string; limit_tokens: number; used_tokens: number; warn: boolean; blocked: boolean }[] };
 type Routing = { policy: "STRICT_PROVIDER" | "FALLBACK_ALLOWED" | "ASK_BEFORE_FALLBACK"; fallback_provider?: string; fallback_model?: string };
-type DoctorReport = { safe_to_share: boolean; database: { status: string; migration_version: number | null } };
+type DoctorReport = {
+  report: string;
+  safe_to_share: boolean;
+  database: { status: string; migration_version: number | null };
+  data_directory: { exists: boolean; writable: boolean };
+  providers: { configured: Record<string, boolean>; values_exposed: boolean };
+  projects?: { registered_count: number; names_exposed: boolean };
+  recovery?: { metadata_file_count: number; details_exposed: boolean };
+};
+type DoctorGuidance = { title: string; steps: string[] };
+
+function isRedactedDoctorReport(report: DoctorReport): boolean {
+  return report?.report === "personal-ai-os-doctor-browser-v1"
+    && report.safe_to_share === true
+    && report.providers?.values_exposed === false
+    && report.providers.configured !== null
+    && typeof report.providers.configured === "object"
+    && !Array.isArray(report.providers.configured)
+    && Object.entries(report.providers.configured).every(([id, value]) => /^[a-z][a-z0-9_-]{0,31}$/.test(id) && typeof value === "boolean")
+    && typeof report.data_directory?.writable === "boolean"
+    && typeof report.data_directory?.exists === "boolean"
+    && typeof report.database?.status === "string";
+}
+
+function safeDoctorDownload(report: DoctorReport): object {
+  // Explicitly project safe fields. Never serialize future/unknown API fields into a downloaded report.
+  const statuses = ["ok", "attention", "missing", "legacy_detected"];
+  return {
+    report: "personal-ai-os-doctor-browser-v1",
+    safe_to_share: true,
+    redaction: "Only allowlisted metadata. Credentials, paths, project content, and provider responses are excluded.",
+    database: {
+      status: statuses.includes(report.database.status) ? report.database.status : "attention",
+      migration_version: Number.isInteger(report.database.migration_version) ? report.database.migration_version : null,
+    },
+    data_directory: { exists: report.data_directory.exists, writable: report.data_directory.writable },
+    providers: { configured: report.providers.configured, values_exposed: false },
+    projects: { registered_count: Number.isInteger(report.projects?.registered_count) && (report.projects?.registered_count || 0) >= 0 ? report.projects!.registered_count : 0, names_exposed: false },
+    recovery: { metadata_file_count: Number.isInteger(report.recovery?.metadata_file_count) && (report.recovery?.metadata_file_count || 0) >= 0 ? report.recovery!.metadata_file_count : 0, details_exposed: false },
+    limitations: ["This report does not verify live provider inference, Windows updates, or physical-device behavior."],
+  };
+}
+
+function doctorGuidance(report: DoctorReport): DoctorGuidance {
+  if (!isRedactedDoctorReport(report)) {
+    return {
+      title: "Doctor report needs review",
+      steps: ["The response did not meet the expected redaction contract. Do not download or share it; check the local API version before retrying."],
+    };
+  }
+  const steps: string[] = [];
+  if (!report.data_directory.exists || !report.data_directory.writable) {
+    steps.push("Local data storage is missing or not writable. Check the local API data directory and its permissions; do not erase existing files.");
+  }
+  if (report.database.status === "legacy_detected") {
+    steps.push("A legacy database was detected. Back up existing data and follow the documented migration guidance; do not delete or rename the original.");
+  } else if (report.database.status !== "ok") {
+    steps.push("Database health is not confirmed. Preserve existing data, make a backup, and use the backup and restore guide before attempting repairs.");
+  }
+  if (!Object.values(report.providers.configured).some(Boolean)) {
+    steps.push("No model provider is configured. No-key startup is safe; add a credential to the local API or enable supported local Ollama, restart the API, then test the connection above.");
+  }
+  return {
+    title: steps.length ? "Local setup next steps" : "Local setup checks passed",
+    steps: [...steps, "This read-only check does not verify a live AI request, installed Windows updates, or physical-device behavior."],
+  };
+}
 
 export function SettingsGovernancePanel({ providers }: { providers: Provider[] }) {
   const [usage, setUsage] = useState<Usage>({ items: [] });
@@ -19,6 +85,7 @@ export function SettingsGovernancePanel({ providers }: { providers: Provider[] }
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState("");
   const [lifecycleNotice, setLifecycleNotice] = useState("");
+  const [doctorReview, setDoctorReview] = useState<DoctorGuidance | null>(null);
   const [lifecycleBusy, setLifecycleBusy] = useState(false);
   const [eraseConfirmation, setEraseConfirmation] = useState("");
   const configured = providers.filter((item) => item.configured);
@@ -79,12 +146,30 @@ export function SettingsGovernancePanel({ providers }: { providers: Provider[] }
     } finally { setLifecycleBusy(false); }
   }
 
+  async function inspectDoctor() {
+    if (lifecycleBusy) return;
+    setLifecycleBusy(true);
+    try {
+      const report = await apiJson<DoctorReport>("/api/doctor");
+      setDoctorReview(doctorGuidance(report));
+    } catch {
+      setDoctorReview({
+        title: "Local setup check unavailable",
+        steps: ["The local API did not return a Doctor report. Check that it is running and retry; no local data was modified."],
+      });
+    } finally { setLifecycleBusy(false); }
+  }
+
   async function downloadDoctorReport() {
     setLifecycleBusy(true);
     try {
       const report = await apiJson<DoctorReport>("/api/doctor");
-      downloadJson("personal-ai-os-doctor-safe-report.json", report);
-      setLifecycleNotice(report.safe_to_share ? "Redacted Doctor report downloaded." : "Doctor report was not marked safe to share.");
+      if (!isRedactedDoctorReport(report)) {
+        setLifecycleNotice("Doctor report did not meet the redaction contract. Nothing was downloaded.");
+        return;
+      }
+      downloadJson("personal-ai-os-doctor-safe-report.json", safeDoctorDownload(report));
+      setLifecycleNotice("Redacted Doctor report downloaded.");
     } catch {
       setLifecycleNotice("Doctor report could not be created. Your local data was not changed.");
     } finally { setLifecycleBusy(false); }
@@ -112,7 +197,7 @@ export function SettingsGovernancePanel({ providers }: { providers: Provider[] }
         <article className="panel p-4 sm:p-5"><h3 className="text-[15px] font-medium">Core data export & erase</h3><p className="mt-2 text-sm leading-6 text-text-secondary">Download the portable core database before erasing it. Credentials, connector targets, private project state, project-native stores, files, and backup archives are excluded and are never claimed as erased by this control.</p><div className="mt-4 flex flex-wrap gap-3"><button type="button" className="button-quiet px-0 text-accent-hover" onClick={() => void downloadCoreExport()} disabled={lifecycleBusy}><Download aria-hidden size={15} />Download core export</button><a className="button-quiet px-0 text-accent-hover" href="/repository">Review files and activity</a></div><label className="mt-4 block text-xs font-medium text-text-secondary">Type <code>ERASE_CORE_DATA</code> to erase only the core database<input className="field mt-1.5 w-full" aria-label="Core data erase confirmation" value={eraseConfirmation} onChange={(event) => setEraseConfirmation(event.target.value)} autoComplete="off" /></label><button type="button" className="button-secondary mt-2 text-danger" onClick={() => void eraseCoreData()} disabled={lifecycleBusy || eraseConfirmation !== "ERASE_CORE_DATA"}><Trash2 aria-hidden size={15} />Erase core data</button></article>
         <article className="panel p-4 sm:p-5"><div className="flex items-center gap-2"><WalletCards aria-hidden size={17} className="text-text-tertiary" /><h3 className="text-[15px] font-medium">Usage & budget</h3></div><p className="mt-2 text-xs leading-5 text-text-secondary">Token figures are estimated unless a provider supplies reliable usage. Provider cost is shown as unknown until it is reliable; it is never presented as a bill.</p>{usage.items.length ? <dl className="mt-4 space-y-2 text-sm">{usage.items.map((item) => <div key={`${item.provider}-${item.model}`} className="flex justify-between gap-3 rounded-small bg-surface-subtle px-3 py-2"><dt>{item.provider} / {item.model}</dt><dd className="text-text-secondary">{item.requests} requests · {item.input_tokens + item.output_tokens} {item.token_precision.toLowerCase()} tokens</dd></div>)}</dl> : <p className="mt-4 text-sm text-text-tertiary">No usage recorded yet.</p>}<form className="mt-4 grid gap-2 sm:grid-cols-[1fr_1fr_auto]" onSubmit={saveBudget}><select className="field" aria-label="Budget period" value={period} onChange={(event) => setPeriod(event.target.value)}><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select><input className="field" aria-label="Estimated token limit" type="number" min="1" value={limitTokens} onChange={(event) => setLimitTokens(event.target.value)} /><button className="button-secondary" disabled={saving}>{saving ? "Saving…" : "Set hard limit"}</button></form>{budget.policies.map((item) => <p key={item.period} className={`mt-2 text-xs ${item.blocked ? "text-danger" : item.warn ? "text-warning" : "text-text-tertiary"}`}>{item.period}: {item.used_tokens}/{item.limit_tokens} estimated tokens{item.blocked ? " · requests stopped" : ""}</p>)}</article>
         <article className="panel p-4 sm:p-5"><h3 className="text-[15px] font-medium">Provider routing</h3><p className="mt-2 text-xs leading-5 text-text-secondary">Fallback preserves authorized workspace context only. Any tool action stays on the selected provider and requires a new confirmation.</p><form className="mt-4 grid gap-3" onSubmit={saveRouting}><label className="text-xs font-medium text-text-secondary">Policy<select className="field mt-1.5 w-full" value={routing.policy} onChange={(event) => setRouting((current) => ({ ...current, policy: event.target.value as Routing["policy"] }))}><option value="STRICT_PROVIDER">Strict provider</option><option value="FALLBACK_ALLOWED">Fallback allowed</option><option value="ASK_BEFORE_FALLBACK">Ask before fallback</option></select></label>{routing.policy !== "STRICT_PROVIDER" && <div className="grid gap-2 sm:grid-cols-2"><label className="text-xs font-medium text-text-secondary">Fallback service<select className="field mt-1.5 w-full" value={routing.fallback_provider || ""} onChange={(event) => { const next = configured.find((item) => item.id === event.target.value); setRouting((current) => ({ ...current, fallback_provider: event.target.value || undefined, fallback_model: next?.models[0] })); }}><option value="">Choose service</option>{configured.map((item) => <option key={item.id} value={item.id}>{item.id}</option>)}</select></label><label className="text-xs font-medium text-text-secondary">Fallback model<select className="field mt-1.5 w-full" value={routing.fallback_model || ""} onChange={(event) => setRouting((current) => ({ ...current, fallback_model: event.target.value || undefined }))}><option value="">Choose model</option>{configured.find((item) => item.id === routing.fallback_provider)?.models.map((model) => <option key={model} value={model}>{model}</option>)}</select></label></div>}<button className="button-secondary" disabled={saving}>{saving ? "Saving…" : "Save routing"}</button></form></article>
-        <article className="panel p-4 sm:p-5 lg:col-span-2"><div className="flex items-center gap-2"><DatabaseBackup aria-hidden size={17} className="text-text-tertiary" /><h3 className="text-[15px] font-medium">Backup, restore & diagnostics</h3></div><p className="mt-2 text-sm leading-6 text-text-secondary">Before a restore or update, create a verified data backup. Backup archives never include provider credentials. Doctor reports database integrity, migration status, safe configuration booleans, and recovery metadata counts without exposing their contents.</p><div className="mt-3 flex flex-wrap gap-3"><a className="button-quiet px-0 text-accent-hover" href="https://github.com/sui-ni2/personal-ai-os/blob/main/docs/transfer-and-backup.md">Backup & restore guide</a><a className="button-quiet px-0 text-accent-hover" href="https://github.com/sui-ni2/personal-ai-os/blob/main/docs/windows-distribution.md">Windows update & rollback</a><button type="button" className="button-quiet px-0 text-accent-hover" onClick={() => void downloadDoctorReport()} disabled={lifecycleBusy}><HeartPulse aria-hidden size={15} />Download safe Doctor report</button><span className="text-xs text-text-tertiary">Windows signing, Docker, physical devices, and screen readers remain separate external checks.</span></div></article>
+        <article className="panel p-4 sm:p-5 lg:col-span-2"><div className="flex items-center gap-2"><DatabaseBackup aria-hidden size={17} className="text-text-tertiary" /><h3 className="text-[15px] font-medium">Backup, restore & diagnostics</h3></div><p className="mt-2 text-sm leading-6 text-text-secondary">Before a restore or update, create a verified data backup. Backup archives never include provider credentials. Doctor reports database integrity, migration status, safe configuration booleans, and recovery metadata counts without exposing their contents.</p><div className="mt-3 flex flex-wrap gap-3"><a className="button-quiet px-0 text-accent-hover" href="https://github.com/sui-ni2/personal-ai-os/blob/main/docs/transfer-and-backup.md">Backup & restore guide</a><a className="button-quiet px-0 text-accent-hover" href="https://github.com/sui-ni2/personal-ai-os/blob/main/docs/windows-distribution.md">Windows update & rollback</a><button type="button" className="button-quiet px-0 text-accent-hover" onClick={() => void inspectDoctor()} disabled={lifecycleBusy}><HeartPulse aria-hidden size={15} />Check local setup</button><button type="button" className="button-quiet px-0 text-accent-hover" onClick={() => void downloadDoctorReport()} disabled={lifecycleBusy}><Download aria-hidden size={15} />Download safe Doctor report</button><span className="text-xs text-text-tertiary">Windows signing, Docker, physical devices, and screen readers remain separate external checks.</span></div>{doctorReview && <div className="mt-4 rounded-control bg-surface-subtle p-4 text-sm" role="status" aria-label="Local setup guidance" aria-live="polite"><h4 className="font-medium">{doctorReview.title}</h4><ul className="mt-2 list-disc space-y-2 pl-5 text-text-secondary">{doctorReview.steps.map((step) => <li key={step}>{step}</li>)}</ul></div>}</article>
       </div>
       {saved && <p className="flex items-center gap-2 text-sm text-success" role="status"><Check aria-hidden size={15} />{saved}</p>}
       {lifecycleNotice && <p className="flex items-center gap-2 text-sm text-text-secondary" role="status"><Check aria-hidden size={15} />{lifecycleNotice}</p>}

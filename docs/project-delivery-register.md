@@ -1,6 +1,6 @@
 # Personal AI OS — persistent project delivery register
 
-> **Dated snapshot:** 2026-11-20, Asia/Singapore. Repository: `sui-ni2/personal-ai-os`. This is an index, not a live GitHub/CI status feed.
+> **Dated snapshot:** 2026-11-22, Asia/Singapore. Repository: `sui-ni2/personal-ai-os`. This is an index, not a live GitHub/CI status feed.
 > `docs/project-delivery-register.json` is the machine-readable inventory. Check current code, PR head, reviews and exact SHA before any modification.
 
 ## Rules for continuing the work
@@ -18,18 +18,17 @@
 | ID | Priority | Workstream | Next verified step |
 | --- | --- | --- | --- |
 | PAI-012 | P1 | Backup, migration, restore and user data portability | Obtain a real Windows update/rollback run with package SHA-256, backup integrity, preserved-record inventory, and post-rollback health; do not infer it from deterministic CI. |
-| PAI-020 | P0 | Next.js 16.4.5 security patch review | Prioritize #168 without automatic merge. |
 | PAI-021 | P2 | Python 3.15-slim major compatibility | Review #166 as a compatibility project, not an automatic patch. |
 | PAI-022 | P1 | vinext and Cloudflare packages alignment | Review #162/#163 together without fragmentary upgrades. |
 | PAI-023 | P2 | UI icons and Node type dependency maintenance | Review #159/#161 only for warranted benefit. |
 | PAI-031 | P1 | Maintainer and open-source application evidence | Keep public ledger accurate; check application result only through actual decision evidence. |
+| PAI-035 | P0 | Transitive source-map-js security resolution | Review exact-head frozen lockfile install, frontend, hosted build, CodeQL and platform checks; classify the related Dependabot outcome separately. |
 
 ### 2 · Designed and ready to build
 
 | ID | Priority | Workstream | Next verified step |
 | --- | --- | --- | --- |
 | PAI-016 | P0 | v0.4 release-candidate gate and stable handoff | Finish candidate verification; do not automatically merge, tag or release. |
-| PAI-033 | P1 | First-run Doctor diagnostic comprehension | Build targeted diagnostic UX/regression without exposing private state. |
 
 ### 3 · Design needed before implementation
 
@@ -53,6 +52,7 @@
 | PAI-018 | P0 | Independent first-use and real-workflow evidence | Continue Issues #7 and #55; do not manufacture adoption. |
 | PAI-019 | P0 | Independent Windows and macOS/Linux clean installs | Continue Issues #15 and #56 and fix reproduced friction. |
 | PAI-024 | P1 | Cross-client project-state handoff acceptance | Compare two genuine clients using synthetic handoff; keep unpublished working materials private. |
+| PAI-033 | P1 | First-run Doctor diagnostic comprehension | Observe an actual no-key first-run user interpreting Doctor guidance; record the app SHA, environment, safe action chosen and outcome without private diagnostic contents. |
 
 ### 5 · Deliberately deferred with review triggers
 
@@ -69,16 +69,18 @@
 | PAI-001 | P0 | Published v0.3.0 community release | Preserve evidence without re-releasing completed work. |
 | PAI-002 | P0 | Project persistence, handoff, and restart recovery | Extend, not rebuild, the existing persistence engine. |
 | PAI-003 | P0 | Recorded state is not completed work (PR #169) | Preserve neutral Recorded labels; reopen only if a regression is observed. |
-| PAI-004 | P0 | Project State Reconciler read-only v1 | Preserve the metadata-only, bounded API invariants; keep the Projects-screen preview and conflict classification as separate future increments. |
+| PAI-004 | P0 | Project State Reconciler read-only v1 | Preserve the metadata-only, bounded API invariants; any future extension must use a separate reviewed workstream. |
+| PAI-034 | P0 | Projects-screen evidence review and conflict classification | Preserve the read-only scope; semantic cross-source reconciliation, writable lifecycle transitions and the external pilot require separate design and explicit owner consent. |
 | PAI-006 | P0 | Provider-neutral core and project isolation | Preserve existing boundaries; real provider use has a separate gate. |
 | PAI-009 | P0 | Budget reservation and usage safety | Keep regression coverage; invoices need independent evidence. |
 | PAI-010 | P0 | MCP side-effect confirmation and send-scope receipt | Do not weaken permission or replay boundaries. |
 | PAI-011 | P0 | Interrupted execution and unknown side-effect safety | Keep external provider failures distinct from fixture coverage. |
 | PAI-032 | P2 | Upstream FastMCP contribution and related issue | Monitor only meaningful regression or follow-up. |
+| PAI-020 | P0 | Next.js 16.4.5 security patch review | Preserve the reviewed Next.js 16.4.5 security patch and post-merge exact-SHA checks; treat source-map-js PAI-035 independently. |
 
 ## Immediate build order
 
-- **PAI-003/PAI-004:** both are completed with exact-head CI; preserve the distinction between recorded state and real execution. **PAI-005** remains a separate lifecycle design.
+- **PAI-003/PAI-004/PAI-034:** the read-only continuity API, Projects evidence review and structural metadata classification are merged with exact-head CI. Preserve the distinction between recorded state and real execution. **PAI-005** remains a separate lifecycle design.
 - **PAI-020:** security fix #168 remains a separate review and merge decision; **PAI-021/022/023** are compatibility-sensitive updates, not an automated merge batch.
 - **PAI-016:** assemble exact-head v0.4 evidence; maintain the independent provider, device, install and multi-day-use limitations recorded in PAI-007/013/015/017/018/019.
 - **PAI-024:** perform real cross-client pilot only in authorized environments; do not copy or publish private candidate source.

@@ -1,7 +1,7 @@
 # Project State Reconciler — read-only v1 design
 
-**Status:** PR #169 merged as `f95ee9f` and PR #170 merged as `fb9008167b013e3d19dbfc50323cbf1b4e5412e2`. PR #170 exact-head CI, v0.4 Hardening Gates, CodeQL, Dependency Review, and Platform Readiness passed; post-merge main CI also passed. The bounded read-only API v1 is implemented. No external user pilot or user-facing Projects preview has been validated; conflict classification and the UI remain future increments.
-**Parent workstream:** PAI-004 in [project delivery register](project-delivery-register.md).
+**Status:** PAI-004 read-only metadata API v1 merged in PR #170 as `fb9008167b013e3d19dbfc50323cbf1b4e5412e2`; PR #172 reconciled its delivery register. PAI-034 Projects evidence review and structural metadata classification merged in PR #174 as `8ad1d7f77488f7be33f64190dc2d2cb4b005d831`. Final exact-head PR checks and post-merge main CI, CodeQL and Platform Readiness passed; provider smoke was skipped. No semantic cross-source reconciliation or external user pilot is claimed.
+**Parent workstreams:** PAI-004 read-only API v1 and PAI-034 Projects preview/classification in [project delivery register](project-delivery-register.md).
 **Existing implementation to reuse:** [persistent project state](persistent-project-state.md), [bounded handoff](project-handoff.md), [recovery](project-handoff.md#restart-recovery), and the Project Control Center.
 
 ## Problem
@@ -60,19 +60,44 @@ headers, or another project's storage records. Only actor-authorized metadata is
 
 ## Evidence classification (invariants)
 
-The current v1 response emits only `RECORDED` and `WORKFLOW_POSITION`. Other labels below are future classification targets, not current API output.
+The original PAI-004 API v1 emitted only `RECORDED` and `WORKFLOW_POSITION`. PAI-034 extends the same bounded endpoint with deterministic metadata-only classifications; it does not add a writable reconciliation action.
 
 | Label | Meaning | Never infer |
 | --- | --- | --- |
-| `RECORDED` | Versioned state exists in the authoritative project store | Action executed or user verified |
-| `WORKFLOW_POSITION` | Workflow `completed_steps` and `next_step` are stored | External side effect happened |
-| `NEEDS_CONFIRMATION` | A claim mentions external completion but no matching trusted confirmation is available | Success from assistant prose, CI, or tool intent |
-| `CONFLICT` | Versions, locks or source records disagree | Overwrite the newest or locked state |
-| `INSUFFICIENT_EVIDENCE` | Missing, truncated or unverified source material prevents classification | Invent missing evidence |
+| `RECORDED` | A versioned state row or returned execution result is stored | Action executed or user independently verified |
+| `WORKFLOW_POSITION` | Workflow cursor, status and next recorded step are stored consistently | External side effect happened |
+| `NEEDS_CONFIRMATION` | An external side effect is still started/unknown, or retry requires explicit confirmation | Success from assistant prose, CI, or tool intent |
+| `CONFLICT` | Current state/history versions or workflow cursor/transition versions contradict each other | Overwrite the newest or locked state |
+| `INSUFFICIENT_EVIDENCE` | Expected state/transition history is missing, a status is unrecognized, or the bounded preview is truncated | Invent missing evidence |
 
 A workflow with `status=completed` **only** means its own recorded steps reached the
 terminal position. A separate verified external effect needs a specific receipt in the
 authoritative execution/confirmation system. Public CI green is not product adoption.
+
+### PAI-034 deterministic metadata rules
+
+- State history expects versions `1..current_version-1`. A missing row is
+  `INSUFFICIENT_EVIDENCE`; duplicate, future or contradictory versions are
+  `CONFLICT`. A locked state remains `RECORDED` with `review_required=true`:
+  a lock is protection, not proof of conflicting values.
+- Workflow version must match its cursor, terminal status and transition versions.
+  Missing transitions are `INSUFFICIENT_EVIDENCE`; inconsistent cursors or
+  transition versions are `CONFLICT`. External execution remains `UNVERIFIED`.
+- Only tenant/project-scoped execution rows involving an external side effect or
+  explicit retry confirmation are included. `started`/`outcome_unknown` and
+  `retry_requires_confirmation` are `NEEDS_CONFIRMATION`. A completed tool
+  response is merely `RECORDED`, not independent proof of the external result.
+- The endpoint selects no state values, transition evidence, execution detail JSON,
+  provider/model identifiers, credentials or conversation content. A fingerprint is
+  computed from returned metadata only. Truncation is explicit and raises the
+  overall review flag.
+- Optimistic-concurrency rejections return HTTP 409 to the caller but are not stored
+  as durable conflict receipts. The preview therefore reports only contradictions
+  visible in persisted metadata; it does not invent a historical conflict from a
+  rejected write attempt.
+- The Projects panel loads only on user request. Closing it aborts any pending read
+  and discards the in-memory snapshot; it performs no writes.
+
 
 ## Safety and concurrency
 
@@ -92,23 +117,23 @@ authoritative execution/confirmation system. Public CI green is not product adop
 
 1. **Read-only API v1 — completed in PR #170:** metadata-only state/workflow records,
    SQL-bounded reads, project scoping, explicit truncation and no external-completion claim.
-2. **Conflict classification — future:** add stale-version, concurrent mismatch, locked
-   state and insufficient-evidence classifications only with deterministic fixtures and
-   explicit source/version semantics.
-3. **User preview — future:** extend Projects with accessible RECORDED and
-   NEEDS_CONFIRMATION presentation only after a separate reviewed increment; support
-   keyboard and screen-reader behavior.
-4. **API verification — passed:** focused backend regressions, CI, v0.4 Hardening Gates,
-   CodeQL, Dependency Review and Platform Readiness passed on PR #170's exact head.
-   Future UI work still requires TypeScript, production build, Playwright/axe and exact-head CI.
-5. **External pilot — not done:** only with explicit consent and a non-sensitive fixture,
-   compare ordinary chat summary versus a verified checkpoint in two actual clients and
-   note recoverability/error rates. Private external-client artifacts are **not** authorized
-   for publication by this RFC.
+2. **PAI-034 classification and Projects preview — completed in PR #174:** deterministic
+   state-history, workflow-transition and external-execution classification; bounded
+   metadata-only response; opt-in closable UI; no automatic conflict resolution or mutation.
+3. **Verification — passed on PR #174 exact head:** backend/frontend, Playwright daily-use and
+   axe on desktop/mobile, CodeQL, Dependency Review, v0.4 Hardening Gates and Platform
+   Readiness. Post-merge main CI, CodeQL and Platform Readiness also passed. Provider smoke
+   was skipped by workflow configuration and is not counted as a pass.
+4. **External pilot — not done:** only with explicit owner consent and a non-sensitive fixture,
+   compare ordinary chat summary versus a verified checkpoint in two actual clients and note
+   recoverability/error rates. Private external-client artifacts are **not** authorized for
+   publication by this RFC.
+5. **PAI-005 remains separate:** writeable Task/Decision/Outcome lifecycle transitions require
+   their own accepted design and must not be smuggled into this read-only preview.
 
 ## Promotion rule
 
-PAI-004 becomes `active` only after a scoped branch/PR exists and the implementation
-is checked for overlap with #169. It becomes `completed` only after a reviewed merge,
-matching exact-SHA deterministic gates, and a clear statement of the remaining external
-limitations. PAI-005 remains a separate design track for writeable lifecycle transitions.
+PAI-004 is completed for the read-only metadata API in PR #170. PAI-034 is completed in
+PR #174 after the reviewed merge and exact-head deterministic gates. Its scope remains
+read-only and metadata-only; semantic cross-source reconciliation, external pilot and
+writeable lifecycle transitions are not included. PAI-005 remains a separate design track.
