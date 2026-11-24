@@ -201,15 +201,16 @@
     },
     {
       "id": "PAI-016",
-      "lane": "ready",
+      "lane": "active",
       "priority": "P0",
       "title": "v0.4 release-candidate gate and stable handoff",
       "source_refs": [
         "docs/v0.4-release-scope.md"
       ],
       "acceptance": "Exact-SHA checks, soak, review and explicit external limitations meet published gate.",
-      "next_step": "Finish candidate verification; do not automatically merge, tag or release.",
-      "design_ref": "docs/v0.4-release-scope.md"
+      "next_step": "Require exact-SHA v0.4 Hardening Gates in release evidence; review focused regressions and remaining candidate, soak, and external acceptance evidence before any release.",
+      "design_ref": "docs/v0.4-release-scope.md",
+      "work_ref": "scripts/release_evidence_verifier.py"
     },
     {
       "id": "PAI-017",

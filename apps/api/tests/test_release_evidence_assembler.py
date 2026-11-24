@@ -54,3 +54,24 @@ def test_assembler_does_not_invent_missing_required_checks() -> None:
 def test_assembler_requires_full_expected_sha() -> None:
     with pytest.raises(ValueError, match="40-character"):
         assemble_release_evidence({"checks": []}, expected_sha="abc")
+
+
+def test_assembler_preserves_failed_hardening_gate_for_verifier() -> None:
+    gate = _check("v0.4 Hardening Gates")
+    gate["conclusion"] = "failure"
+    names = ("CI", "CodeQL", "Dependency Review", "Platform Readiness", "Release provider smoke")
+    bundle = assemble_release_evidence(
+        {"checks": [_check(name) for name in names] + [gate]}, expected_sha=SHA
+    )
+    assert any(
+        item["name"] == "v0.4 Hardening Gates" and item["conclusion"] == "failure"
+        for item in bundle["checks"]
+    )
+    result = verify_release_evidence(
+        bundle, expected_sha=SHA, as_of=datetime(2026, 8, 30, 1, tzinfo=timezone.utc)
+    )
+    assert result.ready_to_tag is False
+    assert any(
+        blocker.code == "check_not_successful" and blocker.check == "v0.4 Hardening Gates"
+        for blocker in result.blockers
+    )

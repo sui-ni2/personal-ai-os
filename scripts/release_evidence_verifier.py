@@ -15,6 +15,7 @@ REQUIRED_CHECKS: tuple[str, ...] = (
     "CodeQL",
     "Dependency Review",
     "Platform Readiness",
+    "v0.4 Hardening Gates",
     "Release provider smoke",
 )
 

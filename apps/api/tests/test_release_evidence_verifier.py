@@ -125,3 +125,37 @@ def test_future_check_blocks_release() -> None:
 def test_expected_sha_requires_full_commit_sha() -> None:
     with pytest.raises(ValueError, match="40-character"):
         verify_release_evidence(_payload(), expected_sha="abc123", as_of=AS_OF)
+
+
+def test_legacy_five_check_bundle_cannot_pass_v04_release_gate() -> None:
+    # Literal legacy list: this must fail even if REQUIRED_CHECKS changes.
+    legacy_names = (
+        "CI", "CodeQL", "Dependency Review", "Platform Readiness", "Release provider smoke"
+    )
+    result = verify_release_evidence(
+        _payload([_check(name) for name in legacy_names]), expected_sha=SHA, as_of=AS_OF
+    )
+    assert result.ready_to_tag is False
+    assert ("missing_check", "v0.4 Hardening Gates") in _codes(result)
+
+
+@pytest.mark.parametrize(
+    ("overrides", "blocker"),
+    [
+        ({"conclusion": "failure"}, "check_not_successful"),
+        ({"conclusion": "skipped"}, "check_not_successful"),
+        ({"conclusion": None}, "check_not_successful"),
+        ({"head_sha": "b" * 40}, "check_commit_mismatch"),
+        ({"completed_at": "2026-08-15T00:00:00Z"}, "stale_check"),
+    ],
+)
+def test_hardening_gate_must_be_successful_fresh_and_same_commit(
+    overrides: dict[str, object], blocker: str
+) -> None:
+    checks = [
+        _check(name, **overrides) if name == "v0.4 Hardening Gates" else _check(name)
+        for name in REQUIRED_CHECKS
+    ]
+    result = verify_release_evidence(_payload(checks), expected_sha=SHA, as_of=AS_OF)
+    assert result.ready_to_tag is False
+    assert (blocker, "v0.4 Hardening Gates") in _codes(result)

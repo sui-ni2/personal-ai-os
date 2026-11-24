@@ -23,12 +23,12 @@
 | PAI-023 | P2 | UI icons and Node type dependency maintenance | Review #159/#161 only for warranted benefit. |
 | PAI-031 | P1 | Maintainer and open-source application evidence | Keep public ledger accurate; check application result only through actual decision evidence. |
 | PAI-035 | P0 | Transitive source-map-js security resolution | Review exact-head frozen lockfile install, frontend, hosted build, CodeQL and platform checks; classify the related Dependabot outcome separately. |
+| PAI-016 | P0 | v0.4 release-candidate gate and stable handoff | Require exact-SHA v0.4 Hardening Gates in release evidence; review focused regressions and remaining candidate, soak, and external acceptance evidence before any release. |
 
 ### 2 · Designed and ready to build
 
 | ID | Priority | Workstream | Next verified step |
 | --- | --- | --- | --- |
-| PAI-016 | P0 | v0.4 release-candidate gate and stable handoff | Finish candidate verification; do not automatically merge, tag or release. |
 
 ### 3 · Design needed before implementation
 
