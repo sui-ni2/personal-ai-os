@@ -61,9 +61,10 @@ Tests: `apps/api/tests/test_dependency_risk_summary.py`.
 - CodeQL;
 - Dependency Review;
 - Platform Readiness;
+- v0.4 Hardening Gates (migration, governance, privacy, recovery, Windows artifact contract, and Chromium accessibility);
 - Release provider smoke.
 
-A check blocks readiness when it is missing, duplicated, not successful, attached to another commit, missing an HTTPS audit URL, in the future, or older than the configured freshness window. The verifier does not create a tag or release.
+A check blocks readiness when it is missing, duplicated, not successful, attached to another commit, missing an HTTPS audit URL, in the future, or older than the configured freshness window. The verifier does not create a tag or release. A green bundle is necessary but not sufficient: review the exact-SHA workflow/job sources, verify the deterministic state-growth soak in CI, and retain the independent acceptance limits in `docs/v0.4-real-world-readiness.md`. A skipped provider smoke does not pass the release gate.
 
 ```bash
 python scripts/release_evidence_verifier.py evidence.json \
