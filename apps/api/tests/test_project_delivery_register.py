@@ -36,22 +36,29 @@ def test_duplicated_workstream_cannot_silently_pass() -> None:
 
 def test_completion_without_proof_is_rejected() -> None:
     data = _sample()
-    item = next(row for row in data["items"] if row["lane"] == "completed")
+    # Exercise a synthetic lane, independent of the live register's lane counts.
+    item = data["items"][0]
+    item.update(lane="completed", proof_ref="ROADMAP.md")
+    assert checker.validate_register(data, ROOT) == []
     item.pop("proof_ref")
     assert any("completed lane requires proof_ref" in e for e in checker.validate_register(data, ROOT))
 
 
 def test_implementation_ready_requires_an_existing_design() -> None:
     data = _sample()
-    item = next(row for row in data["items"] if row["lane"] == "ready")
+    item = data["items"][0]
+    item.update(lane="ready", design_ref="ROADMAP.md")
+    assert checker.validate_register(data, ROOT) == []
     item["design_ref"] = "docs/this-design-does-not-exist.md"
     assert any("design_ref" in e for e in checker.validate_register(data, ROOT))
 
 
 def test_external_and_deferred_work_cannot_lose_review_gates() -> None:
     data = _sample()
-    external = next(row for row in data["items"] if row["lane"] == "external")
-    deferred = next(row for row in data["items"] if row["lane"] == "deferred")
+    external, deferred = data["items"][:2]
+    external.update(lane="external", proof_needed="Synthetic independent evidence")
+    deferred.update(lane="deferred", review_trigger="Synthetic restart condition")
+    assert checker.validate_register(data, ROOT) == []
     external["proof_needed"] = ""
     deferred["review_trigger"] = ""
     errors = checker.validate_register(data, ROOT)
