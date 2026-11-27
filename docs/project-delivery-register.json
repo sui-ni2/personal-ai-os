@@ -159,9 +159,9 @@
       "source_refs": [
         "docs/transfer-and-backup.md"
       ],
-      "acceptance": "Backup/restore safety code exists; real installed upgrade is not proved by it.",
-      "next_step": "Advance integration safety checks; preserve all private records.",
-      "work_ref": "docs/windows-distribution.md"
+      "acceptance": "Archive-level backup/restore integrity and migration retry safety must pass exact-head CI; real installed update and rollback still require operator evidence.",
+      "next_step": "Obtain a real Windows update/rollback run with package SHA-256, backup integrity, preserved-record inventory, and post-rollback health; do not infer it from deterministic CI.",
+      "work_ref": "https://github.com/sui-ni2/personal-ai-os/pull/173"
     },
     {
       "id": "PAI-013",

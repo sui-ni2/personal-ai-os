@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import sqlite3
+from datetime import datetime, timezone
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
+import personal_ai_os.db as db_module
 from personal_ai_os.db import Database, MIGRATIONS, MigrationSafetyError, _statements
 
 
@@ -134,3 +137,46 @@ def test_locked_database_refuses_to_migrate_without_schema_change(tmp_path: Path
         lock.rollback()
         lock.close()
     assert _versions(Database(path)) == list(range(1, 9))
+
+
+class FixedClock(datetime):
+    @classmethod
+    def now(cls, tz=None):
+        return datetime(2026, 10, 1, tzinfo=timezone.utc)
+
+
+def test_failed_migration_retry_keeps_distinct_verified_private_snapshots(tmp_path: Path, monkeypatch) -> None:
+    path = tmp_path / "retry.sqlite3"
+    _legacy_v5_database(path)
+    monkeypatch.setattr(db_module, "datetime", FixedClock)
+    identifiers = iter(["first-snapshot", "second-snapshot"])
+    monkeypatch.setattr(db_module, "uuid4", lambda: SimpleNamespace(hex=next(identifiers)))
+
+    def fail_before_schema(version: int, phase: str) -> None:
+        if version == 6 and phase == "before_schema":
+            raise sqlite3.OperationalError("simulated interruption")
+
+    with pytest.raises(MigrationSafetyError, match="rolled back"):
+        Database(path, migration_failure_hook=fail_before_schema).migrate()
+
+    first_backup = next(tmp_path.glob("retry.sqlite3.backup-before-v6-*"))
+    first_bytes = first_backup.read_bytes()
+    with Database(path).connect() as connection:
+        connection.execute(
+            "INSERT INTO conversations(id, title, provider, model, project_id, created_at, updated_at, tenant_id) "
+            "VALUES ('conversation-2', 'Later private conversation', 'openai', 'model-2', 'legacy-project', "
+            "'2026-01-02T00:00:00+00:00', '2026-01-02T00:00:00+00:00', 'local')"
+        )
+
+    Database(path).migrate()
+    backups = sorted(tmp_path.glob("retry.sqlite3.backup-before-v6-*"))
+    assert len(backups) == 2
+    assert first_backup.read_bytes() == first_bytes
+    counts = []
+    for backup_path in backups:
+        with sqlite3.connect(backup_path) as connection:
+            assert connection.execute("PRAGMA quick_check").fetchone()[0] == "ok"
+            versions = [row[0] for row in connection.execute("SELECT version FROM schema_migrations ORDER BY version")]
+            assert versions == [1, 2, 3, 4, 5]
+            counts.append(connection.execute("SELECT COUNT(*) FROM conversations").fetchone()[0])
+    assert sorted(counts) == [1, 2]

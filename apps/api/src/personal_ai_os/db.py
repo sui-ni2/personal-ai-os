@@ -394,10 +394,28 @@ class Database:
         if existed_before and pending:
             timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
             backup_path = self.path.with_name(
-                f"{self.path.name}.backup-before-v{pending[0][0]}-{timestamp}"
+                f"{self.path.name}.backup-before-v{pending[0][0]}-{timestamp}-{uuid4().hex}.sqlite3"
             )
-            with sqlite3.connect(self.path) as source, sqlite3.connect(backup_path) as target:
-                source.backup(target)
+            created_backup = False
+            try:
+                with backup_path.open("xb"):
+                    pass
+                created_backup = True
+                with sqlite3.connect(self.path) as source, sqlite3.connect(backup_path) as target:
+                    source.backup(target)
+                with sqlite3.connect(backup_path) as verification:
+                    integrity = verification.execute("PRAGMA quick_check").fetchone()[0]
+                    backup_versions = {
+                        row[0] for row in verification.execute("SELECT version FROM schema_migrations")
+                    }
+                if integrity != "ok" or backup_versions != applied:
+                    raise sqlite3.DatabaseError("Pre-migration backup failed integrity or schema-version verification")
+            except Exception as exc:
+                if created_backup:
+                    backup_path.unlink(missing_ok=True)
+                raise MigrationSafetyError(
+                    "Could not create and verify a unique pre-migration backup; migration was not started."
+                ) from exc
         try:
             with self.connect() as connection:
                 connection.execute("BEGIN IMMEDIATE")
