@@ -311,3 +311,64 @@ def test_legacy_v1_archive_without_sha256_file_list_remains_restorable(tmp_path)
     target = tmp_path / "restored"
     assert restore.restore(archive, target) is None
     assert (target / "legacy-record.txt").read_text(encoding="utf-8") == "legacy private record"
+
+
+@pytest.mark.parametrize("relative", ["manifest.json", "data", "data/nested.txt"])
+def test_backup_round_trip_preserves_names_inside_data_root(tmp_path, relative):
+    backup = _script_module("backup")
+    restore = _script_module("restore")
+    source = tmp_path / "source"
+    fixture = source / relative
+    fixture.parent.mkdir(parents=True, exist_ok=True)
+    fixture.write_text("synthetic fixture", encoding="utf-8")
+
+    archive = backup.build_backup(source, tmp_path / "backups")
+    target = tmp_path / "restored"
+    assert restore.restore(archive, target) is None
+    assert (target / relative).read_text(encoding="utf-8") == "synthetic fixture"
+
+
+def test_backup_rejects_case_colliding_directories_before_creating_archive(tmp_path):
+    backup = _script_module("backup")
+    source = tmp_path / "source"
+    (source / "Notes").mkdir(parents=True)
+    if (source / "notes").exists():
+        pytest.skip("Source filesystem is case-insensitive")
+    (source / "notes").mkdir()
+    (source / "Notes" / "first.txt").write_text("first", encoding="utf-8")
+    (source / "notes" / "second.txt").write_text("second", encoding="utf-8")
+    output = tmp_path / "backups"
+
+    with pytest.raises(SystemExit, match="case-colliding"):
+        backup.build_backup(source, output)
+
+    assert not list(output.glob("*.zip"))
+    assert (source / "Notes" / "first.txt").read_text(encoding="utf-8") == "first"
+    assert (source / "notes" / "second.txt").read_text(encoding="utf-8") == "second"
+
+
+@pytest.mark.parametrize(
+    "members",
+    [
+        ("data/Notes/first.txt", "data/notes/second.txt"),
+        ("data/Notes", "data/Notes/second.txt"),
+        ("data/Notes/first.txt", "data/Notes"),
+    ],
+)
+def test_restore_rejects_conflicting_implicit_parents_before_replacing_data(tmp_path, members):
+    restore = _script_module("restore")
+    archive = tmp_path / "conflict.zip"
+    with zipfile.ZipFile(archive, "w") as bundle:
+        bundle.writestr("manifest.json", json.dumps({"format": "personal-ai-os-data-backup-v1"}))
+        for member in members:
+            bundle.writestr(member, "synthetic fixture")
+    target = tmp_path / "existing-data"
+    target.mkdir()
+    sentinel = target / "must-survive.txt"
+    sentinel.write_text("existing data", encoding="utf-8")
+
+    with pytest.raises(SystemExit, match="case-colliding|file/directory conflict"):
+        restore.restore(archive, target)
+
+    assert sentinel.read_text(encoding="utf-8") == "existing data"
+    assert list(target.iterdir()) == [sentinel]

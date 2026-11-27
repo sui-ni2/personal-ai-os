@@ -79,11 +79,16 @@ def build_backup(data_dir: Path, output_dir: Path) -> Path:
     with tempfile.TemporaryDirectory(prefix="personal-ai-os-backup-") as temporary:
         staging = Path(temporary) / "data"
         staging.mkdir()
+        seen_paths: set[str] = set()
         for source in data_dir.rglob("*"):
             if source.is_symlink():
                 raise SystemExit(f"Backup data contains a symlink; refusing to follow it: {source}")
             relative = source.relative_to(data_dir)
             _assert_portable_relative_path(relative.as_posix())
+            path_key = relative.as_posix().casefold()
+            if path_key in seen_paths:
+                raise SystemExit("Backup data contains duplicate or case-colliding paths")
+            seen_paths.add(path_key)
             destination = staging / relative
             if source.is_dir():
                 destination.mkdir(parents=True, exist_ok=True)

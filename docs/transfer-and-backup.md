@@ -29,13 +29,17 @@ archive is verified against that manifest before it is returned, and restore ver
 same manifest before moving the current data directory. Older v1 archives without the
 file-digest list remain restorable. Empty nested directories are retained as well. A backup
 refuses to follow symlinks or special files, and the output directory must be outside the data
-directory so previous archives cannot become recursive backup input.
+directory so previous archives cannot become recursive backup input. Case-colliding
+source paths, including directory names, fail before an archive is created. Manifest
+paths are relative to the inner data directory; ordinary user files named
+`manifest.json` and nested `data/` paths remain restorable.
 
 ## Restore safely
 
 Stop the API before restoring. The restore command verifies the archive and its SHA-256 file manifest before touching the
 current data directory. It rejects absolute/traversal paths, Windows path aliases,
-symlinks, special files, duplicate/case-colliding entries, and unexpected archive roots.
+symlinks, special files, duplicate/case-colliding entries (including implicit parent
+directories), file/directory conflicts, and unexpected archive roots.
 It then moves any existing data directory aside instead of deleting it:
 
 ```powershell

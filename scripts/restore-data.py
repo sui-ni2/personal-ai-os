@@ -56,6 +56,7 @@ def safe_extract(bundle: zipfile.ZipFile, destination: Path) -> None:
     root = destination.resolve()
     root.mkdir(parents=True, exist_ok=True)
     seen: set[str] = set()
+    paths: dict[str, tuple[str, bool]] = {}
     for member in bundle.infolist():
         normalized = _normalize_archive_path(member.filename)
         if normalized not in {"data", "manifest.json"} and not normalized.startswith("data/"):
@@ -68,6 +69,14 @@ def safe_extract(bundle: zipfile.ZipFile, destination: Path) -> None:
         if key in seen:
             raise SystemExit("Backup contains duplicate or case-colliding paths")
         seen.add(key)
+        # Include implicit parent directories: legacy archives need not list them.
+        parts = normalized.split("/")
+        for count in range(1, len(parts) + 1):
+            prefix = "/".join(parts[:count])
+            entry = (prefix, count < len(parts) or member.is_dir())
+            previous = paths.setdefault(prefix.casefold(), entry)
+            if previous != entry:
+                raise SystemExit("Backup contains duplicate or case-colliding paths or a file/directory conflict")
         if member.flag_bits & 0x1:
             raise SystemExit("Encrypted backup entries are not supported")
         mode = (member.external_attr >> 16) & 0xFFFF
@@ -101,7 +110,9 @@ def _verify_manifest_files(manifest: dict[str, object], restored_data: Path) -> 
         if not isinstance(relative, str):
             raise SystemExit("Backup manifest contains an invalid file path")
         normalized = _normalize_archive_path(relative)
-        if normalized in {"data", "manifest.json"} or normalized.startswith("data/"):
+        # Manifest paths are relative to the inner data directory, not ZIP roots.
+        # A user file named manifest.json or an inner directory named data is valid.
+        if normalized != relative:
             raise SystemExit("Backup manifest contains an invalid data-relative path")
         if (
             type(size) is not int
