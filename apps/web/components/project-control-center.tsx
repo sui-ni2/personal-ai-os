@@ -36,6 +36,7 @@ export function ProjectControlCenter({ projectId }: { projectId: string }) {
   const [kind, setKind] = useState("task");
   const [text, setText] = useState("");
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState(false);
   const [editing, setEditing] = useState<StateRecord>();
   const sections = useMemo(() => Object.keys(labels), []);
 
@@ -58,6 +59,7 @@ export function ProjectControlCenter({ projectId }: { projectId: string }) {
     const value = text.trim();
     if (!value || saving) return;
     setSaving(true);
+    setSaveError(false);
     try {
       const namespace = editing?.namespace ?? kind;
       const key = editing?.key ?? `${namespace}-${Date.now()}`;
@@ -66,26 +68,30 @@ export function ProjectControlCenter({ projectId }: { projectId: string }) {
         body: JSON.stringify({
           namespace,
           key,
-          value: { summary: value },
+          value: { ...editing?.value, summary: value },
           source: "user-control-center",
-          ...(editing ? { expected_version: editing.version } : {}),
+          expected_version: editing?.version ?? 0,
         }),
       });
       setText("");
       setEditing(undefined);
       await load();
+    } catch {
+      setSaveError(true);
     } finally {
       setSaving(false);
     }
   }
 
   function beginEdit(record: StateRecord) {
+    setSaveError(false);
     setEditing(record);
     setKind(record.namespace);
     setText(summary(record));
   }
 
   function cancelEdit() {
+    setSaveError(false);
     setEditing(undefined);
     setText("");
   }
@@ -125,6 +131,7 @@ export function ProjectControlCenter({ projectId }: { projectId: string }) {
           {editing ? <button type="button" className="button-quiet min-h-10" disabled={saving} onClick={cancelEdit}>Cancel</button> : null}
         </div>
       </form>
+      {saveError ? <p role="alert" className="mt-2 text-sm text-text-secondary">Save could not be confirmed. Your draft is retained. Check the latest record before retrying; cancel and refresh to review any newer version.</p> : null}
 
       <p className="mt-4 text-xs leading-5 text-text-tertiary">
         These are recorded project updates, not proof of completed tasks, external actions, or verified outcomes.

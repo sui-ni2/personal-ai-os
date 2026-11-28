@@ -56,6 +56,42 @@ test("daily Project, Memory, send scope, budget hard stop, execution, and reload
   const projectItems = (await projectResponse.json()).items as { id: string; name: string }[];
   const projectId = projectItems.find((item) => item.name === projectName)?.id;
   expect(projectId).toBeTruthy();
+
+  // Edit a structured record through the real API and UI; a summary edit must not replace its other fields.
+  const stateUrl = `${api}/projects/${encodeURIComponent(projectId!)}/state/records`;
+  const controlUrl = `${api}/projects/${encodeURIComponent(projectId!)}/control-center`;
+  const structuredValue = { summary: "Structured task", details: { checklist: ["inspect", "verify"] }, evidence_ref: "synthetic-reference" };
+  const structured = await request.put(stateUrl, { data: { namespace: "task", key: "structured-edit", value: structuredValue, source: "playwright", expected_version: 0 } });
+  expect(structured.ok()).toBeTruthy();
+  await control.getByRole("button", { name: "Refresh", exact: true }).click();
+  await control.getByRole("button", { name: "Edit task Structured task", exact: true }).click();
+  await control.getByLabel("Project update").fill("Structured task revised");
+  await control.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(control.getByRole("button", { name: "Edit task Structured task revised", exact: true })).toBeVisible();
+  const saved = await request.get(controlUrl);
+  expect(saved.ok()).toBeTruthy();
+  const savedTask = (await saved.json()).state.tasks.find((item: { key: string }) => item.key === "structured-edit");
+  expect(savedTask.value).toEqual({ ...structuredValue, summary: "Structured task revised" });
+  expect(savedTask.version).toBe(2);
+
+  // A second writer advances the record; the stale UI must retain the draft without overwriting it.
+  await control.getByRole("button", { name: "Edit task Structured task revised", exact: true }).click();
+  await control.getByLabel("Project update").fill("Stale draft");
+  const newerValue = { ...structuredValue, summary: "Newer task version" };
+  const newer = await request.put(stateUrl, { data: { namespace: "task", key: "structured-edit", value: newerValue, source: "playwright", expected_version: 2 } });
+  expect(newer.ok()).toBeTruthy();
+  await control.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(control.getByRole("alert")).toContainText("Save could not be confirmed");
+  await expect(control.getByLabel("Project update")).toHaveValue("Stale draft");
+  const afterConflict = await request.get(controlUrl);
+  expect(afterConflict.ok()).toBeTruthy();
+  const currentTask = (await afterConflict.json()).state.tasks.find((item: { key: string }) => item.key === "structured-edit");
+  expect(currentTask.value).toEqual(newerValue);
+  expect(currentTask.version).toBe(3);
+  await control.getByRole("button", { name: "Cancel", exact: true }).click();
+  await control.getByRole("button", { name: "Refresh", exact: true }).click();
+  await expect(control.getByRole("button", { name: "Edit task Newer task version", exact: true })).toBeVisible();
+
   const workflow = await request.post(`${api}/projects/${encodeURIComponent(projectId!)}/workflows`, {
     data: { workflow_id: "reconciliation-e2e", run_key: "daily-use", steps: ["inspect", "verify"], source: "playwright" },
   });
