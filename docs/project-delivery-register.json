@@ -73,10 +73,11 @@
       "priority": "P0",
       "title": "Task/Decision/Outcome lifecycle provenance",
       "source_refs": [
-        "docs/product-contract.md"
+        "docs/product-contract.md",
+        "docs/project-lifecycle-provenance-rfc.md"
       ],
       "acceptance": "Explicit proof-aware lifecycle, version conflicts and user approvals are described before schema changes.",
-      "next_step": "Design lifecycle state transitions and failure tests.",
+      "next_step": "Review lifecycle RFC and approve the first bounded implementation slice.",
       "design_goal": "RFC for lifecycle version, proof scope and privacy"
     },
     {

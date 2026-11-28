@@ -34,7 +34,7 @@
 
 | ID | Priority | Workstream | Next verified step |
 | --- | --- | --- | --- |
-| PAI-005 | P0 | Task/Decision/Outcome lifecycle provenance | Design lifecycle state transitions and failure tests. |
+| PAI-005 | P0 | Task/Decision/Outcome lifecycle provenance | Review lifecycle RFC and approve the first bounded implementation slice. |
 | PAI-008 | P1 | Unified Settings and first-run information architecture | Write screen and consent/secret handling RFC before UI changes. |
 | PAI-025 | P2 | End-to-end speech input and spoken response | Design small voice acceptance and cancellation matrix. |
 | PAI-026 | P2 | Codex/Research project plugins | Specify one reference plugin and prove isolation. |
